@@ -1,0 +1,9 @@
+version=1
+id=3527751819
+title=[B42.16+] Zombaroid RU
+description=Русский перевод для [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3519916139]Zombaroid[/url] — мода, добавляющего камеру Polaroid и фотографии, которые можно просматривать и подписывать в игре.
+description=
+description=Workshop ID: 3527751819
+description=Mod ID: zombaroid_ru
+tags=Build 42;Language/Translation
+visibility=public

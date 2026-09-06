@@ -1,0 +1,8 @@
+name=Zombaroid RU
+id=zombaroid_ru
+poster=poster.png
+description=Русский перевод для Zombaroid
+modversion=1.1.0
+author=kolpaque
+require=\Zombaroid
+versionMin=42.16
