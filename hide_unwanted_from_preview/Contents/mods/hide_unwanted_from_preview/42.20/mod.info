@@ -1,0 +1,8 @@
+id=hide_unwanted_from_preview
+name=Hide Unwanted From Preview
+poster=poster.png
+icon=icon.png
+author=kolpaque
+modversion=1.0.0
+versionMin=42.20
+description=Hides items marked Unwanted from container tooltip previews.

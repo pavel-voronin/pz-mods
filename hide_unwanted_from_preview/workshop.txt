@@ -1,0 +1,7 @@
+version=1
+id=3803193430
+title=Hide Unwanted From Preview
+description=Hide unwanted item icons from bag, wallet and other inventory-container tooltips.
+description=Use the vanilla Set Unwanted action on an item. Its icon is hidden from container previews for that character; Unset Unwanted restores it. Actual contents, weight and inventory actions are unchanged.
+tags=Build 42;Interface;QoL
+visibility=public
