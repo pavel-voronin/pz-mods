@@ -1,0 +1,6 @@
+version=1
+id=3803015427
+title=Integer.MAX_VALUE Trait Points
+description="Unlimited" isn't 50,000 or 999,999. It's [b]2,147,483,647[/b]! Need more trait points? Try spending that many!
+tags=Build 42;Balance;Silly/Fun;Traits;QoL
+visibility=public

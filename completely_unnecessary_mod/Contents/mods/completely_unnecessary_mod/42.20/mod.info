@@ -1,0 +1,7 @@
+id=completely_unnecessary_mod
+name=Integer.MAX_VALUE Trait Points
+author=kolpaque
+poster=poster.png
+modversion=1.0.0
+versionMin=42.20
+description="Unlimited" isn't 50,000 or 999,999. It's 2,147,483,647! Need more trait points? Try spending that many!
