@@ -1,0 +1,9 @@
+{
+    "Sandbox_Kleptomaniac": "Cleptomane",
+    "Sandbox_Kleptomaniac_IntervalMinutes": "Intervalle (minutes de jeu)",
+    "Sandbox_Kleptomaniac_IntervalMinutes_tooltip": "Temps entre un vol réussi et la prochaine envie de voler. 0 désactive la mécanique.",
+    "Sandbox_Kleptomaniac_MaxWeight": "Poids maximal de l’objet",
+    "Sandbox_Kleptomaniac_MaxWeight_tooltip": "Poids limite d’un seul objet volé. 0 désactive la mécanique.",
+    "Sandbox_Kleptomaniac_RetryMinutes": "Délai après un échec (minutes de jeu)",
+    "Sandbox_Kleptomaniac_RetryMinutes_tooltip": "Si l’envie de voler reste insatisfaite, la prochaine tentative est repoussée du nombre de minutes de jeu indiqué."
+}

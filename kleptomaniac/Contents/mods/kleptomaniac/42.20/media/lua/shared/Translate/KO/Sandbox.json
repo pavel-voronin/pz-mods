@@ -1,0 +1,9 @@
+{
+    "Sandbox_Kleptomaniac": "도벽",
+    "Sandbox_Kleptomaniac_IntervalMinutes": "간격 (게임 내 분)",
+    "Sandbox_Kleptomaniac_IntervalMinutes_tooltip": "절도 성공 후 다음 충동이 생길 때까지의 시간입니다. 0으로 설정하면 기능이 비활성화됩니다.",
+    "Sandbox_Kleptomaniac_MaxWeight": "아이템 최대 무게",
+    "Sandbox_Kleptomaniac_MaxWeight_tooltip": "훔칠 아이템 하나의 무게 제한입니다. 0으로 설정하면 기능이 비활성화됩니다.",
+    "Sandbox_Kleptomaniac_RetryMinutes": "실패 후 대기 시간 (게임 내 분)",
+    "Sandbox_Kleptomaniac_RetryMinutes_tooltip": "훔치려는 충동이 충족되지 않으면 다음 시도는 지정한 게임 내 시간(분)만큼 지연됩니다."
+}

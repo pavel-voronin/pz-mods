@@ -1,0 +1,31 @@
+VERSION = 1,
+
+option Kleptomaniac.IntervalMinutes
+{
+    type = integer,
+    min = 0,
+    max = 10080,
+    default = 40,
+    page = Kleptomaniac,
+    translation = Kleptomaniac_IntervalMinutes,
+}
+
+option Kleptomaniac.MaxWeight
+{
+    type = double,
+    min = 0,
+    max = 50,
+    default = 2,
+    page = Kleptomaniac,
+    translation = Kleptomaniac_MaxWeight,
+}
+
+option Kleptomaniac.RetryMinutes
+{
+    type = integer,
+    min = 1,
+    max = 10080,
+    default = 10,
+    page = Kleptomaniac,
+    translation = Kleptomaniac_RetryMinutes,
+}

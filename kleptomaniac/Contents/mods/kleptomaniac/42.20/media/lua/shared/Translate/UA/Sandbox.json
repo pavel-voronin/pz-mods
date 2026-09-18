@@ -1,0 +1,9 @@
+{
+    "Sandbox_Kleptomaniac": "Клептоман",
+    "Sandbox_Kleptomaniac_IntervalMinutes": "Інтервал (ігрові хвилини)",
+    "Sandbox_Kleptomaniac_IntervalMinutes_tooltip": "Час від успішної крадіжки до наступного потягу. 0 вимикає механіку.",
+    "Sandbox_Kleptomaniac_MaxWeight": "Максимальна вага предмета",
+    "Sandbox_Kleptomaniac_MaxWeight_tooltip": "Гранична вага одного вкраденого предмета. 0 вимикає механіку.",
+    "Sandbox_Kleptomaniac_RetryMinutes": "Затримка після невдачі (ігрові хвилини)",
+    "Sandbox_Kleptomaniac_RetryMinutes_tooltip": "Якщо потяг украсти не задоволено, наступна спроба відкладається на вказану кількість ігрових хвилин."
+}

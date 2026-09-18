@@ -1,0 +1,12 @@
+module Base
+{
+    character_trait_definition kleptomaniac:kleptomaniac
+    {
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        CharacterTrait = kleptomaniac:kleptomaniac,
+        Cost = -1,
+        UIName = UI_trait_Kleptomaniac,
+        UIDescription = UI_trait_KleptomaniacDesc,
+    }
+}

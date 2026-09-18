@@ -1,0 +1,9 @@
+{
+    "Sandbox_Kleptomaniac": "Клептоман",
+    "Sandbox_Kleptomaniac_IntervalMinutes": "Интервал (игровые минуты)",
+    "Sandbox_Kleptomaniac_IntervalMinutes_tooltip": "Время от успешной кражи до следующего позыва. 0 отключает механику.",
+    "Sandbox_Kleptomaniac_MaxWeight": "Максимальный вес предмета",
+    "Sandbox_Kleptomaniac_MaxWeight_tooltip": "Предельный вес одного украденного предмета. 0 отключает механику.",
+    "Sandbox_Kleptomaniac_RetryMinutes": "Задержка после неудачи (игровые минуты)",
+    "Sandbox_Kleptomaniac_RetryMinutes_tooltip": "Если позыв украсть не удовлетворен, новая попытка откладывается на указанное число игровых минут."
+}

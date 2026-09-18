@@ -1,0 +1,9 @@
+{
+    "Sandbox_Kleptomaniac": "Kleptomaniac",
+    "Sandbox_Kleptomaniac_IntervalMinutes": "Interval (in-game minutes)",
+    "Sandbox_Kleptomaniac_IntervalMinutes_tooltip": "Time from a successful theft to the next urge. 0 disables the mechanic.",
+    "Sandbox_Kleptomaniac_MaxWeight": "Maximum item weight",
+    "Sandbox_Kleptomaniac_MaxWeight_tooltip": "Weight limit for a single stolen item. 0 disables the mechanic.",
+    "Sandbox_Kleptomaniac_RetryMinutes": "Delay after failure (in-game minutes)",
+    "Sandbox_Kleptomaniac_RetryMinutes_tooltip": "If the urge to steal remains unfulfilled, the next attempt is delayed by the specified number of in-game minutes."
+}

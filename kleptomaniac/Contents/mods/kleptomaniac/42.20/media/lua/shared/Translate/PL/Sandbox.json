@@ -1,0 +1,9 @@
+{
+    "Sandbox_Kleptomaniac": "Kleptoman",
+    "Sandbox_Kleptomaniac_IntervalMinutes": "Odstęp (minuty w grze)",
+    "Sandbox_Kleptomaniac_IntervalMinutes_tooltip": "Czas od udanej kradzieży do kolejnej potrzeby kradzieży. 0 wyłącza mechanikę.",
+    "Sandbox_Kleptomaniac_MaxWeight": "Maksymalna waga przedmiotu",
+    "Sandbox_Kleptomaniac_MaxWeight_tooltip": "Limit wagi pojedynczego skradzionego przedmiotu. 0 wyłącza mechanikę.",
+    "Sandbox_Kleptomaniac_RetryMinutes": "Opóźnienie po niepowodzeniu (minuty w grze)",
+    "Sandbox_Kleptomaniac_RetryMinutes_tooltip": "Jeśli potrzeba kradzieży pozostaje niezaspokojona, kolejna próba zostaje odłożona o podaną liczbę minut w grze."
+}

@@ -1,0 +1,9 @@
+{
+    "Sandbox_Kleptomaniac": "偷竊癖",
+    "Sandbox_Kleptomaniac_IntervalMinutes": "間隔（遊戲內分鐘）",
+    "Sandbox_Kleptomaniac_IntervalMinutes_tooltip": "從成功偷竊到下一次產生偷竊衝動的時間。設為0可停用此機制。",
+    "Sandbox_Kleptomaniac_MaxWeight": "物品最大重量",
+    "Sandbox_Kleptomaniac_MaxWeight_tooltip": "單件被竊物品的重量上限。設為0可停用此機制。",
+    "Sandbox_Kleptomaniac_RetryMinutes": "失敗後等待時間（遊戲內分鐘）",
+    "Sandbox_Kleptomaniac_RetryMinutes_tooltip": "如果偷竊衝動未得到滿足，下次嘗試將延後指定的遊戲內分鐘數。"
+}

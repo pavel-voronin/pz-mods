@@ -1,0 +1,9 @@
+{
+    "Sandbox_Kleptomaniac": "Kleptoman",
+    "Sandbox_Kleptomaniac_IntervalMinutes": "Aralık (oyun içi dakika)",
+    "Sandbox_Kleptomaniac_IntervalMinutes_tooltip": "Başarılı bir hırsızlıktan sonraki dürtüye kadar geçen süre. 0, mekaniği devre dışı bırakır.",
+    "Sandbox_Kleptomaniac_MaxWeight": "Azami eşya ağırlığı",
+    "Sandbox_Kleptomaniac_MaxWeight_tooltip": "Çalınan tek bir eşyanın ağırlık sınırı. 0, mekaniği devre dışı bırakır.",
+    "Sandbox_Kleptomaniac_RetryMinutes": "Başarısızlık sonrası bekleme süresi (oyun içi dakika)",
+    "Sandbox_Kleptomaniac_RetryMinutes_tooltip": "Çalma dürtüsü giderilmezse sonraki girişim, belirtilen oyun içi dakika kadar ertelenir."
+}

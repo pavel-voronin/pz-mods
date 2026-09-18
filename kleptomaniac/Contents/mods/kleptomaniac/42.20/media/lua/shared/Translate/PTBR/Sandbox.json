@@ -1,0 +1,9 @@
+{
+    "Sandbox_Kleptomaniac": "Cleptomaníaco",
+    "Sandbox_Kleptomaniac_IntervalMinutes": "Intervalo (minutos de jogo)",
+    "Sandbox_Kleptomaniac_IntervalMinutes_tooltip": "Tempo entre um furto bem-sucedido e o próximo impulso. 0 desativa a mecânica.",
+    "Sandbox_Kleptomaniac_MaxWeight": "Peso máximo do item",
+    "Sandbox_Kleptomaniac_MaxWeight_tooltip": "Limite de peso de um único item furtado. 0 desativa a mecânica.",
+    "Sandbox_Kleptomaniac_RetryMinutes": "Espera após uma tentativa malsucedida (minutos de jogo)",
+    "Sandbox_Kleptomaniac_RetryMinutes_tooltip": "Se o impulso de furtar não for satisfeito, a próxima tentativa é adiada pelo número indicado de minutos de jogo."
+}

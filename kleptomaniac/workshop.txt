@@ -1,0 +1,8 @@
+version=1
+id=3803811717
+title=Kleptomaniac
+description=Adds the Kleptomaniac trait (+1 point). Your character periodically tries to swipe an item from a nearby container or take a piece of furniture or decor. Ignores items on the ground - not interesting. If an attempt fails, they’ll try again later.
+description=
+description=Attempt frequency, retry delay, and maximum item weight are configurable in Sandbox settings.
+tags=Build 42;Realistic;Silly/Fun;Traits
+visibility=public

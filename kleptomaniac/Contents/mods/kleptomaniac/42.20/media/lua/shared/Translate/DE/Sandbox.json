@@ -1,0 +1,9 @@
+{
+    "Sandbox_Kleptomaniac": "Kleptomane",
+    "Sandbox_Kleptomaniac_IntervalMinutes": "Intervall (Spielminuten)",
+    "Sandbox_Kleptomaniac_IntervalMinutes_tooltip": "Zeit von einem erfolgreichen Diebstahl bis zum nächsten Drang. 0 deaktiviert die Mechanik.",
+    "Sandbox_Kleptomaniac_MaxWeight": "Maximales Gegenstandsgewicht",
+    "Sandbox_Kleptomaniac_MaxWeight_tooltip": "Gewichtsgrenze für einen einzelnen gestohlenen Gegenstand. 0 deaktiviert die Mechanik.",
+    "Sandbox_Kleptomaniac_RetryMinutes": "Wartezeit nach einem Fehlschlag (Spielminuten)",
+    "Sandbox_Kleptomaniac_RetryMinutes_tooltip": "Bleibt der Drang zu stehlen unbefriedigt, wird der nächste Versuch um die angegebene Anzahl an Spielminuten verschoben."
+}

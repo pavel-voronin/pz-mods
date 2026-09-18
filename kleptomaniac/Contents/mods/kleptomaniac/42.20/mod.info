@@ -1,0 +1,8 @@
+id=kleptomaniac
+name=Kleptomaniac
+author=kolpaque
+modversion=0.2.1
+versionMin=42.20.4
+icon=icon.png
+poster=poster.png
+description=Adds the Kleptomaniac trait. Periodically take one random nearby item. Do not steal from the floor (not interesting).

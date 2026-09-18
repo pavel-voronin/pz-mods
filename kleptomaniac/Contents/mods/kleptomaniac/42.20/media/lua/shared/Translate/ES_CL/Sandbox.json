@@ -1,0 +1,9 @@
+{
+    "Sandbox_Kleptomaniac": "Cleptómano",
+    "Sandbox_Kleptomaniac_IntervalMinutes": "Intervalo (minutos de juego)",
+    "Sandbox_Kleptomaniac_IntervalMinutes_tooltip": "Tiempo desde un robo exitoso hasta el siguiente impulso. 0 desactiva la mecánica.",
+    "Sandbox_Kleptomaniac_MaxWeight": "Peso máximo del objeto",
+    "Sandbox_Kleptomaniac_MaxWeight_tooltip": "Límite de peso de un solo objeto robado. 0 desactiva la mecánica.",
+    "Sandbox_Kleptomaniac_RetryMinutes": "Espera tras un intento fallido (minutos de juego)",
+    "Sandbox_Kleptomaniac_RetryMinutes_tooltip": "Si el impulso de robar queda insatisfecho, el siguiente intento se retrasa el número indicado de minutos de juego."
+}
