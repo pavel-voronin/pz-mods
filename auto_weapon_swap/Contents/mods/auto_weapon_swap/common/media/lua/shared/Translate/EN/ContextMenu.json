@@ -1,0 +1,7 @@
+{
+    "ContextMenu_AWS_UseContainer": "Take weapons from here",
+    "ContextMenu_AWS_ExcludeType": "Don't take weapons of this type",
+    "ContextMenu_AWS_ExcludeTypes": "Don't take weapons of these types",
+    "ContextMenu_AWS_AllowType": "Take weapons of this type again",
+    "ContextMenu_AWS_AllowTypes": "Take weapons of these types again"
+}

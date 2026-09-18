@@ -1,0 +1,8 @@
+id=auto_weapon_swap
+name=Auto Weapon Swap
+author=kolpaque
+modversion=1.1.13
+versionMin=42.20
+poster=poster.png
+icon=icon.png
+description=Automatically equips a replacement for a broken or lost weapon from containers you explicitly enable. Supports worn bags and accessible nearby containers, with weapon-type exclusions.

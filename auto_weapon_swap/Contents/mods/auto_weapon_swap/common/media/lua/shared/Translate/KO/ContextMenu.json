@@ -1,0 +1,7 @@
+{
+    "ContextMenu_AWS_UseContainer": "여기서 무기 가져오기",
+    "ContextMenu_AWS_ExcludeType": "이 종류의 무기 가져오지 않기",
+    "ContextMenu_AWS_ExcludeTypes": "이 종류들의 무기 가져오지 않기",
+    "ContextMenu_AWS_AllowType": "이 종류의 무기 다시 가져오기",
+    "ContextMenu_AWS_AllowTypes": "이 종류들의 무기 다시 가져오기"
+}

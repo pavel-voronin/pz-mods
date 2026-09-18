@@ -1,0 +1,7 @@
+{
+    "ContextMenu_AWS_UseContainer": "Waffen von hier nehmen",
+    "ContextMenu_AWS_ExcludeType": "Waffen dieses Typs nicht nehmen",
+    "ContextMenu_AWS_ExcludeTypes": "Waffen dieser Typen nicht nehmen",
+    "ContextMenu_AWS_AllowType": "Waffen dieses Typs wieder nehmen",
+    "ContextMenu_AWS_AllowTypes": "Waffen dieser Typen wieder nehmen"
+}

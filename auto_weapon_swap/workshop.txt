@@ -1,0 +1,10 @@
+version=1
+id=3803554171
+title=Auto Weapon Swap
+description=When your weapon breaks, your character automatically grabs another from a selected bag or nearby container.
+description=
+description=Right-click a container and select “Take weapons from here”. Nothing is enabled by default.
+description=
+description=To exclude a weapon type, right-click the weapon. You can assign a key to open the exclusions list under Options / Controls / Auto Weapon Swap.
+tags=Build 42;Interface;QoL;Weapons
+visibility=public

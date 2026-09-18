@@ -1,0 +1,7 @@
+{
+    "ContextMenu_AWS_UseContainer": "從這裡拿取武器",
+    "ContextMenu_AWS_ExcludeType": "不拿取此類武器",
+    "ContextMenu_AWS_ExcludeTypes": "不拿取這些類型的武器",
+    "ContextMenu_AWS_AllowType": "重新允許拿取此類武器",
+    "ContextMenu_AWS_AllowTypes": "重新允許拿取這些類型的武器"
+}

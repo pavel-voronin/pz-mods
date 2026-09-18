@@ -1,0 +1,7 @@
+{
+    "UI_AWS_Title": "Автозамена оружия - исключения",
+    "UI_AWS_Close": "Закрыть",
+    "UI_AWS_Empty": "Нет исключений",
+    "UI_optionscreen_binding_AutoWeaponSwap": "Auto Weapon Swap",
+    "UI_optionscreen_binding_AWSOpenExclusions": "Открыть / закрыть исключения"
+}

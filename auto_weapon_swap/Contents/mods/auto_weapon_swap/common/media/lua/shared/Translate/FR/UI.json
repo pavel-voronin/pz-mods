@@ -1,0 +1,7 @@
+{
+    "UI_AWS_Title": "Changement automatique d'arme - Exclusions",
+    "UI_AWS_Close": "Fermer",
+    "UI_AWS_Empty": "Aucune exclusion",
+    "UI_optionscreen_binding_AutoWeaponSwap": "Auto Weapon Swap",
+    "UI_optionscreen_binding_AWSOpenExclusions": "Ouvrir / fermer les exclusions"
+}

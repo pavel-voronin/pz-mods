@@ -1,0 +1,7 @@
+{
+    "UI_AWS_Title": "자동 무기 교체 - 제외 목록",
+    "UI_AWS_Close": "닫기",
+    "UI_AWS_Empty": "제외 항목 없음",
+    "UI_optionscreen_binding_AutoWeaponSwap": "Auto Weapon Swap",
+    "UI_optionscreen_binding_AWSOpenExclusions": "제외 목록 열기 / 닫기"
+}

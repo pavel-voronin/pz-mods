@@ -1,0 +1,7 @@
+{
+    "UI_AWS_Title": "自動切換武器 - 排除清單",
+    "UI_AWS_Close": "關閉",
+    "UI_AWS_Empty": "沒有排除項目",
+    "UI_optionscreen_binding_AutoWeaponSwap": "Auto Weapon Swap",
+    "UI_optionscreen_binding_AWSOpenExclusions": "開啟 / 關閉排除清單"
+}
