@@ -1,0 +1,9 @@
+id=dead_pockets
+modversion=1.0.1
+name=Dead Pockets
+author=kolpaque
+description=Reveals corpse clothing and pocket loot layer by layer. Removing a garment exposes clothing underneath and the loose items assigned to that garment.
+poster=poster.png
+icon=icon.png
+versionMin=42.20
+loadModAfter=ProximityInventory,CleanUI,NeatUI_Framework,NeatUI_Equipment
