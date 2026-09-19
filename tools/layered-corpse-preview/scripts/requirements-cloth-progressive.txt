@@ -1,0 +1,5 @@
+# Optional experimental preparation, isolated in .cloth-deps; Blender Python 3.13.
+ipctk==1.6.0
+scipy==1.18.1
+numpy==2.5.3
+pymeshlab==2025.7.post1

@@ -1,0 +1,69 @@
+{
+  "name": "Tomb's Player Body + Compatibility Vanilla+",
+  "models": {
+    "m": {
+      "body": {
+        "url": "/pz/tomb/rigs/m/body.json",
+        "source": "3429790870/mods/Tomb's Player Body/42.13/media/models_X/Skinned/MaleBody.fbx",
+        "sha256": "01c86ab1cee9bb96cb689a7d7dddf406f9334e2b1c8fb9d5e57ef69be4093c7a",
+        "vertices": 13770
+      },
+      "trousers": {
+        "url": "/pz/tomb/rigs/m/trousers.json",
+        "source": "3431734923/mods/Tomb's Player Body - Compatability/42.0/media/models_X/Skinned/Clothes/Bob_Trousers.fbx",
+        "sha256": "0a04baf7d501c8b87bc96debbeebf40d82b49ddc5e20d9a97e53976ab1e55cbf",
+        "vertices": 2064
+      },
+      "shorts": {
+        "url": "/pz/tomb/rigs/m/shorts.json",
+        "source": "3431734923/mods/Tomb's Player Body - Compatability/42.0/media/models_X/Skinned/Clothes/Bob_LongShorts.fbx",
+        "sha256": "69afa7c5e87980a2ff2b3e0969daec9ffc6f871badf74161cb25c3c4cd6a31f5",
+        "vertices": 1260
+      },
+      "shortshorts": {
+        "url": "/pz/tomb/rigs/m/shortshorts.json",
+        "source": "3431734923/mods/Tomb's Player Body - Compatability/42.0/media/models_X/Skinned/Clothes/Bob_ShortShorts.fbx",
+        "sha256": "f177e22a8420f5d05324930835ed1401185afc04f8b07b16fe6f22a53d4602aa",
+        "vertices": 780
+      },
+      "suittrousers": {
+        "url": "/pz/tomb/rigs/m/suittrousers.json",
+        "source": "3431734923/mods/Tomb's Player Body - Compatability/42.0/media/models_X/Skinned/Clothes/Bob_SuitTrousers.fbx",
+        "sha256": "80fbf81b0df3d5368573f06779f221b2e8ed4e2f7205996d9f80790650d6a9af",
+        "vertices": 2064
+      }
+    },
+    "f": {
+      "body": {
+        "url": "/pz/tomb/rigs/f/body.json",
+        "source": "3429790870/mods/Tomb's Player Body/42.13/media/models_X/Skinned/FemaleBody.fbx",
+        "sha256": "9f18ff54aa2a830249a0e7965d30bac300fbdeb8c2ecf5fa6922344afca8908e",
+        "vertices": 15516
+      },
+      "trousers": {
+        "url": "/pz/tomb/rigs/f/trousers.json",
+        "source": "3431734923/mods/Tomb's Player Body - Compatability/42.0/media/models_X/Skinned/Clothes/Kate_Trousers.fbx",
+        "sha256": "38f66201dfc29f419798b537df8ae6bcf7fd075472b52877f404a08dc9657642",
+        "vertices": 3684
+      },
+      "shorts": {
+        "url": "/pz/tomb/rigs/f/shorts.json",
+        "source": "3431734923/mods/Tomb's Player Body - Compatability/42.0/media/models_X/Skinned/Clothes/Kate_LongShorts.fbx",
+        "sha256": "9f82e007929d35238a10a6a467eb099cc11ddb2cad8a8c28d202a76e8e66d883",
+        "vertices": 2544
+      },
+      "shortshorts": {
+        "url": "/pz/tomb/rigs/f/shortshorts.json",
+        "source": "3431734923/mods/Tomb's Player Body - Compatability/42.0/media/models_X/Skinned/Clothes/Kate_ShortShorts.fbx",
+        "sha256": "68760514d0106f2d3d9a0b165970f0d0dad38a66bfd21e593897a87b81000c25",
+        "vertices": 2034
+      },
+      "suittrousers": {
+        "url": "/pz/tomb/rigs/f/suittrousers.json",
+        "source": "3431734923/mods/Tomb's Player Body - Compatability/42.0/media/models_X/Skinned/Clothes/Kate_SuitTrousers.fbx",
+        "sha256": "e6fb477eb66dd8d0857f1f36fd7e8dd0adf4a7bd36c8efa1b445039d901c40d0",
+        "vertices": 3684
+      }
+    }
+  }
+}

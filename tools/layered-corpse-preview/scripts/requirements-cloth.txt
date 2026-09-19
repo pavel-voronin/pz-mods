@@ -1,0 +1,2 @@
+# Installed locally into .cloth-deps with Blender's Python, not globally.
+pymeshlab==2025.7.post1
