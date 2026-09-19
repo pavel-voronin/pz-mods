@@ -10,15 +10,10 @@ local function onFillContainer(roomType, containerType, container)
     -- roomType "Zombie" and contains all generated loose loot.
     if roomType ~= "Zombie" then return end
 
-    local ok, assigned = pcall(DP.assignGeneratedCorpseLoot, container)
-    if not ok then
-        print("[DeadPockets] Pocket assignment failed: " .. tostring(assigned))
-        return
-    end
+    DP.assignGeneratedCorpseLoot(container)
     if isServer() and container and DP.isAffectedCorpse(container:getParent()) then
         DP.publishPocketAssignments(container:getParent())
     end
 end
 
 Events.OnFillContainer.Add(onFillContainer)
-print("[DeadPockets] Corpse pocket generator installed")

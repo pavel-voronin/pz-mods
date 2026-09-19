@@ -1,8 +1,4 @@
-DeadPockets = DeadPockets or {}
-
-local DP = DeadPockets
-
-require("dead_pockets/DP_Pockets")
+local DP = require("dead_pockets/DP_Pockets")
 
 -- Body-part coverage is useful for modded clothes, but vanilla underwear has
 -- no BloodClothingType at all. These coarse channels describe the actual
@@ -102,10 +98,7 @@ local function isHiddenByOuterModel(group, outerLocations, location)
 
     for index = 1, #outerLocations do
         local outerLocation = outerLocations[index]
-        local ok, hides = pcall(function()
-            return group:isHideModel(outerLocation, location)
-        end)
-        if ok and hides then return true end
+        if group:isHideModel(outerLocation, location) then return true end
     end
 
     return false
@@ -192,7 +185,7 @@ function DP.collectHiddenItems(body)
     return hidden
 end
 
-function DP.getSourceCorpse(item)
+local function getSourceCorpse(item)
     if not item then return nil end
 
     local container = item:getContainer()
@@ -202,7 +195,7 @@ function DP.getSourceCorpse(item)
 end
 
 function DP.isItemConcealed(item, cache)
-    local body = DP.getSourceCorpse(item)
+    local body = getSourceCorpse(item)
     if not body then return false end
 
     cache = cache or {}

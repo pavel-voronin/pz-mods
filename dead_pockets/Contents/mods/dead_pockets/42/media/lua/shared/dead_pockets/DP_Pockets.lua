@@ -3,8 +3,6 @@ DeadPockets = DeadPockets or {}
 local DP = DeadPockets
 
 local CARRIER_ID_KEY = "DeadPocketsPocketCarrierId"
--- Read links written by older saves without reassigning their pocket loot.
-local LEGACY_CARRIER_ID_KEY = "LCCPocketCarrierId"
 local CORPSE_POCKETS_KEY = "DeadPocketsCarriers"
 local CORPSE_REVISION_KEY = "DeadPocketsRevision"
 
@@ -72,15 +70,7 @@ local function hasPrefix(value, prefixes)
 end
 
 local function itemId(item)
-    if not item then return nil end
-    local ok, value = pcall(function() return item:getID() end)
-    if not ok or value == nil then return nil end
-    return tostring(value)
-end
-
-local function locationId(location)
-    if location == nil then return nil end
-    return tostring(location)
+    return item and tostring(item:getID()) or nil
 end
 
 local function carrierKind(location, item)
@@ -88,7 +78,7 @@ local function carrierKind(location, item)
     -- Coverage is not a pocket type: long johns, wedding dresses and mascot
     -- suits can occupy the same full-body slots as real work clothes.
     if string.find(name, "longjohn", 1, true) then return nil end
-    if item and ItemTag and ItemTag.LONG_JOHNS and item:hasTag(ItemTag.LONG_JOHNS) then
+    if item:hasTag(ItemTag.LONG_JOHNS) then
         return nil
     end
     if string.find(name, "coverall", 1, true) or
@@ -173,13 +163,10 @@ local function collectCarriers(body)
         local location = worn and worn:getLocation() or nil
         if item and instanceof(item, "Clothing") then
             local kind = carrierKind(location, item)
-            local locationKey = locationId(location)
-            local carrierId = itemId(item)
-            if kind and locationKey and carrierId then
+            if kind then
                 carriers[#carriers + 1] = {
                     item = item,
-                    id = carrierId,
-                    location = locationKey,
+                    id = itemId(item),
                     kind = kind,
                 }
             end
@@ -236,8 +223,7 @@ local WEIGHTS = {
 }
 
 local function stableRoll(item, salt, limit)
-    if limit <= 0 then return 0 end
-    local source = (itemId(item) or item:getFullType()) .. ":" .. tostring(salt)
+    local source = itemId(item) .. ":" .. salt
     local hash = 17
     for index = 1, #source do
         hash = (hash * 131 + string.byte(source, index)) % 2147483647
@@ -248,21 +234,13 @@ end
 local function itemWeight(item)
     -- Pocket fit uses the whole unequipped item, including fluids/ammunition
     -- and bag contents. A worn bag's encumbrance reduction does not make it fit.
-    local methods = { "getUnequippedWeight", "getActualWeight", "getWeight" }
-    for index = 1, #methods do
-        local method = item[methods[index]]
-        if method then
-            local ok, value = pcall(method, item)
-            if ok and type(value) == "number" then return value end
-        end
-    end
-    return nil
+    return item:getUnequippedWeight()
 end
 
 local function weaponSize(item)
     local key = typeKey(item)
     local weight = itemWeight(item)
-    if not weight or weight > 1.5 then return "large" end
+    if weight > 1.5 then return "large" end
 
     local largeTypes = {
         baseballbat = true, crowbar = true, katana = true, machete = true,
@@ -274,8 +252,7 @@ local function weaponSize(item)
         return "large"
     end
 
-    local ok, twoHanded = pcall(function() return item:isTwoHandWeapon() end)
-    if ok and twoHanded then return "large" end
+    if item:isTwoHandWeapon() then return "large" end
 
     local pocketTypes = {
         glassshiv = true, handiknife = true, icepick = true,
@@ -303,10 +280,10 @@ end
 
 local function carrierHasPockets(carrier)
     if carrier.kind == "skirt" or carrier.kind == "dress" then
-        return stableRoll(carrier.item, "garment-pockets-v4", 100) < 10
+        return stableRoll(carrier.item, "clothing-pockets", 100) < 10
     end
     if carrier.kind == "apron" then
-        return stableRoll(carrier.item, "garment-pockets-v4", 100) < 15
+        return stableRoll(carrier.item, "clothing-pockets", 100) < 15
     end
     return true
 end
@@ -328,7 +305,7 @@ local SMALL_CONTAINER_TYPES = {
 local function itemFit(item)
     local key = typeKey(item)
     local weight = itemWeight(item)
-    if not weight or weight > 1.0 then return "visible" end
+    if weight > 1.0 then return "visible" end
 
     if inSet(key, ALWAYS_VISIBLE_TYPES) then return "visible" end
 
@@ -396,7 +373,7 @@ local function chooseCarrier(item, carriers)
         end
     end
 
-    local weights = WEIGHTS[category] or WEIGHTS.general
+    local weights = WEIGHTS[category]
     local weighted = {}
     local total = 0
     for index = 1, #carriers do
@@ -406,7 +383,7 @@ local function chooseCarrier(item, carriers)
                 carrier.kind ~= "workwear" then
             weight = 0
         end
-        if weight > 0 and carrier.location and carrierHasPockets(carrier) then
+        if weight > 0 and carrierHasPockets(carrier) then
             total = total + weight
             weighted[#weighted + 1] = { carrier = carrier, ceiling = total }
         end
@@ -417,12 +394,11 @@ local function chooseCarrier(item, carriers)
     for index = 1, #weighted do
         if roll < weighted[index].ceiling then return weighted[index].carrier end
     end
-    return weighted[#weighted].carrier
 end
 
-function DP.getPocketCarrierId(item)
+local function getPocketCarrierId(item)
     local modData = item and item:getModData() or nil
-    return modData and (modData[CARRIER_ID_KEY] or modData[LEGACY_CARRIER_ID_KEY]) or nil
+    return modData and modData[CARRIER_ID_KEY] or nil
 end
 
 function DP.getPocketRevision(body)
@@ -434,7 +410,7 @@ function DP.publishPocketAssignments(body)
     local items = body:getContainer():getItems()
     for index = 0, items:size() - 1 do
         local item = items:get(index)
-        local carrierId = DP.getPocketCarrierId(item)
+        local carrierId = getPocketCarrierId(item)
         local id = itemId(item)
         if id and carrierId then carriers[id] = tostring(carrierId) end
     end
@@ -449,9 +425,7 @@ end
 
 function DP.assignGeneratedCorpseLoot(container)
     if not container then return 0 end
-    if type(isClient) == "function" and isClient() then
-        return 0
-    end
+    if isClient() then return 0 end
     local body = container:getParent()
     if not DP.isAffectedCorpse(body) then return 0 end
 
@@ -465,7 +439,7 @@ function DP.assignGeneratedCorpseLoot(container)
         local item = items:get(index)
         if item and not protected[item] then
             local modData = item:getModData()
-            if modData[CARRIER_ID_KEY] == nil and modData[LEGACY_CARRIER_ID_KEY] == nil then
+            if modData[CARRIER_ID_KEY] == nil then
                 local carrier = chooseCarrier(item, carriers)
                 if carrier then
                     modData[CARRIER_ID_KEY] = carrier.id
@@ -529,7 +503,7 @@ function DP.addHiddenPocketItems(body, hidden)
         for index = 0, items:size() - 1 do
             local item = items:get(index)
             local id = itemId(item)
-            local carrierId = pocketMap and id and pocketMap[id] or DP.getPocketCarrierId(item)
+            local carrierId = pocketMap and id and pocketMap[id] or getPocketCarrierId(item)
             carrierId = carrierId and tostring(carrierId) or nil
             if carrierId and wornIds[carrierId] then
                 hidden[item] = true
@@ -537,9 +511,8 @@ function DP.addHiddenPocketItems(body, hidden)
         end
     end
 
-    -- Attached weapons remain exposed, except guns explicitly occupying a
-    -- holster attachment point. A coat/jacket/sweater can conceal that point;
-    -- embedded weapons and weapons on the back or belt never enter this path.
+    -- Holstered weapons follow the holster's visibility. Other attached and
+    -- embedded weapons remain exposed.
     local attachedItems = body:getAttachedItems()
     if attachedItems then
         for index = 0, attachedItems:size() - 1 do
@@ -551,14 +524,6 @@ function DP.addHiddenPocketItems(body, hidden)
             end
         end
     end
-end
-
-function DP.isHolsterLocation(location)
-    return string.find(normalize(location), "holster") ~= nil
-end
-
-function DP.isOuterPocketCarrier(location, item)
-    return carrierKind(location, item) == "outer"
 end
 
 return DP
