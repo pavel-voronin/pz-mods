@@ -1,0 +1,5 @@
+{
+    "Sandbox_AuthenticZBalloonLift": "Sustentação dos balões para Authentic Z",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor": "Sustentação por unidade de fator",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor_tooltip": "Peso efetivo removido do conteúdo da mochila por unidade de BalloonFactor. Um balão comum tem fator 1. Padrão: 1,0."
+}

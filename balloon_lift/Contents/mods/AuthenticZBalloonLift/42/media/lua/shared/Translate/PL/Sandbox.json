@@ -1,0 +1,5 @@
+{
+    "Sandbox_AuthenticZBalloonLift": "Siła nośna balonów dla Authentic Z",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor": "Udźwig na jednostkę współczynnika",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor_tooltip": "Efektywny ciężar usuwany z zawartości plecaka na każdą jednostkę BalloonFactor. Zwykły balon ma współczynnik 1. Domyślnie: 1,0."
+}

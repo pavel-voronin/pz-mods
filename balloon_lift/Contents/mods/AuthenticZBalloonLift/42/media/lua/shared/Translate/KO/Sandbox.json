@@ -1,0 +1,5 @@
+{
+    "Sandbox_AuthenticZBalloonLift": "Authentic Z 풍선 부력",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor": "계수 단위당 부력",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor_tooltip": "BalloonFactor 1단위마다 배낭 내용물의 유효 무게를 줄입니다. 일반 풍선의 계수는 1입니다. 기본값: 1.0."
+}

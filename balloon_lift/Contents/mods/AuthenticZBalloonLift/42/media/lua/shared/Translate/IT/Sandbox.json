@@ -1,0 +1,5 @@
+{
+    "Sandbox_AuthenticZBalloonLift": "Spinta dei palloncini per Authentic Z",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor": "Spinta per unità di fattore",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor_tooltip": "Peso effettivo rimosso dal contenuto dello zaino per ogni unità di BalloonFactor. Un palloncino normale ha fattore 1. Valore predefinito: 1,0."
+}

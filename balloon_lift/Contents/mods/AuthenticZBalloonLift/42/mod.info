@@ -1,0 +1,8 @@
+name=Balloon Lift for Authentic Z
+id=AuthenticZBalloonLift
+description=Attached helium balloons reduce backpack contents weight. Configurable in Sandbox Options; custom balloons can register a BalloonFactor. Supports single-player and multiplayer.
+modversion=1.0
+versionMin=42.0
+author=pavel
+icon=icon.png
+poster=poster.png

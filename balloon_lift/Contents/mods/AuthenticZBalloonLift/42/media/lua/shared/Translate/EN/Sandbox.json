@@ -1,0 +1,5 @@
+{
+    "Sandbox_AuthenticZBalloonLift": "Balloon Lift for Authentic Z",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor": "Lift per factor unit",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor_tooltip": "Effective backpack contents weight removed per BalloonFactor unit. A regular balloon has factor 1. Default: 1.0."
+}

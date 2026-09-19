@@ -1,0 +1,5 @@
+{
+    "Sandbox_AuthenticZBalloonLift": "Portance des ballons pour Authentic Z",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor": "Portance par unité de facteur",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor_tooltip": "Poids effectif retiré du contenu du sac à dos par unité de BalloonFactor. Un ballon ordinaire a un facteur de 1. Valeur par défaut : 1,0."
+}

@@ -1,0 +1,5 @@
+{
+    "Sandbox_AuthenticZBalloonLift": "Authentic Z 氣球浮力",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor": "每單位係數的浮力",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor_tooltip": "每個 BalloonFactor 單位可減輕的背包內容物有效負重。普通氣球的係數為 1。預設值：1.0。"
+}

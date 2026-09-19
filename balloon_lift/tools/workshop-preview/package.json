@@ -1,0 +1,9 @@
+{
+  "name": "balloon-lift-workshop-preview",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Reproducible GIF preview builder for Balloon Lift",
+  "dependencies": {
+    "sharp": "0.35.4"
+  }
+}

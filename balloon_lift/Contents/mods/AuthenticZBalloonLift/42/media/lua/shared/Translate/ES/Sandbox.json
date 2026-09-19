@@ -1,0 +1,5 @@
+{
+    "Sandbox_AuthenticZBalloonLift": "Elevación con globos para Authentic Z",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor": "Elevación por unidad de factor",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor_tooltip": "Peso efectivo eliminado del contenido de la mochila por cada unidad de BalloonFactor. Un globo normal tiene factor 1. Valor predeterminado: 1,0."
+}

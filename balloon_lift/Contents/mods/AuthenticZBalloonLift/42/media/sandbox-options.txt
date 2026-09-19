@@ -1,0 +1,11 @@
+VERSION = 1,
+
+option AuthenticZBalloonLift.LiftPerFactor
+{
+    type = double,
+    min = 0.0,
+    max = 10.0,
+    default = 1.0,
+    page = AuthenticZBalloonLift,
+    translation = AuthenticZBalloonLift_LiftPerFactor,
+}

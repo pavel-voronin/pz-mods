@@ -1,0 +1,5 @@
+{
+    "Sandbox_AuthenticZBalloonLift": "Подъёмная сила шаров для Authentic Z",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor": "Подъёмная сила на единицу коэффициента",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor_tooltip": "Эффективный вес содержимого рюкзака, снимаемый на единицу BalloonFactor. Обычный шар имеет коэффициент 1. Значение по умолчанию: 1,0."
+}

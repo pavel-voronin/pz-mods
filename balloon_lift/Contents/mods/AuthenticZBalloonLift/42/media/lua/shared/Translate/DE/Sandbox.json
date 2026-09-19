@@ -1,0 +1,5 @@
+{
+    "Sandbox_AuthenticZBalloonLift": "Ballonauftrieb für Authentic Z",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor": "Auftrieb pro Faktoreinheit",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor_tooltip": "Effektives Gewicht des Rucksackinhalts, das pro BalloonFactor-Einheit entfernt wird. Ein normaler Ballon hat Faktor 1. Standard: 1,0."
+}

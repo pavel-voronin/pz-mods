@@ -1,0 +1,5 @@
+{
+    "Sandbox_AuthenticZBalloonLift": "Authentic Z için Balon Kaldırma Kuvveti",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor": "Faktör birimi başına kaldırma",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor_tooltip": "Her BalloonFactor birimi başına sırt çantası içeriğinden kaldırılan etkili ağırlık. Normal bir balonun faktörü 1'dir. Varsayılan: 1,0."
+}

@@ -1,0 +1,5 @@
+{
+    "Sandbox_AuthenticZBalloonLift": "Підйомна сила кульок для Authentic Z",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor": "Підйомна сила на одиницю коефіцієнта",
+    "Sandbox_AuthenticZBalloonLift_LiftPerFactor_tooltip": "Ефективна вага вмісту рюкзака, що знімається на кожну одиницю BalloonFactor. Звичайна кулька має коефіцієнт 1. Типове значення: 1,0."
+}
