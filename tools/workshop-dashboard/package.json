@@ -1,1 +1,0 @@
-{"name":"workshop-dashboard","private":true,"type":"module","scripts":{"start":"node server.mjs","test":"node --test stats.test.mjs"},"engines":{"node":">=22"}}
