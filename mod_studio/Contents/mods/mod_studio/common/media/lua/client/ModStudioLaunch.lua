@@ -1,0 +1,1 @@
+require "ModStudio/Launch"
