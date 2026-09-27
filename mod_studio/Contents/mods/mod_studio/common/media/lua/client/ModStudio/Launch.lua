@@ -55,7 +55,7 @@ local function prepareAndLaunch(screen, preset)
     local items = {}
     for _, entry in ipairs(preset.inventory or {}) do
         for i = 1, entry.count or 1 do
-            local item = InventoryItemFactory.CreateItem(entry.type)
+            local item = instanceItem(entry.type)
             assert(item, "Unknown inventory item: " .. entry.type)
             if entry.fullAmmo then
                 assert(item:getMaxAmmo() > 0, "Item has no ammo capacity: " .. entry.type)

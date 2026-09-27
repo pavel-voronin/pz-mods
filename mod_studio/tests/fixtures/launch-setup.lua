@@ -150,12 +150,13 @@ getFileWriter=function(path)
     if failWrite then return nil end
     return {write=function(self,text) settingsFile=text end,close=function() end}
 end
-InventoryItemFactory={CreateItem=function(id)
+-- The game exposes instanceItem globally, not InventoryItemFactory.
+instanceItem=function(id)
     if id=='Missing.Item' then return nil end
     return {type=id, getMaxAmmo=function() return 4 end,
         setCurrentAmmoCount=function(self,n) self.ammo=n end,
         getBodyLocation=function() return 'LeftWrist' end}
-end}
+end
 player={items={'vanilla-starter'}, worn={}}
 function player:getInventory() return {AddItem=function(self,item) table.insert(player.items,item);return item end} end
 function player:setWornItem(location,item) self.worn[location]=item end

@@ -22,6 +22,12 @@ public final class LaunchRegression {
         Path root=Path.of(args[0]), game=Path.of(args[1]);
         Path lua=root.resolve("Contents/mods/mod_studio/common/media/lua/client/ModStudio");
         Path screens=game.resolve("media/lua/client/OptionScreens");
+        // Verify the Lua API against the installed game rather than inventing a
+        // Java-class global in the fixture (the original in-game launch failure).
+        var factory=zombie.Lua.LuaManager.GlobalObject.class.getMethod("instanceItem",String.class);
+        var binding=factory.getAnnotation(se.krka.kahlua.integration.annotations.LuaMethod.class);
+        if(binding==null || !binding.global() || !"instanceItem".equals(binding.name()))
+            throw new AssertionError("Native global instanceItem binding is unavailable");
         var platform=J2SEPlatform.getInstance();
         for(boolean debug:new boolean[]{false,true}) {
             var env=platform.newEnvironment();
