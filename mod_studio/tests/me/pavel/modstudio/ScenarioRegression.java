@@ -22,6 +22,8 @@ public final class ScenarioRegression {
         String api=Files.readString(lua.resolve("ScenarioAPI.lua")),runtime=Files.readString(lua.resolve("Scenarios.lua"));
         String adapter=Files.readString(pz.resolve("Contents/mods/pz3d/common/media/lua/client/PZ3DScenarioAPI.lua"));
         for(String check:List.of(
+            "scenario={steps={{command='pz3d.lighting',mode='hybrid',torch=false}}};Events.OnMainMenuEnter.fire();pump(8);assert(quit and ended=='complete' and lightingMode=='current' and lightingResets>0)",
+            "lightingReady=false;scenario={steps={{command='pz3d.lighting',mode='native',timeout=1}}};Events.OnMainMenuEnter.fire();pump(3);assert(lightingMode=='native' and not quit);advance(2);pump(5);assert(quit and ended=='failed' and lightingMode=='current' and lightingResets>0)",
             "scenario={steps={{command='native.give',id='torch',type='Base.HandTorch',equip='secondary',charge=1},{command='native.torch',id='torch',on=true},{command='native.teleport',x=3,y=4,z=1},{command='native.wait',seconds=.2}}}; local old=player.secondary;Events.OnMainMenuEnter.fire();pump(20);assert(quit and ended=='complete' and player.secondary==old and player.ghost and player.sneaking and #inventory.items==0 and teleports==1)",
             "scenario={steps={{command='pz3d.look',yaw=0},{command='native.teleport',x=3.5,y=4.5,z=0}}};Events.OnMainMenuEnter.fire();pump(10);assert(quit and ended=='complete' and adopted==1 and player.x==3 and player.y==4)",
             "scenario={steps={{command='missing.command'}}};Events.OnMainMenuEnter.fire();pump(5);assert(quit and ended=='failed' and string.find(reason,'Unregistered'))",

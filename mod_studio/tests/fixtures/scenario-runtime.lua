@@ -66,4 +66,11 @@ PZ3D={scenarioControlStart=function() ownedControl=true;return true end,scenario
  scenarioStatus=function() return "complete" end,scenarioPath=function() return "test/pz3d" end,scenarioPhase=ignore,scenarioSettled=function() return true end,
  scenarioCapture=ignore,scenarioCaptured=function() return true end,scenarioRenderState=function() return "coneHand="..beam end}
 function advance(seconds) now=now+seconds;Events.OnTick.fire() end
+lightingMode='current';lightingReady=true;lightingResets=0
+PZ3D.lightingModeKnown=function(m) return m=='current' or m=='native' or m=='hybrid' end
+PZ3D.lightingMode=function(m,a,b,c,d) lightingMode=m;return true end
+PZ3D.lightingReady=function() return lightingReady end
+PZ3D.lightingState=function() return {error='',cells=1,held=0} end
+PZ3D.lightingReset=function() lightingMode='current';lightingResets=lightingResets+1 end
+PZ3D.scenarioUi=function() end
 function pump(count,seconds) for i=1,count do advance(seconds or .1) end end
