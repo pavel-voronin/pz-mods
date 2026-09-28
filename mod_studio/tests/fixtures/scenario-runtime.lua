@@ -19,7 +19,7 @@ ISTimedActionQueue={clear=function() end}
 tm={hour=9,getTimeOfDay=function(self) return self.hour end,setTimeOfDay=function(self,v) self.hour=v end}
 getGameTime=function() return tm end
 local floor={}
-local square={getFloor=function() return floor end}
+local square={getFloor=function() return floor end,getX=function() return math.floor(player.x) end,getY=function() return math.floor(player.y) end}
 inventory={items={},AddItem=function(self,name)
     local item={name=name,on=false,charge=.2,getFullType=function(s) return s.name end,
         setUsedDelta=function(s,v) s.charge=v end,setActivated=function(s,v) s.on=v end,isActivated=function(s) return s.on end}
@@ -43,7 +43,7 @@ function player:getX() return self.x end
 function player:getY() return self.y end
 function player:getZ() return self.z end
 function player:setMoving(v) self.moving=v end
-function player:teleportTo(x,y,z) self.x=x;self.y=y;self.z=z;teleports=teleports+1 end
+function player:teleportTo(x,y,z) self.x=math.floor(x);self.y=math.floor(y);self.z=z;teleports=teleports+1 end
 getPlayer=function() return player end
 now=0;teleports=0;motion=0;interruption="";ended=nil;active=false
 
@@ -59,7 +59,7 @@ ModStudioScenario={clock=function() return now end,requested=function() return t
 journal={};quit=false;diag=false;diagClosed=true;ownedControl=false;beam=0;camera=1
 PZ3D={scenarioControlStart=function() ownedControl=true;return true end,scenarioControlEnd=function() ownedControl=false end,
  scenarioView=function() return {yaw=0,pitch=0} end,cameraMode=function(v) if v then camera=v end;return camera end,
- scenarioTakeControls=ignore,scenarioHeartbeat=ignore,scenarioInterruption=function() return interruption end,
+ scenarioTakeControls=ignore,scenarioHeartbeat=ignore,scenarioInterruption=function() return interruption end,scenarioAdoptNativePosition=function() adopted=(adopted or 0)+1 end,
  scenarioClearMotion=function() motion=0 end,scenarioLook=ignore,scenarioMotion=function(f) motion=f end,
  scenarioDiagnosticsStart=function() diag=true;diagClosed=false;return true end,scenarioReady=function() return diag end,
  scenarioEnd=function() diag=false;diagClosed=true end,scenarioFinished=function() return diagClosed end,

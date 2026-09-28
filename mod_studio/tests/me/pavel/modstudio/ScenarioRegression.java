@@ -23,6 +23,7 @@ public final class ScenarioRegression {
         String adapter=Files.readString(pz.resolve("Contents/mods/pz3d/common/media/lua/client/PZ3DScenarioAPI.lua"));
         for(String check:List.of(
             "scenario={steps={{command='native.give',id='torch',type='Base.HandTorch',equip='secondary',charge=1},{command='native.torch',id='torch',on=true},{command='native.teleport',x=3,y=4,z=1},{command='native.wait',seconds=.2}}}; local old=player.secondary;Events.OnMainMenuEnter.fire();pump(20);assert(quit and ended=='complete' and player.secondary==old and player.ghost and player.sneaking and #inventory.items==0 and teleports==1)",
+            "scenario={steps={{command='pz3d.look',yaw=0},{command='native.teleport',x=3.5,y=4.5,z=0}}};Events.OnMainMenuEnter.fire();pump(10);assert(quit and ended=='complete' and adopted==1 and player.x==3 and player.y==4)",
             "scenario={steps={{command='missing.command'}}};Events.OnMainMenuEnter.fire();pump(5);assert(quit and ended=='failed' and string.find(reason,'Unregistered'))",
             "scenario={steps={{command='native.wait',seconds=10,timeout=1}}};Events.OnMainMenuEnter.fire();advance(.1);advance(2);pump(4);assert(quit and ended=='failed' and string.find(reason,'Timeout'))",
             "scenario={steps={{command='native.wait',seconds=90}}};Events.OnMainMenuEnter.fire();advance(.1);advance(65);assert(not ended);advance(26);pump(4);assert(quit and ended=='complete')",

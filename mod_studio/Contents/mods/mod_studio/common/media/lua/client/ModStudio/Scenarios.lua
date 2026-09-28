@@ -27,8 +27,12 @@ end
 local function coordinates(s) number(s,"x",0,100000);number(s,"y",0,100000);number(s,"z",-32,31,true) end
 API.register("native",{}, {
     wait={validate=function(s) number(s,"seconds",0,600) end,start=function() end,tick=function(c,s,t) return t>=s.seconds end},
-    teleport={validate=coordinates,start=function(c,s) c.player:teleportTo(s.x,s.y,s.z or 0) end,
-        tick=function(c,s) local p=c.player;return math.abs(p:getX()-s.x)<.2 and math.abs(p:getY()-s.y)<.2 and math.abs(p:getZ()-(s.z or 0))<.1 and p:getSquare() and p:getSquare():getFloor() end},
+    teleport={validate=coordinates,start=function(c,s)
+            c.player:teleportTo(s.x,s.y,s.z or 0)
+            for _,p in ipairs(opened) do if p.nativeAction then p.nativeAction(c,"teleport",s) end end
+        end,
+        -- PZ's float overload floors x/y to native tile coordinates.
+        tick=function(c,s) local p=c.player;local square=p:getSquare();return math.floor(p:getX())==math.floor(s.x) and math.floor(p:getY())==math.floor(s.y) and math.abs(p:getZ()-(s.z or 0))<.1 and square and square:getX()==math.floor(s.x) and square:getY()==math.floor(s.y) and square:getFloor() end},
     time={validate=function(s) number(s,"hour",0,23.999) end,start=function(c,s) c.fixedTime=s.freeze and s.hour or nil;getGameTime():setTimeOfDay(s.hour) end},
     give={validate=function(s) assert(type(s.type)=="string" and type(s.id)=="string","give requires type and id");number(s,"charge",0,1,true) end,
         start=function(c,s)

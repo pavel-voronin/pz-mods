@@ -2,6 +2,7 @@
 -- command: start(context, step), optional tick(context, step, elapsed) -> completed,
 -- optional validate(step). start without tick completes immediately.
 -- provider: begin(context) -> ready, update(context), boundary(context),
+-- nativeAction(context, action, step) synchronizes a mod after a native command,
 -- phase(context, name), finish(context, status, reason) -> flushed.
 -- begin/finish may be polled and must be idempotent. Cleanup runs in reverse order.
 ModStudio=ModStudio or {}
