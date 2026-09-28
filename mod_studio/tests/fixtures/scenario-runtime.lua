@@ -73,4 +73,9 @@ PZ3D.lightingReady=function() return lightingReady end
 PZ3D.lightingState=function() return {error='',cells=1,held=0} end
 PZ3D.lightingReset=function() lightingMode='current';lightingResets=lightingResets+1 end
 PZ3D.scenarioUi=function() end
+visualAction=nil;visualReady=true;visualClears=0
+PZ3D.scenarioVisualConditionsKnown=function(a) return a=='install' or a=='a' or a=='b' or a=='missing' or a=='layers' or a=='unmatched' or a=='reload' or a=='unload' or a=='workload' or a=='clear' end
+PZ3D.scenarioVisualConditions=function(a,output) assert(output=='test');visualAction=a end
+PZ3D.scenarioVisualConditionsStatus=function() return visualReady and 'ready '..tostring(visualAction) or 'waiting' end
+PZ3D.scenarioVisualConditionsClear=function() visualAction=nil;visualClears=visualClears+1 end
 function pump(count,seconds) for i=1,count do advance(seconds or .1) end end
