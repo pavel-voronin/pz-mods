@@ -1,0 +1,12 @@
+name=Mod Studio [Java]
+id=mod_studio
+author=kolpaque
+modversion=0.3.6
+versionMin=42.21.0
+versionMax=42.21.0
+require=\ZombieBuddy
+javaJarFile=media/java/client/ModStudio.jar
+javaPkgName=me.pavel.modstudio
+ZBVersionMin=2.3.2
+ZBVersionMax=2.3.3
+description=Edit Workshop texts by language, preview, settings and dependencies independently. Publish mod files without replacing descriptions. Requires ZombieBuddy's Java loader. Windows / game 42.21.0 development build.

@@ -57,7 +57,7 @@ public final class Guard {
         if (health != null) return health;
         try {
             // GameVersion omits the hotfix number; getVersion includes it and the revision.
-            if (!Core.getInstance().getVersion().startsWith("42.20.4 ")) return false;
+            if (!Core.getInstance().getVersion().startsWith("42.21.0 ")) return false;
             new NativeBackend(SteamWorkshop.instance); // Verify private API before promising protection.
             probing.set(true);
             submitProbe = false;
@@ -67,7 +67,7 @@ public final class Guard {
             SteamWorkshopItem item = new SteamWorkshopItem(zombie.ZomboidFileSystem.instance.getCacheDir() + "/Workshop");
             if (item.validatePreviewImage((Path) null) != null) return false;
             health = true;
-            System.out.println("[ModStudio] Java patches verified for 42.20.4");
+            System.out.println("[ModStudio] Java patches verified for 42.21.0");
             return true;
         } catch (Throwable e) {
             System.err.println("[ModStudio] Protection unavailable: " + e);
