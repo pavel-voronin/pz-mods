@@ -22,6 +22,9 @@ public final class ScenarioRegression {
         String api=Files.readString(lua.resolve("ScenarioAPI.lua")),runtime=Files.readString(lua.resolve("Scenarios.lua"));
         String adapter=Files.readString(pz.resolve("Contents/mods/pz3d/common/media/lua/client/PZ3DScenarioAPI.lua"));
         for(String check:List.of(
+            "player:setInvisible(false);scenario={steps={{command='native.playerFlags',invisible=true},{command='native.wait',seconds=1}}};Events.OnMainMenuEnter.fire();pump(3);assert(player.invisible and player.ghost);pump(20);assert(quit and ended=='complete' and not player.invisible and not player.ghost)",
+            "scenario={steps={{command='native.playerFlags',invisible='yes'}}};Events.OnMainMenuEnter.fire();pump(5);assert(quit and ended=='failed' and player.invisible and player.ghost)",
+            "player:setInvisible(false);scenario={steps={{command='native.playerFlags',invisible=true},{command='native.wait',seconds=10,timeout=1}}};Events.OnMainMenuEnter.fire();pump(3);assert(player.invisible);advance(2);pump(5);assert(quit and ended=='failed' and not player.invisible and not player.ghost)",
             "scenario={steps={{command='pz3d.visualConditions',action='install'},{command='pz3d.visualConditions',action='b'}}};Events.OnMainMenuEnter.fire();pump(12);assert(quit and ended=='complete' and visualAction==nil and visualClears>0)",
             "scenario={steps={{command='pz3d.visualConditions',action='unknown'}}};Events.OnMainMenuEnter.fire();pump(5);assert(quit and ended=='failed' and visualAction==nil)",
             "visualReady=false;scenario={steps={{command='pz3d.visualConditions',action='install',timeout=1}}};Events.OnMainMenuEnter.fire();pump(3);assert(visualAction=='install' and not quit);advance(2);pump(5);assert(quit and ended=='failed' and visualAction==nil and visualClears>0)",

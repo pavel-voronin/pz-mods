@@ -25,12 +25,15 @@ inventory={items={},AddItem=function(self,name)
         setUsedDelta=function(s,v) s.charge=v end,setActivated=function(s,v) s.on=v end,isActivated=function(s) return s.on end}
     self.items[#self.items+1]=item;return item
 end,Remove=function(self,item) for i,v in ipairs(self.items) do if v==item then table.remove(self.items,i);return end end end}
-player={x=1,y=2,z=0,god=true,invisible=false,ghost=true,running=false,sprinting=false,sneaking=true,primary={original=true},secondary={original=true}}
+player={x=1,y=2,z=0,god=true,invisible=true,ghost=true,running=false,sprinting=false,sneaking=true,primary={original=true},secondary={original=true}}
 local methods={GodMod="god",Invisible="invisible",GhostMode="ghost",Running="running",Sprinting="sprinting",Sneaking="sneaking"}
 for suffix,key in pairs(methods) do
     player["is"..suffix]=function(self) return self[key] end
     player["set"..suffix]=function(self,v) self[key]=v end
 end
+function player:setInvisible(v) self.invisible=v;self.ghost=v end
+player.setGhostMode=player.setInvisible
+function player:isGhostMode() return self.invisible end
 function player:getPrimaryHandItem() return self.primary end
 function player:getSecondaryHandItem() return self.secondary end
 function player:setPrimaryHandItem(v) self.primary=v end

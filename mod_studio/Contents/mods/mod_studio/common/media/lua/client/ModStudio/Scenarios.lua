@@ -26,6 +26,13 @@ local function number(s,k,min,max,optional)
 end
 local function coordinates(s) number(s,"x",0,100000);number(s,"y",0,100000);number(s,"z",-32,31,true) end
 API.register("native",{}, {
+    playerFlags={validate=function(s)
+            assert(type(s.invisible)=="boolean","Invalid invisible")
+            assert(s.ghost==nil,"Use invisible: GhostMode is the same native flag")
+        end,start=function(c,s)
+            if s.invisible~=nil then c.player:setInvisible(s.invisible);assert(c.player:isInvisible()==s.invisible,"Invisible flag was not applied") end
+            event("native-player-flags","invisible="..tostring(c.player:isInvisible()).." ghost="..tostring(c.player:isGhostMode()))
+        end},
     wait={validate=function(s) number(s,"seconds",0,600) end,start=function() end,tick=function(c,s,t) return t>=s.seconds end},
     teleport={validate=coordinates,start=function(c,s)
             c.player:teleportTo(s.x,s.y,s.z or 0)
