@@ -66,6 +66,15 @@ ModStudioScenario={clock=function() return now end,requested=function() return t
  context=function() return {definition=scenario,json="{}",output="test"} end,claim=function() return true end,
  event=function(k,v) journal[#journal+1]={k,v} end,error=function() return "" end,worldReady=ignore,
  finish=function(s,r) ended=s;reason=r end,closed=function() return true end}
+ModStudioScenario.clearVehicles=function(x0,y0,x1,y1)
+    assert(core:isNoSave())
+    local selected={}
+    for _,v in ipairs(vehicles) do if v.x>=x0 and v.x<=x1 and v.y>=y0 and v.y<=y1 then
+        assert(v~=player:getVehicle());selected[#selected+1]=v
+    end end
+    for _,v in ipairs(selected) do v:permanentlyRemove() end
+    return #selected
+end
 journal={};quit=false;diag=false;diagClosed=true;ownedControl=false;beam=0;camera=1
 PZ3D={scenarioControlStart=function() ownedControl=true;return true end,scenarioControlEnd=function() ownedControl=false end,
  scenarioView=function() return {yaw=0,pitch=0} end,cameraMode=function(v) if v then camera=v end;return camera end,

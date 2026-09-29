@@ -22,6 +22,21 @@ public final class ScenarioHost {
     public static String error(){return error;}
     public static boolean closed(){return closed;}
     public static boolean requested(){return !System.getProperty("modstudio.scenario","").isEmpty();}
+    public static int clearVehicles(double x0,double y0,double x1,double y1){
+        if(!requested()||!claimed||!zombie.core.Core.getInstance().isNoSave())throw new IllegalStateException("Vehicle clearing requires a disposable scenario world");
+        if(!(x0>=0&&y0>=0&&x1<=100000&&y1<=100000&&x1>x0&&y1>y0&&x1-x0<=128&&y1-y0<=128))throw new IllegalArgumentException("Invalid vehicle clearing bounds");
+        var player=zombie.characters.IsoPlayer.getInstance();
+        var cell=zombie.iso.IsoWorld.instance.currentCell;
+        if(player==null||cell==null)throw new IllegalStateException("World is not ready");
+        var selected=new ArrayList<zombie.vehicles.BaseVehicle>();
+        // 42.21 exposes a Set, which has no indexed get() in Lua.
+        for(var vehicle:cell.getVehicles())if(vehicle.getX()>=x0&&vehicle.getX()<=x1&&vehicle.getY()>=y0&&vehicle.getY()<=y1){
+            if(vehicle==player.getVehicle())throw new IllegalStateException("Cannot remove the player's vehicle");
+            selected.add(vehicle);
+        }
+        for(var vehicle:selected)vehicle.permanentlyRemove();
+        return selected.size();
+    }
     public static KahluaTable context() {
         if(!requested()||!zombie.core.Core.debug||zombie.network.GameClient.client||zombie.network.GameServer.server)return null;
         try {
