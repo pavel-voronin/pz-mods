@@ -34,6 +34,21 @@ API.register("native",{}, {
             event("native-player-flags","invisible="..tostring(c.player:isInvisible()).." ghost="..tostring(c.player:isGhostMode()))
         end},
     wait={validate=function(s) number(s,"seconds",0,600) end,start=function() end,tick=function(c,s,t) return t>=s.seconds end},
+    clearVehicles={validate=function(s)
+            for _,k in ipairs({"x0","y0","x1","y1"}) do number(s,k,0,100000) end
+            assert(s.x1>s.x0 and s.y1>s.y0 and s.x1-s.x0<=128 and s.y1-s.y0<=128,"Vehicle clearing requires a bounded rectangle")
+        end,start=function(c,s)
+            assert(getCore():isNoSave(),"Vehicle clearing is only allowed in the disposable NoSave scenario world")
+            local list=getCell():getVehicles();local selected={}
+            for i=0,list:size()-1 do local v=list:get(i)
+                if v:getX()>=s.x0 and v:getX()<=s.x1 and v:getY()>=s.y0 and v:getY()<=s.y1 then
+                    assert(v~=c.player:getVehicle(),"Cannot remove the player's vehicle")
+                    selected[#selected+1]=v
+                end
+            end
+            for _,v in ipairs(selected) do v:permanentlyRemove() end
+            event("native-clear-vehicles","removed="..#selected.." bounds="..s.x0..","..s.y0..","..s.x1..","..s.y1)
+        end},
     teleport={validate=coordinates,start=function(c,s)
             c.player:teleportTo(s.x,s.y,s.z or 0)
             for _,p in ipairs(opened) do if p.nativeAction then p.nativeAction(c,"teleport",s) end end

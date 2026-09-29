@@ -48,6 +48,13 @@ function player:getZ() return self.z end
 function player:setMoving(v) self.moving=v end
 function player:teleportTo(x,y,z) self.x=math.floor(x);self.y=math.floor(y);self.z=z;teleports=teleports+1 end
 getPlayer=function() return player end
+vehicles={}
+function testVehicle(x,y)
+    local v={x=x,y=y,getX=function(s) return s.x end,getY=function(s) return s.y end}
+    function v:permanentlyRemove() self.removed=true;for i,item in ipairs(vehicles) do if item==self then table.remove(vehicles,i);break end end end
+    vehicles[#vehicles+1]=v;return v
+end
+getCell=function() return {getVehicles=function() return {size=function() return #vehicles end,get=function(s,i) return vehicles[i+1] end} end} end
 now=0;teleports=0;motion=0;interruption="";ended=nil;active=false
 
 function world:setGameMode() end

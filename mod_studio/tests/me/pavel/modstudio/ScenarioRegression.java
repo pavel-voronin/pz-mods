@@ -22,6 +22,9 @@ public final class ScenarioRegression {
         String api=Files.readString(lua.resolve("ScenarioAPI.lua")),runtime=Files.readString(lua.resolve("Scenarios.lua"));
         String adapter=Files.readString(pz.resolve("Contents/mods/pz3d/common/media/lua/client/PZ3DScenarioAPI.lua"));
         for(String check:List.of(
+            "local a=testVehicle(2,3);local b=testVehicle(3,4);local outside=testVehicle(20,20);scenario={steps={{command='native.clearVehicles',x0=1,y0=1,x1=4,y1=5}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='complete' and a.removed and b.removed and not outside.removed and #vehicles==1)",
+            "scenario={steps={{command='native.clearVehicles',x0=1,y0=1,x1=300,y1=5}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='failed')",
+            "core.isNoSave=function() return false end;local a=testVehicle(2,3);scenario={steps={{command='native.clearVehicles',x0=1,y0=1,x1=4,y1=5}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='failed' and not a.removed)",
             "player:setInvisible(false);scenario={steps={{command='native.playerFlags',invisible=true},{command='native.wait',seconds=1}}};Events.OnMainMenuEnter.fire();pump(3);assert(player.invisible and player.ghost);pump(20);assert(quit and ended=='complete' and not player.invisible and not player.ghost)",
             "scenario={steps={{command='native.playerFlags',invisible='yes'}}};Events.OnMainMenuEnter.fire();pump(5);assert(quit and ended=='failed' and player.invisible and player.ghost)",
             "player:setInvisible(false);scenario={steps={{command='native.playerFlags',invisible=true},{command='native.wait',seconds=10,timeout=1}}};Events.OnMainMenuEnter.fire();pump(3);assert(player.invisible);advance(2);pump(5);assert(quit and ended=='failed' and not player.invisible and not player.ghost)",
