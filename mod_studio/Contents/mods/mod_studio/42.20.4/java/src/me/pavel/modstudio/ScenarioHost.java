@@ -14,7 +14,8 @@ public final class ScenarioHost {
     private static String json;
     private static volatile String error="";
     private static Path output;
-    private static boolean claimed,loading;
+    private static boolean loading;
+    private static volatile boolean claimed;
     private static volatile boolean closed,finishing;
     private static final ArrayBlockingQueue<Map<String,Object>> events=new ArrayBlockingQueue<>(4096);
     private static volatile String status="running",reason="";
@@ -22,6 +23,9 @@ public final class ScenarioHost {
     public static String error(){return error;}
     public static boolean closed(){return closed;}
     public static boolean requested(){return !System.getProperty("modstudio.scenario","").isEmpty();}
+    // A claimed external session always exits its process, including on failure.
+    // Keep the filter through cleanup so held keys cannot act during shutdown.
+    public static boolean suppressInput(){return claimed;}
     public static int clearVehicles(double x0,double y0,double x1,double y1){
         if(!requested()||!claimed||!zombie.core.Core.getInstance().isNoSave())throw new IllegalStateException("Vehicle clearing requires a disposable scenario world");
         if(!(x0>=0&&y0>=0&&x1<=100000&&y1<=100000&&x1>x0&&y1>y0&&x1-x0<=128&&y1-y0<=128))throw new IllegalArgumentException("Invalid vehicle clearing bounds");
