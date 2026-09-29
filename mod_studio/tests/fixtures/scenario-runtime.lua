@@ -82,3 +82,8 @@ PZ3D.scenarioVisualConditions=function(a,output) assert(output=='test');visualAc
 PZ3D.scenarioVisualConditionsStatus=function() return visualReady and 'ready '..tostring(visualAction) or 'waiting' end
 PZ3D.scenarioVisualConditionsClear=function() visualAction=nil;visualClears=visualClears+1 end
 function pump(count,seconds) for i=1,count do advance(seconds or .1) end end
+interactionAction=nil;interactionReady=true;interactionClears=0
+PZ3D.scenarioInteractionKnown=function(a) return a=='select' or a=='toggle' or a=='clear' end
+PZ3D.scenarioInteraction=function(a,k,r) interactionAction=a end
+PZ3D.scenarioInteractionStatus=function() return interactionReady and 'ready '..tostring(interactionAction) or 'waiting render' end
+PZ3D.scenarioInteractionClear=function() interactionAction=nil;interactionClears=interactionClears+1 end
