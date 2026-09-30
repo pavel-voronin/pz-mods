@@ -5,6 +5,7 @@ param(
     [string[]]$ModRoots=@(),
     [switch]$SkipBuild,
     [switch]$PrepareOnly,
+    [ValidateSet('Java','Native')][string]$Launcher='Java',
     [int]$TimeoutSeconds=600
 )
 $ErrorActionPreference='Stop'
@@ -25,6 +26,7 @@ $copy=Join-Path $output 'scenario.json'
 [IO.File]::WriteAllText($copy,$text,[Text.UTF8Encoding]::new($false))
 $config=Get-Content -LiteralPath (Join-Path $Game 'ProjectZomboid64.json') -Raw | ConvertFrom-Json
 $arguments=@($config.vmArgs)+@('-XX:+UseZGC',"-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')",'-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")
+if($Launcher -eq 'Native'){$arguments=@('-XX:+UseZGC','-agentlib:zbNative=policy=allow-all','-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")}
 $packages=@()
 foreach($root in $roots){
     $commit=git -C $root rev-parse HEAD
@@ -44,7 +46,7 @@ $packages | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $outpu
 foreach($entry in @(@('options.ini','game-options.ini'),@('mods/default.txt','active-mods.txt'))){
     $from=Join-Path $env:USERPROFILE ('Zomboid/'+$entry[0]);if(Test-Path -LiteralPath $from){Copy-Item -LiteralPath $from -Destination (Join-Path $output $entry[1])}
 }
-$launch=[ordered]@{schema=1;status='prepared';source=$scenarioPath;output=$output;createdUtc=[DateTime]::UtcNow.ToString('o')}
+$launch=[ordered]@{schema=1;status='prepared';source=$scenarioPath;output=$output;createdUtc=[DateTime]::UtcNow.ToString('o');launcher=$Launcher}
 $launchPath=Join-Path $output 'launch.json'
 $launch | ConvertTo-Json | Set-Content -LiteralPath $launchPath -Encoding utf8
 Write-Output "Scenario artifact: $output"
@@ -53,6 +55,11 @@ $start=[Diagnostics.ProcessStartInfo]::new()
 $start.FileName=Join-Path $Game 'jre64/bin/java.exe';$start.WorkingDirectory=$Game
 $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden
 # Hide the Java helper console; the native game window remains visible.
-foreach($arg in ($arguments+@('-cp',($config.classpath -join ';'),'zombie.gameStates.MainScreenState','-debug'))){$start.ArgumentList.Add($arg)}
+if($Launcher -eq 'Native'){
+    $start.FileName=Join-Path $Game 'ProjectZomboid64.exe'
+    foreach($arg in ($arguments+@('--','-debug'))){$start.ArgumentList.Add($arg)}
+}else{
+    foreach($arg in ($arguments+@('-cp',($config.classpath -join ';'),'zombie.gameStates.MainScreenState','-debug'))){$start.ArgumentList.Add($arg)}
+}
 . (Join-Path $PSScriptRoot 'process.ps1')
 Invoke-ModStudioProcess -Start $start -Launch $launch -Output $output -TimeoutSeconds $TimeoutSeconds

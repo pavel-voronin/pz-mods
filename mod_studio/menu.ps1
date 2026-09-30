@@ -4,9 +4,12 @@ param(
     [ValidateRange(1,600)][int]$Seconds=5,
     [ValidateRange(1,1200)][int]$TimeoutSeconds=180,
     [ValidateSet('Configured','None','Buddy')][string]$Loaders='Configured',
+    [ValidateSet('Java','Native')][string]$Launcher='Java',
+    [switch]$WithBuddy,
     [string[]]$Mods
 )
 $ErrorActionPreference='Stop'
+if($Launcher -eq 'Native' -and $Loaders -ne 'Configured'){throw 'Native launcher uses its installed configuration; use Java to isolate loaders.'}
 . (Join-Path $PSScriptRoot 'process.ps1')
 $running=Get-CimInstance Win32_Process | Where-Object {
     $_.Name -like 'ProjectZomboid*' -or ($_.Name -match '^javaw?\.exe$' -and $_.CommandLine -match 'zombie.gameStates.MainScreenState')
@@ -24,7 +27,7 @@ $active=Join-Path $cache 'mods/default.txt'
 $hadActive=Test-Path -LiteralPath $active
 $saved=if($hadActive){[IO.File]::ReadAllBytes($active)}else{$null}
 $result=Join-Path $luaCache "menu-$token.json"
-$launch=[ordered]@{schema=1;mode='menu';status='prepared';output=$output;createdUtc=[DateTime]::UtcNow.ToString('o');loaders=$Loaders;seconds=$Seconds}
+$launch=[ordered]@{schema=1;mode='menu';status='prepared';output=$output;createdUtc=[DateTime]::UtcNow.ToString('o');loaders=$Loaders;launcher=$Launcher;seconds=$Seconds}
 try {
     if($hadActive){[IO.File]::WriteAllBytes((Join-Path $output 'active-mods-before.txt'),$saved)}
     if($PSBoundParameters.ContainsKey('Mods')){
@@ -47,7 +50,14 @@ try {
     $start=[Diagnostics.ProcessStartInfo]::new()
     $start.FileName=Join-Path $Game 'jre64/bin/java.exe';$start.WorkingDirectory=$Game
     $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden
-    foreach($arg in ($arguments+@('-cp',($config.classpath -join ';'),'zombie.gameStates.MainScreenState'))){$start.ArgumentList.Add($arg)}
+    if($Launcher -eq 'Native'){
+        $start.FileName=Join-Path $Game 'ProjectZomboid64.exe'
+        if($WithBuddy){$start.ArgumentList.Add('-agentlib:zbNative=policy=allow-all')}
+        $start.ArgumentList.Add('--')
+    }else{
+        if($WithBuddy -and $Loaders -ne 'Buddy'){$arguments+="-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')"}
+        foreach($arg in ($arguments+@('-cp',($config.classpath -join ';'),'zombie.gameStates.MainScreenState'))){$start.ArgumentList.Add($arg)}
+    }
     Write-Output "Menu artifact: $output"
     Invoke-ModStudioProcess -Start $start -Launch $launch -Output $output -TimeoutSeconds $TimeoutSeconds -ResultPath $result
     $screenshot=Join-Path $cache "Screenshots/modstudio-menu-$token.png"
