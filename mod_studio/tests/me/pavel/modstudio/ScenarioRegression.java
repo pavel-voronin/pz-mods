@@ -11,6 +11,17 @@ public final class ScenarioRegression {
         if(!Boolean.TRUE.equals(result[0]))throw new AssertionError(Arrays.toString(result));
     }
     public static void main(String[] args)throws Exception {
+        var road=new ScenarioDriving.Route(10,100,10,0,40);
+        var straight=road.control(10,90,0,-1,0);
+        if(!straight.gas()||straight.brake()||Math.abs(straight.steering())>.001||straight.remaining()!=90)throw new AssertionError("Native driving acceleration");
+        if(road.control(12,80,0,-1,40).steering()>=0||road.control(8,80,0,-1,40).steering()<=0)throw new AssertionError("Road-centre steering signs");
+        if(!road.control(10,2,0,-1,20).brake()||road.control(10,2,0,-1,20).gas())throw new AssertionError("Stop at destination");
+        if(!road.control(10,50,0,-1,60).brake())throw new AssertionError("Speed governor");
+        for(double speed:new double[]{Double.NaN,0,101}){boolean rejected=false;try{new ScenarioDriving.Route(0,0,0,100,speed);}catch(IllegalArgumentException e){rejected=true;}if(!rejected)throw new AssertionError("Invalid speed");}
+        boolean guarded=false;try{ScenarioDriving.spawn("Base.CarNormal",0);}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Normal world mutation");
+        ScenarioDriving.stop();ScenarioDriving.close();ScenarioDriving.close();
+        var frames=new ScenarioDriving.Intervals();for(int i=0;i<99;i++)frames.add(16_000_000);frames.add(2_000_000_000L);
+        if(frames.count!=100||frames.percentile(.95)!=16.1||frames.percentile(1)!=2000)throw new AssertionError("Bounded frame histogram and overflow");
         Path root=Path.of(args[0]),pz=Path.of(args[1]);
         // Preset shortcuts share the native loading gate without forcing NoSave.
         var gatePlatform=J2SEPlatform.getInstance();
@@ -43,6 +54,11 @@ public final class ScenarioRegression {
         String api=Files.readString(lua.resolve("ScenarioAPI.lua")),runtime=Files.readString(lua.resolve("Scenarios.lua"));
         String adapter=Files.readString(pz.resolve("Contents/mods/pz3d/common/media/lua/client/PZ3DScenarioAPI.lua"));
         for(String check:List.of(
+            "scenario={steps={{command='native.vehicle',script='Base.CarNormal',heading=-90},{command='native.drive',x=1,y=100,kmh=40},{command='native.wait',seconds=1}}};Events.OnMainMenuEnter.fire();pump(6);assert(carSpawned and driving and ended==nil);driveReady=true;pump(20);assert(ended=='complete' and carClosed and not driving)",
+            "scenario={steps={{command='native.vehicle',script='Base.CarNormal',heading=200}}};Events.OnMainMenuEnter.fire();pump(6);assert(ended=='failed' and not carSpawned)",
+            "scenario={steps={{command='native.drive',x=1,y=100,kmh=40}}};Events.OnMainMenuEnter.fire();pump(6);assert(ended=='failed' and not driving)",
+            "scenario={steps={{command='native.vehicle',script='Base.CarNormal',heading=0},{command='native.drive',x=1,y=100,kmh=40,timeout=1}}};Events.OnMainMenuEnter.fire();pump(4);assert(driving);advance(2);pump(8);assert(ended=='failed' and carClosed and not driving)",
+            "spawnFailure=true;scenario={steps={{command='native.vehicle',script='Base.CarNormal',heading=0}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='failed' and carClosed and not driving)",
             "local a=testVehicle(2,3);local b=testVehicle(3,4);local outside=testVehicle(20,20);scenario={steps={{command='native.clearVehicles',x0=1,y0=1,x1=4,y1=5}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='complete' and a.removed and b.removed and not outside.removed and #vehicles==1)",
             "scenario={steps={{command='native.clearVehicles',x0=1,y0=1,x1=300,y1=5}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='failed')",
             "core.isNoSave=function() return false end;local a=testVehicle(2,3);scenario={steps={{command='native.clearVehicles',x0=1,y0=1,x1=4,y1=5}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='failed' and not a.removed)",

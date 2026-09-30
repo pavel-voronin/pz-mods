@@ -25,7 +25,22 @@ local function number(s,k,min,max,optional)
     local v=s[k];assert(optional and v==nil or type(v)=="number" and v==v and v>=min and v<=max,"Invalid "..k)
 end
 local function coordinates(s) number(s,"x",0,100000);number(s,"y",0,100000);number(s,"z",-32,31,true) end
-API.register("native",{}, {
+API.register("native",{
+    boundary=function(c) if c.nativeDriving then ModStudioDriving.stop() end end,
+    finish=function(c) if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;return true end
+}, {
+    vehicle={validate=function(s)
+            assert(ModStudioDriving,"Native driving API unavailable")
+            assert(type(s.script)=="string" and #s.script>0 and #s.script<=128,"Invalid vehicle script")
+            number(s,"heading",-180,180)
+        end,start=function(c,s) c.nativeDriving=true;ModStudioDriving.spawn(s.script,s.heading) end},
+    drive={validate=function(s)
+            assert(ModStudioDriving,"Native driving API unavailable")
+            number(s,"x",0,100000);number(s,"y",0,100000);number(s,"kmh",5,100)
+        end,start=function(c,s)
+            assert(c.nativeDriving,"Create a native scenario vehicle first")
+            ModStudioDriving.drive(s.x,s.y,s.kmh);c.phase("MEASURE",s.timeout or 30)
+        end,tick=function() return ModStudioDriving.poll() end},
     playerFlags={validate=function(s)
             assert(type(s.invisible)=="boolean","Invalid invisible")
             assert(s.ghost==nil,"Use invisible: GhostMode is the same native flag")

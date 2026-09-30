@@ -76,6 +76,10 @@ ModStudioScenario.clearVehicles=function(x0,y0,x1,y1)
     return #selected
 end
 journal={};quit=false;diag=false;diagClosed=true;ownedControl=false;beam=0;camera=1
+ModStudioDriving={
+ spawn=function() carSpawned=true;if spawnFailure then error('spawn failed') end end,
+ drive=function() driving=true end,poll=function() return driveReady end,
+ stop=function() driving=false end,close=function() driving=false;carClosed=true end}
 PZ3D={ready=function() return true end,scenarioControlStart=function() ownedControl=true;return true end,scenarioControlEnd=function() ownedControl=false end,
  scenarioView=function() return {yaw=0,pitch=0} end,cameraMode=function(v) if v then camera=v end;return camera end,
  scenarioTakeControls=ignore,scenarioHeartbeat=ignore,scenarioInterruption=function() return interruption end,scenarioAdoptNativePosition=function() adopted=(adopted or 0)+1 end,
