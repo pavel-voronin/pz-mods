@@ -3,7 +3,7 @@ param(
     [string]$Game='C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid',
     [ValidateRange(1,600)][int]$Seconds=5,
     [ValidateRange(1,1200)][int]$TimeoutSeconds=180,
-    [ValidateSet('Configured','None','Buddy')][string]$Loaders='Configured',
+    [ValidateSet('Configured','None','Buddy','ShaunJava','ShaunNative')][string]$Loaders='Configured',
     [ValidateSet('Java','Native')][string]$Launcher='Java',
     [switch]$WithBuddy,
     [string[]]$Mods
@@ -14,6 +14,7 @@ if($Launcher -eq 'Native' -and $Loaders -ne 'Configured'){throw 'Native launcher
 $running=Get-CimInstance Win32_Process | Where-Object {
     $_.Name -like 'ProjectZomboid*' -or ($_.Name -match '^javaw?\.exe$' -and $_.CommandLine -match 'zombie.gameStates.MainScreenState')
 }
+$running=@($running | Where-Object {try{!(Get-Process -Id $_.ProcessId -ErrorAction Stop).HasExited}catch{$false}})
 if($running){throw 'Project Zomboid is already running; an existing session will not be closed.'}
 $cache=Join-Path $env:USERPROFILE 'Zomboid'
 $token=[guid]::NewGuid().ToString('N')
@@ -47,6 +48,8 @@ try {
     $arguments=@($config.vmArgs)
     if($Loaders -ne 'Configured'){$arguments=@($arguments | Where-Object {$_ -notmatch '^-((javaagent|agentlib|agentpath):)'})}
     if($Loaders -eq 'Buddy'){$arguments+="-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')"}
+    if($Loaders -eq 'ShaunJava'){$arguments+="-javaagent:$(Join-Path $Game 'pz3dLoader.jar')"}
+    if($Loaders -eq 'ShaunNative'){$arguments+="-agentpath:$(Join-Path $Game 'shaunNative.dll')"}
     $start=[Diagnostics.ProcessStartInfo]::new()
     $start.FileName=Join-Path $Game 'jre64/bin/java.exe';$start.WorkingDirectory=$Game
     $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden
