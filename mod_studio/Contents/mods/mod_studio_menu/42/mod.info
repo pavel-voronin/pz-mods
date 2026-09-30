@@ -1,0 +1,5 @@
+name=Mod Studio menu checks
+id=mod_studio_menu
+author=kolpaque
+versionMin=42.21.0
+description=Native Lua helper for externally requested, temporary main-menu checks. No Java loader required.

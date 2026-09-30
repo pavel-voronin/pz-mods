@@ -54,26 +54,5 @@ $start.FileName=Join-Path $Game 'jre64/bin/java.exe';$start.WorkingDirectory=$Ga
 $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden
 # Hide the Java helper console; the native game window remains visible.
 foreach($arg in ($arguments+@('-cp',($config.classpath -join ';'),'zombie.gameStates.MainScreenState','-debug'))){$start.ArgumentList.Add($arg)}
-$process=[Diagnostics.Process]::Start($start);$launch.pid=$process.Id;$launch.status='launched'
-$launch | ConvertTo-Json | Set-Content -LiteralPath $launchPath -Encoding utf8
-$watch=[Diagnostics.Stopwatch]::StartNew();$resultPath=Join-Path $output 'scenario-result.json';$finishedAt=$null
-while(!$process.HasExited -and $watch.Elapsed.TotalSeconds -lt $TimeoutSeconds){
-    if(Test-Path -LiteralPath $resultPath){
-        $result=Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
-        if($result.status -ne 'running'){$launch.status=$result.status;if($null -eq $finishedAt){$finishedAt=$watch.Elapsed.TotalSeconds}}
-    }
-    if($null -ne $finishedAt -and $watch.Elapsed.TotalSeconds-$finishedAt -gt 20){break}
-    Start-Sleep -Milliseconds 250
-}
-if(!$process.HasExited){
-    # This process was started for this disposable scenario. Never terminate an existing game.
-    $process.Kill();$process.WaitForExit();$launch.status='failed';$launch.reason='Scenario process exceeded shutdown or launch deadline'
-}elseif(Test-Path -LiteralPath $resultPath){$result=Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json;$launch.status=$result.status;$launch.reason=$result.reason}
-else{$launch.status='failed';$launch.reason='Game exited without a scenario result'}
-if($launch.status -eq 'running' -or $launch.status -eq 'launched'){$launch.status='failed';$launch.reason='Game exited before scenario completion'}
-$launch.exited=$true;$launch.exitCode=$process.ExitCode
-$launch | ConvertTo-Json | Set-Content -LiteralPath $launchPath -Encoding utf8
-$console=Join-Path $env:USERPROFILE 'Zomboid/console.txt'
-if(Test-Path -LiteralPath $console){Copy-Item -LiteralPath $console -Destination (Join-Path $output 'console.txt')}
-Write-Output "Scenario status: $($launch.status); game process exited."
-if($launch.status -ne 'complete'){throw $launch.reason}
+. (Join-Path $PSScriptRoot 'process.ps1')
+Invoke-ModStudioProcess -Start $start -Launch $launch -Output $output -TimeoutSeconds $TimeoutSeconds
