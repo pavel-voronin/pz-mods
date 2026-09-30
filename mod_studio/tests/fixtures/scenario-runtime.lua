@@ -76,7 +76,7 @@ ModStudioScenario.clearVehicles=function(x0,y0,x1,y1)
     return #selected
 end
 journal={};quit=false;diag=false;diagClosed=true;ownedControl=false;beam=0;camera=1
-PZ3D={scenarioControlStart=function() ownedControl=true;return true end,scenarioControlEnd=function() ownedControl=false end,
+PZ3D={ready=function() return true end,scenarioControlStart=function() ownedControl=true;return true end,scenarioControlEnd=function() ownedControl=false end,
  scenarioView=function() return {yaw=0,pitch=0} end,cameraMode=function(v) if v then camera=v end;return camera end,
  scenarioTakeControls=ignore,scenarioHeartbeat=ignore,scenarioInterruption=function() return interruption end,scenarioAdoptNativePosition=function() adopted=(adopted or 0)+1 end,
  scenarioClearMotion=function() motion=0 end,scenarioLook=ignore,scenarioMotion=function(f) motion=f end,
@@ -103,3 +103,9 @@ PZ3D.scenarioInteractionKnown=function(a) return a=='select' or a=='toggle' or a
 PZ3D.scenarioInteraction=function(a,k,r) interactionAction=a end
 PZ3D.scenarioInteractionStatus=function() return interactionReady and 'ready '..tostring(interactionAction) or 'waiting render' end
 PZ3D.scenarioInteractionClear=function() interactionAction=nil;interactionClears=interactionClears+1 end
+chunkMode=false;chunkActive=false;chunkReady=false;chunkFlushes=0;chunkReset=false
+PZ3D.scenarioChunkMode=function(iso) chunkMode=iso;if iso then camera=0 end end
+PZ3D.scenarioChunkStart=function(output,name,x,y) assert(not chunkActive);chunkActive=true;chunkReady=false end
+PZ3D.scenarioChunkPoll=function() return chunkActive and (chunkReady and 'ready native=1/1' or 'waiting native=0/1') or 'inactive' end
+PZ3D.scenarioChunkFinish=function(status) if chunkActive then chunkActive=false;chunkFlushes=chunkFlushes+1;chunkResult=status end;return true end
+PZ3D.scenarioChunkReset=function() chunkReset=true;chunkMode=false end
