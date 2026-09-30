@@ -3,10 +3,16 @@ local reader = getFileReader("ModStudio/menu-request.txt", false)
 if not reader then return end
 local token = reader:readLine()
 local seconds = tonumber(reader:readLine())
+local reloadRequested = reader:readLine() == "1"
+local enableMod = reader:readLine()
 reader:close()
 if not token or not string.match(token, "^[a-f0-9]+$") or #token ~= 32
     or not seconds or seconds < 1 or seconds > 600 then return end
 local entered, captured, finished
+local markerPath = "ModStudio/menu-" .. token .. "-reloaded.txt"
+local marker = getFileReader(markerPath, false)
+local reloaded = marker ~= nil
+if marker then marker:close() end
 local function result(status)
     local writer = getFileWriter("ModStudio/menu-" .. token .. ".json", true, false)
     assert(writer, "Cannot write menu result")
@@ -18,11 +24,31 @@ Events.OnMainMenuEnter.Add(function()
     entered = getTimestampMs()
     result("running")
     print("[Mod Studio] Main menu ready: " .. token)
+    print("[Mod Studio] Lua reload completed: " .. tostring(reloaded))
 end)
 Events.OnFETick.Add(function()
     if not entered or finished then return end
     local ok, err = pcall(function()
         local elapsed = (getTimestampMs() - entered) / 1000
+        if reloadRequested and not reloaded and elapsed >= 3 then
+            local writer = getFileWriter(markerPath, true, false)
+            assert(writer, "Cannot write Lua reload marker")
+            writer:write("requested\n");writer:close()
+            print("[Mod Studio] Requesting native Lua reload: " .. token)
+            finished = true
+            if enableMod and enableMod ~= "" then
+                assert(string.match(enableMod, "^[a-zA-Z0-9_-]+$"), "Invalid mod id")
+                local active = ActiveMods.getById("default")
+                active:setModActive(enableMod, true)
+                saveModsFile()
+                ActiveMods.getById("currentGame"):copyFrom(active)
+                MainScreen.instance.bottomPanel:setVisible(false)
+                getCore():ResetLua("default", "modsChanged")
+            else
+                getCore():DelayResetLua("default", "modStudioMenuCheck")
+            end
+            return
+        end
         if elapsed >= seconds and not captured then
             getCore():TakeFullScreenshot("modstudio-menu-" .. token .. ".png")
             captured = getTimestampMs()

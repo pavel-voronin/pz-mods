@@ -6,9 +6,15 @@ param(
     [ValidateSet('Configured','None','Buddy','ShaunJava','ShaunNative')][string]$Loaders='Configured',
     [ValidateSet('Java','Native')][string]$Launcher='Java',
     [switch]$WithBuddy,
+    [switch]$ReloadLua,
+    [string]$EnableModOnReload='',
     [string[]]$Mods
 )
 $ErrorActionPreference='Stop'
+if($EnableModOnReload){
+    if($EnableModOnReload -notmatch '^[a-zA-Z0-9_-]+$'){throw 'Invalid mod id for Lua reload.'}
+    $ReloadLua=$true
+}
 if($Launcher -eq 'Native' -and $Loaders -ne 'Configured'){throw 'Native launcher uses its installed configuration; use Java to isolate loaders.'}
 . (Join-Path $PSScriptRoot 'process.ps1')
 $running=if($IsLinux){
@@ -38,7 +44,8 @@ New-Item -ItemType Directory -Path (Split-Path $active) -Force | Out-Null
 $hadActive=Test-Path -LiteralPath $active
 $saved=if($hadActive){[IO.File]::ReadAllBytes($active)}else{$null}
 $result=Join-Path $luaCache "menu-$token.json"
-$launch=[ordered]@{schema=1;mode='menu';status='prepared';output=$output;createdUtc=[DateTime]::UtcNow.ToString('o');loaders=$Loaders;launcher=$Launcher;seconds=$Seconds}
+$reloadMarker=Join-Path $luaCache "menu-$token-reloaded.txt"
+$launch=[ordered]@{schema=1;mode='menu';status='prepared';output=$output;createdUtc=[DateTime]::UtcNow.ToString('o');loaders=$Loaders;launcher=$Launcher;seconds=$Seconds;reloadLua=[bool]$ReloadLua;enableModOnReload=$EnableModOnReload}
 try {
     if($hadActive){[IO.File]::WriteAllBytes((Join-Path $output 'active-mods-before.txt'),$saved)}
     if($PSBoundParameters.ContainsKey('Mods')){
@@ -53,7 +60,7 @@ try {
     }
     [IO.File]::WriteAllText($active,$text,[Text.UTF8Encoding]::new($false))
     Copy-Item -LiteralPath $active -Destination (Join-Path $output 'active-mods.txt')
-    [IO.File]::WriteAllText($request,"$token`n$Seconds`n",[Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($request,"$token`n$Seconds`n$([int][bool]$ReloadLua)`n$EnableModOnReload`n",[Text.UTF8Encoding]::new($false))
     $config=Get-Content -LiteralPath (Join-Path $Game 'ProjectZomboid64.json') -Raw | ConvertFrom-Json
     $arguments=@($config.vmArgs)
     if($Loaders -ne 'Configured'){$arguments=@($arguments | Where-Object {$_ -notmatch '^-((javaagent|agentlib|agentpath):)'})}
@@ -91,4 +98,5 @@ try {
     if($hadActive){[IO.File]::WriteAllBytes($active,$saved)}elseif(Test-Path -LiteralPath $active){Remove-Item -LiteralPath $active}
     if(Test-Path -LiteralPath $request){Remove-Item -LiteralPath $request}
     if(Test-Path -LiteralPath $result){Remove-Item -LiteralPath $result}
+    if(Test-Path -LiteralPath $reloadMarker){Remove-Item -LiteralPath $reloadMarker}
 }
