@@ -59,7 +59,7 @@ try {
     if($Loaders -ne 'Configured'){$arguments=@($arguments | Where-Object {$_ -notmatch '^-((javaagent|agentlib|agentpath):)'})}
     if($Loaders -eq 'Buddy'){$arguments+="-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')"}
     if($Loaders -eq 'ShaunJava'){$arguments+="-javaagent:$(Join-Path $Game 'pz3dLoader.jar')"}
-    if($Loaders -eq 'ShaunNative'){$arguments+="-agentpath:$(Join-Path $Game 'shaunNative.dll')"}
+    if($Loaders -eq 'ShaunNative'){$arguments+="-agentpath:$(Join-Path $Game 'pz3dLoader.dll')"}
     $start=[Diagnostics.ProcessStartInfo]::new()
     $start.FileName=Join-Path $Game $(if($IsLinux){'jre64/bin/java'}else{'jre64/bin/java.exe'});$start.WorkingDirectory=$Game
     $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden
