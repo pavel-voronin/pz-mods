@@ -105,7 +105,12 @@ public final class ScenarioHost {
         Files.move(temp,output.resolve("scenario-result.json"),StandardCopyOption.REPLACE_EXISTING);
     }
     public static void autoContinue(zombie.gameStates.GameLoadingState state){
-        if(!loading)return;zombie.core.Core.getInstance().setNoSave(true);
+        var env=zombie.Lua.LuaManager.env;
+        boolean shortcut=env!=null && env.rawget("ModStudio") instanceof KahluaTable studio
+            && studio.rawget("Launch") instanceof KahluaTable launch
+            && Boolean.TRUE.equals(launch.rawget("autoContinueLoading"));
+        if(!loading && !shortcut)return;
+        if(loading)zombie.core.Core.getInstance().setNoSave(true);
         try{var field=zombie.gameStates.GameLoadingState.class.getDeclaredField("forceDone");field.setAccessible(true);field.setBoolean(state,true);}
         catch(Exception e){error="Native loading gate: "+e;}
     }

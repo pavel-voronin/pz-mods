@@ -8,6 +8,7 @@ labels[1].onMouseDown();screen:prerender()
 assert(labels[1].name=='Saves On' and labels[1].r==1)
 assert(settingsFile=='noSave=false\n','toggle persists')
 NewGameScreen:clickPlay();assert(nativeNewSaveMode==false)
+assert(not ModStudio.Launch.autoContinueLoading,'ordinary New Game keeps native confirmation')
 screen:prerender();assert(not labels[1].visible)
 screen.bottomPanel:setVisible(true)
 labels[1].onMouseDown();screen:prerender()
@@ -17,6 +18,7 @@ screen.bottomPanel:setVisible(true);assert(not core.noSave,'cancel restores save
 ModStudio.Launch.presets[1].sandboxPreset='Missing'
 labels[2].onMouseDown()
 assert(errorMessage:find('Missing') and not createdName and not core.noSave)
+assert(not ModStudio.Launch.autoContinueLoading,'failed launch clears automatic continuation')
 assert(screen.bottomPanel.visible and world.mode=='Apocalypse')
 ModStudio.Launch.presets[1].sandboxPreset='New Rising'
 ModStudio.Launch.presets[1].spawnRegion='Nowhere'
@@ -33,12 +35,16 @@ assert(world.map=='Kentucky','skip unrelated map groups and select the requested
 assert(world.x==8123 and world.y==11742 and #world.traits==0,'native spawn/traits')
 assert(seedGenerated and seedSaved and avatarCreated and randomized and buildReset and playerInitialized)
 assert(core.noSave and spawnName=='Rosewood, KY' and core.selectedMap=='Rosewood, KY')
+assert(ModStudio.Launch.autoContinueLoading,'shortcut arms automatic continuation')
 Events.OnNewGame.fire(player)
 assert(#player.items==4 and player.items[1]=='vanilla-starter','inventory adds to vanilla items')
 assert(player.items[2].ammo==4 and player.items[3].ammo==4,'counts and full ammo')
 assert(player.worn.LeftWrist==player.items[4],'native worn body location')
 Events.OnNewGame.fire(player)
 assert(#player.items==4,'loadout consumed once')
+assert(ModStudio.Launch.autoContinueLoading,'loadout delivery must not clear the loading gate')
+Events.OnGameStart.fire()
+assert(not ModStudio.Launch.autoContinueLoading,'game start consumes automatic continuation')
 local count=createdCount
 labels[2].onMouseDown();assert(createdCount==count,'double click cannot launch twice')
 screen.inGame=true;screen.bottomPanel:setVisible(true);screen:prerender()
@@ -49,8 +55,10 @@ assert(not core.noSave and labels[1].visible,'return-to-menu resets engine switc
 labels[1].onMouseDown();screen:prerender()
 labels[2].onMouseDown()
 assert(createdSaveMode==false and createdCount==count+1,'same shortcut with saving')
+assert(ModStudio.Launch.autoContinueLoading,'saving shortcut also skips confirmation')
 
 Events.OnMainMenuEnter.fire()
+assert(not ModStudio.Launch.autoContinueLoading,'return to menu clears automatic continuation')
 ModStudio.Launch.register('other-mod','second',{name='Second',sandboxPreset='New Rising',spawnRegion='Rosewood, KY'})
 local second=makeScreen();second:prerender()
 assert(#second.modStudioLaunchLabels==3,'one button per configured preset')

@@ -118,6 +118,7 @@ local function prepareAndLaunch(screen, preset)
     screen.charCreationMain:onRandomCharacter()
     pendingItems = items
     pendingWorld = worldName
+    API.autoContinueLoading = true
     screen.charCreationMain:onOptionMouseDown({internal="NEXT"}, 0, 0)
 end
 
@@ -133,6 +134,7 @@ local function launch(preset)
     local ok, err = pcall(prepareAndLaunch, screen, preset)
     if ok then return end -- Prevent double-clicks until returning to the menu.
     restoreSaveMode()
+    API.autoContinueLoading = false
     pendingItems, pendingWorld = nil, nil
     launching = false
     world:setGameMode(oldMode)
@@ -215,6 +217,7 @@ end
 -- Also apply the toggle to ordinary New Game, without changing existing saves.
 local nativeClickPlay = NewGameScreen.clickPlay
 function NewGameScreen:clickPlay()
+    API.autoContinueLoading = false
     if MainScreen.instance and not MainScreen.instance.inGame then applySaveMode() end
     return nativeClickPlay(self)
 end
@@ -236,6 +239,7 @@ local nativeBottomVisible = MainScreen.setBottomPanelVisible
 function MainScreen:setBottomPanelVisible(visible)
     if visible and self.parent and not self.parent.inGame then
         restoreSaveMode()
+        API.autoContinueLoading = false
         pendingItems, pendingWorld = nil, nil
         launching = false
     end
@@ -248,11 +252,13 @@ Events.OnMainMenuEnter.Add(function()
     -- after such a reset must not carry NoSave into Continue/Load/Multiplayer.
     getCore():setNoSave(false)
     ownsSaveMode = false
+    API.autoContinueLoading = false
     pendingItems, pendingWorld = nil, nil
     launching = false
     install(MainScreen.instance)
 end)
 Events.OnGameBoot.Add(function() install(MainScreen.instance) end)
+Events.OnGameStart.Add(function() API.autoContinueLoading = false end)
 install(MainScreen.instance)
 
 -- Add to the vanilla StarterKit and profession items, once per preset launch.

@@ -3,7 +3,7 @@ getDebug=function() return DEBUG end
 UIFont={Large=1}
 UIManager={isModalVisible=function() return false end}
 Events={}
-for _,name in ipairs({'OnGameBoot','OnMainMenuEnter','OnNewGame'}) do
+for _,name in ipairs({'OnGameBoot','OnMainMenuEnter','OnNewGame','OnGameStart'}) do
     local event={handlers={}}
     event.Add=function(fn) table.insert(event.handlers,fn) end
     event.fire=function(...) for _,fn in ipairs(event.handlers) do fn(...) end end

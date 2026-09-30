@@ -12,6 +12,27 @@ public final class ScenarioRegression {
     }
     public static void main(String[] args)throws Exception {
         Path root=Path.of(args[0]),pz=Path.of(args[1]);
+        // Preset shortcuts share the native loading gate without forcing NoSave.
+        var gatePlatform=J2SEPlatform.getInstance();
+        var gateEnv=gatePlatform.newEnvironment();
+        var studio=gatePlatform.newTable();var launch=gatePlatform.newTable();
+        studio.rawset("Launch",launch);gateEnv.rawset("ModStudio",studio);
+        var previousEnv=zombie.Lua.LuaManager.env;
+        var core=zombie.core.Core.getInstance();boolean previousNoSave=core.isNoSave();
+        var state=new zombie.gameStates.GameLoadingState();
+        var forceDone=state.getClass().getDeclaredField("forceDone");forceDone.setAccessible(true);
+        try {
+            zombie.Lua.LuaManager.env=gateEnv;
+            for(boolean noSave:new boolean[]{false,true}) {
+                core.setNoSave(noSave);
+                for(boolean enabled:new boolean[]{false,true,false}) {
+                    forceDone.setBoolean(state,false);launch.rawset("autoContinueLoading",enabled);
+                    ScenarioHost.autoContinue(state);
+                    if(forceDone.getBoolean(state)!=enabled || core.isNoSave()!=noSave)
+                        throw new AssertionError("Shortcut loading gate or save mode isolation");
+                }
+            }
+        } finally {zombie.Lua.LuaManager.env=previousEnv;core.setNoSave(previousNoSave);}
         String valid="{\"schema\":1,\"id\":\"test\",\"spawn\":{\"x\":1,\"y\":2},\"steps\":[{\"command\":\"native.wait\",\"seconds\":1}]}";
         ScenarioHost.validate(ScenarioJson.parse(valid));
         for(String bad:List.of(valid.replace("native.wait","wait"),valid.replace("\"schema\":1","\"schema\":1.2"),valid.replace("\"id\":\"test\"","\"id\":\"test\",\"repeats\":1.5"))) {
