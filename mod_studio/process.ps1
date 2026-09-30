@@ -37,7 +37,7 @@ function Invoke-ModStudioProcess {
             if($ResultPath -ne (Join-Path $Output 'scenario-result.json') -and (Test-Path -LiteralPath $ResultPath)){
                 Copy-Item -LiteralPath $ResultPath -Destination (Join-Path $Output 'scenario-result.json')
             }
-            $console=Join-Path $env:USERPROFILE 'Zomboid/console.txt'
+            $console=Join-Path ([Environment]::GetFolderPath('UserProfile')) 'Zomboid/console.txt'
             if($process -and (Test-Path -LiteralPath $console)){Copy-Item -LiteralPath $console -Destination (Join-Path $Output 'console.txt')}
             if($process){$process.Dispose()}
         }

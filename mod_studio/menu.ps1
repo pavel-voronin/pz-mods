@@ -11,12 +11,21 @@ param(
 $ErrorActionPreference='Stop'
 if($Launcher -eq 'Native' -and $Loaders -ne 'Configured'){throw 'Native launcher uses its installed configuration; use Java to isolate loaders.'}
 . (Join-Path $PSScriptRoot 'process.ps1')
-$running=Get-CimInstance Win32_Process | Where-Object {
+$running=if($IsLinux){
+    Get-Process | Where-Object {
+        if($_.ProcessName -like 'ProjectZomboid*'){return $true}
+        if($_.ProcessName -notmatch '^java$'){return $false}
+        $cmdline=Get-Content -LiteralPath "/proc/$($_.Id)/cmdline" -Raw -ErrorAction SilentlyContinue
+        $cmdline -match 'zombie[./]gameStates[./]MainScreenState'
+    }
+}else{Get-CimInstance Win32_Process | Where-Object {
     $_.Name -like 'ProjectZomboid*' -or ($_.Name -match '^javaw?\.exe$' -and $_.CommandLine -match 'zombie.gameStates.MainScreenState')
-}
-$running=@($running | Where-Object {try{!(Get-Process -Id $_.ProcessId -ErrorAction Stop).HasExited}catch{$false}})
+}}
+if(!$IsLinux){$running=@($running | Where-Object {try{!(Get-Process -Id $_.ProcessId -ErrorAction Stop).HasExited}catch{$false}})}
 if($running){throw 'Project Zomboid is already running; an existing session will not be closed.'}
-$cache=Join-Path $env:USERPROFILE 'Zomboid'
+$cache=Join-Path ([Environment]::GetFolderPath('UserProfile')) 'Zomboid'
+if($IsLinux -and $Loaders -eq 'ShaunNative'){throw 'ShaunNative is only supported on Windows.'}
+if($IsLinux -and $Launcher -eq 'Native'){throw 'Linux menu checks currently use the Java launcher.'}
 $token=[guid]::NewGuid().ToString('N')
 $output=Join-Path $cache ('ModStudio/scenarios/'+[DateTime]::UtcNow.ToString('yyyyMMdd-THHmmssZ')+'-'+$token)
 New-Item -ItemType Directory -Path $output | Out-Null
@@ -25,6 +34,7 @@ New-Item -ItemType Directory -Path $luaCache -Force | Out-Null
 $request=Join-Path $luaCache 'menu-request.txt'
 if(Test-Path -LiteralPath $request){throw "Another menu request exists: $request"}
 $active=Join-Path $cache 'mods/default.txt'
+New-Item -ItemType Directory -Path (Split-Path $active) -Force | Out-Null
 $hadActive=Test-Path -LiteralPath $active
 $saved=if($hadActive){[IO.File]::ReadAllBytes($active)}else{$null}
 $result=Join-Path $luaCache "menu-$token.json"
@@ -51,15 +61,20 @@ try {
     if($Loaders -eq 'ShaunJava'){$arguments+="-javaagent:$(Join-Path $Game 'pz3dLoader.jar')"}
     if($Loaders -eq 'ShaunNative'){$arguments+="-agentpath:$(Join-Path $Game 'shaunNative.dll')"}
     $start=[Diagnostics.ProcessStartInfo]::new()
-    $start.FileName=Join-Path $Game 'jre64/bin/java.exe';$start.WorkingDirectory=$Game
+    $start.FileName=Join-Path $Game $(if($IsLinux){'jre64/bin/java'}else{'jre64/bin/java.exe'});$start.WorkingDirectory=$Game
     $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden
+    if($IsLinux){
+        $start.Environment['LD_LIBRARY_PATH']="$Game/natives:${Game}:$Game/jre64/lib:"+$env:LD_LIBRARY_PATH
+        $start.Environment['LD_PRELOAD']="$Game/jre64/lib/libjsig.so:$Game/natives/libPZXInitThreads64.so"
+        $start.Environment['XMODIFIERS']=''
+    }
     if($Launcher -eq 'Native'){
         $start.FileName=Join-Path $Game 'ProjectZomboid64.exe'
         if($WithBuddy){$start.ArgumentList.Add('-agentlib:zbNative=policy=allow-all')}
         $start.ArgumentList.Add('--')
     }else{
         if($WithBuddy -and $Loaders -ne 'Buddy'){$arguments+="-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')"}
-        foreach($arg in ($arguments+@('-cp',($config.classpath -join ';'),'zombie.gameStates.MainScreenState'))){$start.ArgumentList.Add($arg)}
+        foreach($arg in ($arguments+@('-cp',($config.classpath -join [IO.Path]::PathSeparator),'zombie.gameStates.MainScreenState'))){$start.ArgumentList.Add($arg)}
     }
     Write-Output "Menu artifact: $output"
     Invoke-ModStudioProcess -Start $start -Launch $launch -Output $output -TimeoutSeconds $TimeoutSeconds -ResultPath $result
