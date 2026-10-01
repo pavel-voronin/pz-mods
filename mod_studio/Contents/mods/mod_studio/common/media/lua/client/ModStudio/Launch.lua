@@ -14,6 +14,8 @@ API.installed = true
 
 local pendingItems
 local pendingWorld
+local pendingStart
+local startWorld
 local ownsSaveMode = false
 local previousNoSave = false
 local launching = false
@@ -86,6 +88,14 @@ local function prepareAndLaunch(screen, preset)
     assert(region, "Spawn region not found: " .. preset.spawnRegion)
     local points = region.points and region.points[CharacterProfession.UNEMPLOYED:getName()]
     assert(points and #points > 0, "No unemployed spawn points in " .. preset.spawnRegion)
+    if preset.spawn then
+        -- A private native spawn region: do not mutate the ordinary New Game list.
+        local fixed = {}
+        for key, value in pairs(region) do fixed[key]=value end
+        fixed.points = {[CharacterProfession.UNEMPLOYED:getName()]={
+            {posX=preset.spawn.x, posY=preset.spawn.y, posZ=preset.spawn.z}}}
+        region = fixed
+    end
 
     applySaveMode() -- Before any createWorld/database initialization.
     screen.bottomPanel:setVisible(false)
@@ -118,6 +128,7 @@ local function prepareAndLaunch(screen, preset)
     screen.charCreationMain:onRandomCharacter()
     pendingItems = items
     pendingWorld = worldName
+    pendingStart, startWorld = preset.onStart, worldName
     API.autoContinueLoading = true
     screen.charCreationMain:onOptionMouseDown({internal="NEXT"}, 0, 0)
 end
@@ -136,6 +147,7 @@ local function launch(preset)
     restoreSaveMode()
     API.autoContinueLoading = false
     pendingItems, pendingWorld = nil, nil
+    pendingStart, startWorld = nil, nil
     launching = false
     world:setGameMode(oldMode)
     world:setMap(oldMap)
@@ -185,6 +197,7 @@ local function install(screen)
         local entry = preset
         local label = addLabel(screen, tostring(entry.name or "?"), function() launch(entry) end)
         label:setTooltip(tostring(entry.sandboxPreset) .. " / " .. tostring(entry.spawnRegion)
+            .. (entry.spawn and string.format(" / Spawn: %d, %d, %d",entry.spawn.x,entry.spawn.y,entry.spawn.z) or "")
             .. " / Unemployed / No selected traits / Random appearance")
         labels[#labels+1] = label
     end
@@ -241,6 +254,7 @@ function MainScreen:setBottomPanelVisible(visible)
         restoreSaveMode()
         API.autoContinueLoading = false
         pendingItems, pendingWorld = nil, nil
+        pendingStart, startWorld = nil, nil
         launching = false
     end
     nativeBottomVisible(self, visible)
@@ -254,11 +268,20 @@ Events.OnMainMenuEnter.Add(function()
     ownsSaveMode = false
     API.autoContinueLoading = false
     pendingItems, pendingWorld = nil, nil
+    pendingStart, startWorld = nil, nil
     launching = false
     install(MainScreen.instance)
 end)
 Events.OnGameBoot.Add(function() install(MainScreen.instance) end)
-Events.OnGameStart.Add(function() API.autoContinueLoading = false end)
+Events.OnGameStart.Add(function()
+    API.autoContinueLoading = false
+    local callback, world = pendingStart, startWorld
+    pendingStart, startWorld = nil, nil
+    if callback and not isClient() and getWorld():getWorld()==world then
+        local ok, err = pcall(callback, getPlayer())
+        if not ok then showError(err) end
+    end
+end)
 install(MainScreen.instance)
 
 -- Add to the vanilla StarterKit and profession items, once per preset launch.

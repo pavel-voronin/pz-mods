@@ -84,5 +84,34 @@ second.modStudioLaunchLabels[4].onMouseDown()
 assert(createdCount==before and errorMessage:find('Missing.Item'),'invalid inventory rejected before world creation')
 Events.OnNewGame.fire(player)
 assert(#player.items==4,'failed/cancelled launch never leaks items')
+-- Native initWorld must consume a private elevated spawn, without changing the
+-- regular region; the optional callback belongs only to the launched world.
+Events.OnMainMenuEnter.fire()
+second.bottomPanel:setVisible(true)
+local callbackCount=0
+local rooftop={name='Highrise',sandboxPreset='New Rising',spawnRegion='Rosewood, KY',
+    spawn={x=12764,y=1638,z=22},onStart=function(p) assert(p==player);callbackCount=callbackCount+1 end}
+ModStudio.Launch.register('fixture','rooftop',rooftop)
+rooftop.spawn.x=1 -- registration owns its coordinate copy
+second:prerender()
+second.modStudioLaunchLabels[5].onMouseDown()
+assert(world.x==12764 and world.y==1638 and world.z==22,'native elevated starting coordinates')
+assert(regions[1].points.unemployed[1].posX==8123,'default region remains unchanged')
+Events.OnNewGame.fire(player)
+assert(callbackCount==0,'callback waits for game start, not character creation')
+Events.OnGameStart.fire();Events.OnGameStart.fire()
+assert(callbackCount==1,'start callback is consumed once')
+Events.OnMainMenuEnter.fire();second.bottomPanel:setVisible(true);second:prerender()
+second.modStudioLaunchLabels[5].onMouseDown()
+world.name='another-save';Events.OnGameStart.fire()
+assert(callbackCount==1,'callback cannot affect another save')
+for _,point in ipairs({{x=1,y=2,z=32},{x=1.5,y=2},{x=-1,y=2},{x=1,y=2,z=0/0}}) do
+    rooftop.spawn=point
+    assert(not pcall(ModStudio.Launch.register,'fixture','invalid',rooftop),'reject invalid native spawn')
+end
+Events.OnMainMenuEnter.fire();second.bottomPanel:setVisible(true);second:prerender()
+second.modStudioLaunchLabels[2].onMouseDown()
+assert(world.x==8123 and world.y==11742 and world.z==0,'ordinary shortcut retains native random spawn')
+Events.OnGameStart.fire();assert(callbackCount==1,'ordinary shortcut has no rooftop callback')
 ModStudio.Settings.setNoSave(false)
 ModStudio.Settings=nil

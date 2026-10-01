@@ -160,3 +160,4 @@ end
 player={items={'vanilla-starter'}, worn={}}
 function player:getInventory() return {AddItem=function(self,item) table.insert(player.items,item);return item end} end
 function player:setWornItem(location,item) self.worn[location]=item end
+getPlayer=function() return player end

@@ -1,5 +1,7 @@
 -- Optional API: require "ModStudio/LaunchAPI" when Mod Studio is enabled.
--- register(ownerModId, presetId, {name, sandboxPreset, spawnRegion, inventory}).
+-- register(ownerModId, presetId, {name, sandboxPreset, spawnRegion, inventory, spawn, onStart}).
+-- spawn: optional integer native tile {x,y,z=0}, within the selected map group.
+-- onStart(player): optional once-only callback after this new world has started.
 -- inventory: {{type="Base.Item", count=1, fullAmmo=false, worn=false}, ...}.
 -- fullAmmo fills native ammo capacity; worn equips at the native body location.
 -- Registering the same owner/id replaces it; definitions are copied on registration.
@@ -16,6 +18,20 @@ function API.register(owner, id, preset)
         copy[key] = preset[key]
     end
     copy.inventory = {}
+    if preset.spawn ~= nil then
+        assert(type(preset.spawn)=="table", "Invalid spawn")
+        copy.spawn = {}
+        for _, key in ipairs({"x", "y", "z"}) do
+            local value = preset.spawn[key]
+            if key=="z" and value==nil then value=0 end
+            local low, high = 0, 100000
+            if key=="z" then low=-32;high=31 end
+            assert(type(value)=="number" and value>=low and value<=high and value==math.floor(value), "Invalid spawn "..key)
+            copy.spawn[key] = value
+        end
+    end
+    assert(preset.onStart==nil or type(preset.onStart)=="function", "Invalid onStart")
+    copy.onStart = preset.onStart
     assert(preset.inventory==nil or type(preset.inventory)=="table", "Invalid inventory")
     for _, entry in ipairs(preset.inventory or {}) do
         assert(type(entry)=="table" and type(entry.type)=="string" and entry.type~="", "Invalid inventory item")
