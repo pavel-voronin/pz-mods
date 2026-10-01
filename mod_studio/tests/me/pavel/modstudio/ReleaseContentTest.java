@@ -29,13 +29,26 @@ final class ReleaseContentTest {
         var scan=FileScan.start(Path.of(item.getContentFolder()),null,null);AssetTest.await(scan);
         check(scan.getContentLabel().equals("Contents (release)")&&scan.getFileCount()==2,"scan size and root label use release package");
         check(scan.snapshot.keySet().equals(Set.of("mods/runtime/42.20.4/mod.info","mods/runtime/42.20.4/live.lua")),"manifest paths remain normal Contents-relative paths");
+        Path dll=runtime.resolve("media/loader/pz3dLoader.dll");Files.createDirectories(dll.getParent());
+        Files.write(dll,new byte[]{'M','Z',0,1});
+        var nativeTypes=zombie.core.znet.SteamWorkshopItem.class.getDeclaredMethod("validateFileTypes",Path.class);nativeTypes.setAccessible(true);
+        check("FileTypeNotAllowed".equals(nativeTypes.invoke(item,release)),"native DLL restriction remains unchanged outside Studio");
+        check(Bridge.validate(item,true)==null,"Studio accepts DLL payloads without release notes");
+        Bridge.validateFiles(item);
+        check(Bridge.arm(item)&&SteamWorkshop.instance.SubmitWorkshopItem(item),"DLL package reaches the offline upload adapter");
+        for(String extension:List.of(".exe",".bat",".app",".dylib",".sh",".so",".zip")) {
+            Path blocked=dll.resolveSibling("blocked"+extension);Files.writeString(blocked,"blocked");
+            check("FileTypeNotAllowed".equals(Bridge.validate(item,true)),"DLL exception preserves restriction: "+extension);
+            Files.delete(blocked);
+        }
         Path developmentNotes=folder.resolve("Contents/release-notes.txt");
         Files.writeString(developmentNotes,"Development notes");
         check(Bridge.loadReleaseNotes(item).equals(""),"missing release notes never fall back to development notes");
         String notes="Fixed\r\n- Flashlight colors\r\n- Исправление\r\n";
         Files.writeString(release.resolve("release-notes.txt"),"\uFEFF"+notes);
         check(Bridge.loadReleaseNotes(item).equals(notes),"release notes preserve UTF-8 and line breaks, stripping BOM");
-        check(Bridge.validate(item,true)==null,"release notes are allowed while native mod validation remains active");
+        check(Bridge.validate(item,true)==null,"release notes and DLLs are allowed while native mod validation remains active");
+        Bridge.validateFiles(item);
         Files.writeString(release.resolve("unexpected.txt"),"other root files stay forbidden");
         check("FileNotAllowedInContents".equals(Bridge.validate(item,true)),"only release-notes.txt is allowed at root");
         Files.delete(release.resolve("unexpected.txt"));

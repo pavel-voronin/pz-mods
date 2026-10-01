@@ -21,8 +21,8 @@ final class LocalFiles {
     }
     static String validateContents(SteamWorkshopItem item) {
         String error=item.validateContents();
-        if(!"FileNotAllowedInContents".equals(error)) return error;
-        // Native validation forbids root files. Permit only our notes and keep native folder/type checks.
+        if(!"FileNotAllowedInContents".equals(error) && !"FileTypeNotAllowed".equals(error)) return error;
+        // Permit release notes and DLL payloads; retain native layout checks and other type restrictions.
         Path root=Path.of(item.getContentFolder());
         boolean folder=false;
         try(var paths=Files.newDirectoryStream(root)) {
@@ -43,8 +43,24 @@ final class LocalFiles {
                 if(error!=null) return error;
                 folder=true;
             }
-            return folder?validateNative(item,"validateFileTypes",root):"EmptyContentsFolder";
+            return folder?validateFileTypes(root):"EmptyContentsFolder";
         } catch(Exception e) {return "IOError";}
+    }
+    private static String validateFileTypes(Path root) throws java.io.IOException {
+        try(var paths=Files.newDirectoryStream(root)) {
+            for(Path path:paths) {
+                if(Files.isDirectory(path)) {
+                    String error=validateFileTypes(path);
+                    if(error!=null) return error;
+                } else {
+                    String name=path.getFileName().toString();
+                    if(name.toLowerCase(Locale.ROOT).endsWith("pyramid.zip")) continue;
+                    for(String extension:List.of(".exe",".bat",".app",".dylib",".sh",".so",".zip"))
+                        if(name.endsWith(extension)) return "FileTypeNotAllowed";
+                }
+            }
+        }
+        return null;
     }
     private static String validateNative(SteamWorkshopItem item,String name,Path path) throws Exception {
         var method=SteamWorkshopItem.class.getDeclaredMethod(name,Path.class);
