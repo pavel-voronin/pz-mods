@@ -56,6 +56,11 @@ public final class ScenarioRegression {
         String api=Files.readString(lua.resolve("ScenarioAPI.lua")),runtime=Files.readString(lua.resolve("Scenarios.lua"));
         String adapter=Files.readString(pz.resolve("Contents/mods/pz3d/common/media/lua/client/PZ3DScenarioAPI.lua"));
         for(String check:List.of(
+            "animalRendered=true;scenario={steps={{command='native.animals',all=true},{command='pz3d.animalsReady'}}};Events.OnMainMenuEnter.fire();pump(20);assert(ended=='complete' and #spawnedAnimals==3);for _,a in ipairs(spawnedAnimals) do assert(a.added and a.removed and a.squareRemoved) end",
+            "animalFailure=true;scenario={steps={{command='native.animals',all=true}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and #spawnedAnimals==1 and spawnedAnimals[1].removed)",
+            "animalBlocked=true;scenario={steps={{command='native.animals',all=true}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and #spawnedAnimals==0)",
+            "scenario={steps={{command='native.animals',all=true},{command='pz3d.animalsReady',timeout=1}}};Events.OnMainMenuEnter.fire();pump(30);assert(ended=='failed' and spawnedAnimals[1].removed)",
+            "core.isNoSave=function() return false end;scenario={steps={{command='native.animals',all=true}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and #spawnedAnimals==0)",
             "humanReady=true;scenario={steps={{command='native.human',dx=0,dy=-3},{command='native.wait',seconds=1}}};Events.OnMainMenuEnter.fire();pump(3);assert(humanSpawned and humanOffset[2]==-3);pump(20);assert(ended=='complete' and humanCleared and not humanSpawned)",
             "scenario={steps={{command='native.human',dx=0,dy=0}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='failed' and not humanSpawned)",
             "scenario={steps={{command='native.human',dx=0,dy=-3,timeout=1}}};Events.OnMainMenuEnter.fire();pump(3);advance(2);pump(8);assert(ended=='failed' and humanCleared and not humanSpawned)",
@@ -96,7 +101,7 @@ public final class ScenarioRegression {
             "scenario={steps={{command='pz3d.move',x=20,y=2,z=0}}};Events.OnMainMenuEnter.fire();pump(3);assert(motion==1 and not diag);advance(6);pump(4);assert(quit and ended=='failed' and motion==0 and teleports==0 and not ownedControl)",
             "scenario={steps={{command='pz3d.diagnostics',enabled=true},{command='pz3d.measure',seconds=10}}};Events.OnMainMenuEnter.fire();pump(3);interruption='focus lost';pump(40);assert(quit and ended=='failed' and not diag and not ownedControl)")) {
             var platform=J2SEPlatform.getInstance();var env=platform.newEnvironment();var thread=new KahluaThread(platform,env);thread.debugOwnerThread=Thread.currentThread();
-            for(String code:List.of(fixture,api,runtime,adapter,check))run(thread,env,code);
+            for(String code:List.of(fixture,api,"local animals=(function()\n"+Files.readString(lua.resolve("ScenarioAnimals.lua"))+"\nend)()",runtime,adapter,check))run(thread,env,code);
         }
         System.out.println("PASS: bounded schema, native-only launch, item cleanup, teleport, timeout, unknown commands, independent diagnostics, PZ3D route failure, interruption and automatic exit.");
     }

@@ -123,4 +123,31 @@ PZ3D.scenarioChunkReset=function() chunkReset=true;chunkMode=false end
 ModStudioScenario.spawnHuman=function(dx,dy) assert(not humanSpawned);humanSpawned=true;humanOffset={dx,dy};if humanFailure then error('human spawn failed') end end
 ModStudioScenario.humanReady=function() return humanReady end
 ModStudioScenario.clearHuman=function() humanSpawned=false;humanCleared=true end
+
 ModStudioScenario.updateHuman=function() end
+
+-- Native animal fixture contracts: all definitions, partial failure and cleanup.
+spawnedAnimals={}
+local function animalList(items)
+    return {size=function() return #items end,get=function(self,i) return items[i+1] end}
+end
+getAllAnimalsDefinitions=function()
+    local defs={}
+    for _,name in ipairs({'rat','cow','calf'}) do
+        local breed={getName=function() return 'native' end}
+        defs[#defs+1]={getAnimalType=function() return name end,getBreeds=function() return animalList({breed}) end}
+    end
+    return animalList(defs)
+end
+getCell=function() return {getGridSquare=function(self,x,y,z)
+    if animalBlocked then return nil end
+    return {getFloor=function() return true end,isFree=function() return true end,getZ=function() return z end}
+end} end
+addAnimal=function(cell,x,y,z,name,breed,skeleton)
+    if animalFailure and #spawnedAnimals==1 then error('animal spawn failed') end
+    local a={getAnimalType=function() return name end,getAnimalSize=function() return 1 end,
+        addToWorld=function(self) self.added=true end,removeFromWorld=function(self) self.removed=true end,
+        removeFromSquare=function(self) self.squareRemoved=true end}
+    spawnedAnimals[#spawnedAnimals+1]=a;return a
+end
+PZ3D.scenarioAnimalRendered=function() return animalRendered==true end

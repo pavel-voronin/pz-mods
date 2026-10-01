@@ -2,6 +2,8 @@ if not getDebug() then return end
 require "ModStudio/ScenarioAPI"
 require "DebugUIs/DebugScenarios"
 require "TimedActions/ISTimedActionQueue"
+require "ModStudio/ScenarioAnimals"
+local ScenarioAnimals=ModStudioScenarioAnimals
 local API=ModStudio.Scenarios
 if API.installed then return end
 API.installed=true
@@ -28,8 +30,9 @@ local function coordinates(s) number(s,"x",0,100000);number(s,"y",0,100000);numb
 API.register("native",{
     update=function(c) if c.nativeHuman then ModStudioScenario.updateHuman() end end,
     boundary=function(c) if c.nativeDriving then ModStudioDriving.stop() end end,
-    finish=function(c) if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;return true end
+    finish=function(c) ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;return true end
 }, {
+    animals=ScenarioAnimals.command,
     human={validate=function(s)
             assert(ModStudioScenario.spawnHuman,"Native human API unavailable")
             number(s,"dx",-8,8);number(s,"dy",-8,8)
