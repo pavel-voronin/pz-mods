@@ -41,6 +41,47 @@ public final class ScenarioHost {
         for(var vehicle:selected)vehicle.permanentlyRemove();
         return selected.size();
     }
+    private static zombie.characters.IsoPlayer human;
+    public static void spawnHuman(double dx,double dy){
+        if(!requested()||!claimed||!zombie.core.Core.getInstance().isNoSave())throw new IllegalStateException("Human spawn requires a disposable scenario world");
+        if(!Double.isFinite(dx)||!Double.isFinite(dy)||Math.abs(dx)>8||Math.abs(dy)>8||Math.hypot(dx,dy)<1)throw new IllegalArgumentException("Human offset must be 1..8 tiles per axis");
+        var player=zombie.characters.IsoPlayer.getInstance();var cell=zombie.iso.IsoWorld.instance.currentCell;
+        if(human!=null||player==null||cell==null)throw new IllegalStateException("Human already exists or world is unavailable");
+        int x=(int)Math.floor(player.getX()+dx),y=(int)Math.floor(player.getY()+dy),z=(int)player.getZ();
+        var square=cell.getGridSquare(x,y,z);
+        if(square==null||!square.TreatAsSolidFloor()||!square.isFree(false))throw new IllegalStateException("Human spawn requires a free loaded floor");
+        try {
+            human=new zombie.characters.IsoPlayer(cell,zombie.characters.SurvivorFactory.CreateSurvivor(),x,y,z);
+            human.remote=true;human.setNpc(true);human.setGodMod(true);human.setInvisible(false);human.setBlockMovement(true);
+            for(String type:List.of("Base.Shirt_Denim","Base.Trousers_Denim","Base.Shoes_TrainerTINT")){
+                var item=human.getInventory().AddItem(type);
+                if(!(item instanceof zombie.inventory.types.Clothing clothing))throw new IllegalStateException("Missing human clothing: "+type);
+                human.setWornItem(clothing.getBodyLocation(),clothing);
+            }
+            human.getWornItems().getItemVisuals(human.getItemVisuals());
+            var axe=human.getInventory().AddItem("Base.Axe");
+            if(axe==null)throw new IllegalStateException("Missing human attachment");
+            human.setPrimaryHandItem(axe);human.setDirectionAngle(90);
+            human.setCurrent(square);human.setSceneCulled(false);
+            if(zombie.characters.IsoPlayer.getInstance()!=player)throw new IllegalStateException("Human replaced local player");
+            event("native-human","spawn x="+human.getX()+" y="+human.getY()+" z="+human.getZ()+" npc="+human.isNpc());
+        } catch(RuntimeException|Error e){clearHuman();throw e;}
+    }
+    public static void updateHuman(){
+        // A local visual stand-in has no network packets. Preserve native remote-player
+        // update/animation without expiring it or assigning the active local camera.
+        if(human!=null)human.setTimeSinceLastNetData(0);
+    }
+    public static boolean humanReady(){
+        if(human==null)throw new IllegalStateException("No scenario human");
+        var model=human.getModel();
+        return human.getCurrentSquare()!=null&&model!=null&&model.animPlayer!=null&&model.animPlayer.isReady();
+    }
+    public static void clearHuman(){
+        var actor=human;if(actor==null)return;human=null;
+        try {actor.setSceneCulled(true);}finally {try {actor.removeFromWorld();}finally {actor.removeFromSquare();}}
+        event("native-human","removed");
+    }
     public static KahluaTable context() {
         if(!requested()||!zombie.core.Core.debug||zombie.network.GameClient.client||zombie.network.GameServer.server)return null;
         try {

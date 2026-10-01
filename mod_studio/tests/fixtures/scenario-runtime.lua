@@ -119,3 +119,8 @@ PZ3D.scenarioChunkStart=function(output,name,x,y) assert(not chunkActive);chunkA
 PZ3D.scenarioChunkPoll=function() return chunkActive and (chunkReady and 'ready native=1/1' or 'waiting native=0/1') or 'inactive' end
 PZ3D.scenarioChunkFinish=function(status) if chunkActive then chunkActive=false;chunkFlushes=chunkFlushes+1;chunkResult=status end;return true end
 PZ3D.scenarioChunkReset=function() chunkReset=true;chunkMode=false end
+
+ModStudioScenario.spawnHuman=function(dx,dy) assert(not humanSpawned);humanSpawned=true;humanOffset={dx,dy};if humanFailure then error('human spawn failed') end end
+ModStudioScenario.humanReady=function() return humanReady end
+ModStudioScenario.clearHuman=function() humanSpawned=false;humanCleared=true end
+ModStudioScenario.updateHuman=function() end

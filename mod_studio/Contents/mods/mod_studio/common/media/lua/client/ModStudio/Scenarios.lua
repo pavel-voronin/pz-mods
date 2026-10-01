@@ -26,9 +26,17 @@ local function number(s,k,min,max,optional)
 end
 local function coordinates(s) number(s,"x",0,100000);number(s,"y",0,100000);number(s,"z",-32,31,true) end
 API.register("native",{
+    update=function(c) if c.nativeHuman then ModStudioScenario.updateHuman() end end,
     boundary=function(c) if c.nativeDriving then ModStudioDriving.stop() end end,
-    finish=function(c) if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;return true end
+    finish=function(c) if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;return true end
 }, {
+    human={validate=function(s)
+            assert(ModStudioScenario.spawnHuman,"Native human API unavailable")
+            number(s,"dx",-8,8);number(s,"dy",-8,8)
+            assert(s.dx*s.dx+s.dy*s.dy>=1,"Human must spawn at least one tile away")
+        end,start=function(c,s) c.nativeHuman=true;ModStudioScenario.spawnHuman(s.dx,s.dy) end,
+        tick=function() return ModStudioScenario.humanReady() end},
+    clearHuman={start=function(c) ModStudioScenario.clearHuman();c.nativeHuman=nil end},
     vehicle={validate=function(s)
             assert(ModStudioDriving,"Native driving API unavailable")
             assert(type(s.script)=="string" and #s.script>0 and #s.script<=128,"Invalid vehicle script")

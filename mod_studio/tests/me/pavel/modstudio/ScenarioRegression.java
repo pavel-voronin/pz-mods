@@ -19,6 +19,8 @@ public final class ScenarioRegression {
         if(!road.control(10,50,0,-1,60).brake())throw new AssertionError("Speed governor");
         for(double speed:new double[]{Double.NaN,0,101}){boolean rejected=false;try{new ScenarioDriving.Route(0,0,0,100,speed);}catch(IllegalArgumentException e){rejected=true;}if(!rejected)throw new AssertionError("Invalid speed");}
         boolean guarded=false;try{ScenarioDriving.spawn("Base.CarNormal",0);}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Normal world mutation");
+        guarded=false;try{ScenarioHost.spawnHuman(0,-3);}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Human spawned outside a disposable scenario");
+        ScenarioHost.clearHuman();ScenarioHost.clearHuman();
         ScenarioDriving.stop();ScenarioDriving.close();ScenarioDriving.close();
         var frames=new ScenarioDriving.Intervals();for(int i=0;i<99;i++)frames.add(16_000_000);frames.add(2_000_000_000L);
         if(frames.count!=100||frames.percentile(.95)!=16.1||frames.percentile(1)!=2000)throw new AssertionError("Bounded frame histogram and overflow");
@@ -54,6 +56,11 @@ public final class ScenarioRegression {
         String api=Files.readString(lua.resolve("ScenarioAPI.lua")),runtime=Files.readString(lua.resolve("Scenarios.lua"));
         String adapter=Files.readString(pz.resolve("Contents/mods/pz3d/common/media/lua/client/PZ3DScenarioAPI.lua"));
         for(String check:List.of(
+            "humanReady=true;scenario={steps={{command='native.human',dx=0,dy=-3},{command='native.wait',seconds=1}}};Events.OnMainMenuEnter.fire();pump(3);assert(humanSpawned and humanOffset[2]==-3);pump(20);assert(ended=='complete' and humanCleared and not humanSpawned)",
+            "scenario={steps={{command='native.human',dx=0,dy=0}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='failed' and not humanSpawned)",
+            "scenario={steps={{command='native.human',dx=0,dy=-3,timeout=1}}};Events.OnMainMenuEnter.fire();pump(3);advance(2);pump(8);assert(ended=='failed' and humanCleared and not humanSpawned)",
+            "humanFailure=true;scenario={steps={{command='native.human',dx=0,dy=-3}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='failed' and humanCleared and not humanSpawned)",
+            "humanReady=true;scenario={steps={{command='native.human',dx=0,dy=-3},{command='native.clearHuman'},{command='native.clearHuman'},{command='native.human',dx=3,dy=0}}};Events.OnMainMenuEnter.fire();pump(20);assert(ended=='complete' and humanCleared and not humanSpawned)",
             "scenario={steps={{command='pz3d.diagnostics',enabled=true},{command='pz3d.worldWarp',mode=3,lateral=200,vertical=150,scale=1000,near=160},{command='native.wait',seconds=.2}}};Events.OnMainMenuEnter.fire();pump(5);assert(PZ3D.cameraDebugState().warpMode==3);pump(40);local w=PZ3D.cameraDebugState();assert(quit and ended=='complete' and w.warpMode==0 and w.warpLateral==100 and w.warpScale==2400)",
             "scenario={steps={{command='pz3d.worldWarp',mode=3,near=159}}};Events.OnMainMenuEnter.fire();pump(5);assert(quit and ended=='failed' and PZ3D.cameraDebugState().warpMode==0)",
             "scenario={steps={{command='pz3d.diagnostics',enabled=true},{command='pz3d.worldWarp',mode=2},{command='native.wait',seconds=100}}};Events.OnMainMenuEnter.fire();pump(5);assert(PZ3D.cameraDebugState().warpMode==2);interruption='focus lost';pump(40);assert(quit and ended=='failed' and PZ3D.cameraDebugState().warpMode==0)",
