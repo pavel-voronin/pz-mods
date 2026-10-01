@@ -3,6 +3,8 @@ require "ModStudio/ScenarioAPI"
 require "DebugUIs/DebugScenarios"
 require "TimedActions/ISTimedActionQueue"
 require "ModStudio/ScenarioAnimals"
+require "ModStudio/ScenarioLights"
+local ScenarioLights=ModStudioScenarioLights
 local ScenarioAnimals=ModStudioScenarioAnimals
 local API=ModStudio.Scenarios
 if API.installed then return end
@@ -30,8 +32,11 @@ local function coordinates(s) number(s,"x",0,100000);number(s,"y",0,100000);numb
 API.register("native",{
     update=function(c) if c.nativeHuman then ModStudioScenario.updateHuman() end end,
     boundary=function(c) if c.nativeDriving then ModStudioDriving.stop() end end,
-    finish=function(c) ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;return true end
+    finish=function(c) ScenarioLights.clear(c);ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;return true end
 }, {
+    lightFixture=ScenarioLights.fixture,
+    equip=ScenarioLights.equip,
+    weaponLight=ScenarioLights.weaponLight,
     animals=ScenarioAnimals.command,
     human={validate=function(s)
             assert(ModStudioScenario.spawnHuman,"Native human API unavailable")

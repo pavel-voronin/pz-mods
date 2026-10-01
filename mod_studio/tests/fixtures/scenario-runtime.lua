@@ -39,6 +39,7 @@ function player:getSecondaryHandItem() return self.secondary end
 function player:setPrimaryHandItem(v) self.primary=v end
 function player:setSecondaryHandItem(v) self.secondary=v end
 function player:getInventory() return inventory end
+function player:resetEquippedHandsModels() modelResets=(modelResets or 0)+1 end
 function player:getVehicle() return nil end
 function player:getSquare() return square end
 function player:isDead() return false end
