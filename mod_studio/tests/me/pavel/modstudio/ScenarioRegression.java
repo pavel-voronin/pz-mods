@@ -63,6 +63,7 @@ public final class ScenarioRegression {
             "animalFailure=true;scenario={steps={{command='native.animals',all=true}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and #spawnedAnimals==1 and spawnedAnimals[1].removed)",
             "animalBlocked=true;scenario={steps={{command='native.animals',all=true}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and #spawnedAnimals==0)",
             "scenario={steps={{command='native.animals',all=true},{command='pz3d.animalsReady',timeout=1}}};Events.OnMainMenuEnter.fire();pump(30);assert(ended=='failed' and spawnedAnimals[1].removed)",
+            "local s={id='fire',kind='fireplace',dx=3,dy=0,on=true,tile='crafted_02_42'};ModStudioScenarioLights.fixture.validate(s);s.tile='../bad';assert(not pcall(ModStudioScenarioLights.fixture.validate,s));s.tile='crafted_02_42';s.kind='campfire';assert(not pcall(ModStudioScenarioLights.fixture.validate,s))",
             "core.isNoSave=function() return false end;scenario={steps={{command='native.animals',all=true}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and #spawnedAnimals==0)",
             "humanReady=true;scenario={steps={{command='native.human',dx=0,dy=-3},{command='native.wait',seconds=1}}};Events.OnMainMenuEnter.fire();pump(3);assert(humanSpawned and humanOffset[2]==-3);pump(20);assert(ended=='complete' and humanCleared and not humanSpawned)",
             "scenario={steps={{command='native.human',dx=0,dy=0}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='failed' and not humanSpawned)",

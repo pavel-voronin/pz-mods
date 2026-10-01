@@ -17,6 +17,7 @@ M.fixture={
         assert(type(s.id)=="string" and #s.id>0,"lightFixture requires id")
         assert(s.kind=="campfire" or s.kind=="fireplace" or s.kind=="constructed","Invalid light fixture kind")
         assert(type(s.on)=="boolean","lightFixture requires on")
+        assert(s.tile==nil or s.kind=="fireplace" and type(s.tile)=="string" and s.tile:match("^[a-z0-9_]+$"),"tile requires a fireplace sprite name")
         for _,key in ipairs({"dx","dy"}) do assert(type(s[key])=="number" and s[key]%1==0 and math.abs(s[key])<=12,"Invalid "..key) end
         assert(s.dx*s.dx+s.dy*s.dy>=4,"Light fixture must be at least two tiles away")
     end,
@@ -32,7 +33,8 @@ M.fixture={
                 fixture.campfire=assert(SCampfireSystem.instance:addCampfire(sq),"Campfire creation failed")
                 fixture.campfire:setFuel(120)
             elseif s.kind=="fireplace" then
-                fixture.object=IsoFireplace.new(getCell(),sq,getSprite("fixtures_fireplaces_01_0"))
+                local sprite=assert(getSprite(s.tile or "fixtures_fireplaces_01_0"),"Fireplace sprite missing")
+                fixture.object=IsoFireplace.new(getCell(),sq,sprite)
                 sq:AddTileObject(fixture.object);fixture.object:setFuelAmount(120)
             else
                 fixture.object=IsoThumpable.new(getCell(),sq,"carpentry_02_59",false,nil)
