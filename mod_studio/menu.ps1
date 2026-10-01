@@ -3,7 +3,7 @@ param(
     [string]$Game='C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid',
     [ValidateRange(1,600)][int]$Seconds=5,
     [ValidateRange(1,1200)][int]$TimeoutSeconds=180,
-    [ValidateSet('Configured','None','Buddy','ShaunJava','ShaunNative')][string]$Loaders='Configured',
+    [ValidateSet('Configured','None','Buddy','Pz3dLoaderJava','Pz3dLoaderNative')][string]$Loaders='Configured',
     [ValidateSet('Java','Native')][string]$Launcher='Java',
     [switch]$WithBuddy,
     [switch]$ReloadLua,
@@ -30,7 +30,7 @@ $running=if($IsLinux){
 if(!$IsLinux){$running=@($running | Where-Object {try{!(Get-Process -Id $_.ProcessId -ErrorAction Stop).HasExited}catch{$false}})}
 if($running){throw 'Project Zomboid is already running; an existing session will not be closed.'}
 $cache=Join-Path ([Environment]::GetFolderPath('UserProfile')) 'Zomboid'
-if($IsLinux -and $Loaders -eq 'ShaunNative'){throw 'ShaunNative is only supported on Windows.'}
+if($IsLinux -and $Loaders -eq 'Pz3dLoaderNative'){throw 'Pz3dLoaderNative is only supported on Windows.'}
 if($IsLinux -and $Launcher -eq 'Native'){throw 'Linux menu checks currently use the Java launcher.'}
 $token=[guid]::NewGuid().ToString('N')
 $output=Join-Path $cache ('ModStudio/scenarios/'+[DateTime]::UtcNow.ToString('yyyyMMdd-THHmmssZ')+'-'+$token)
@@ -65,8 +65,8 @@ try {
     $arguments=@($config.vmArgs)
     if($Loaders -ne 'Configured'){$arguments=@($arguments | Where-Object {$_ -notmatch '^-((javaagent|agentlib|agentpath):)'})}
     if($Loaders -eq 'Buddy'){$arguments+="-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')"}
-    if($Loaders -eq 'ShaunJava'){$arguments+="-javaagent:$(Join-Path $Game 'pz3dLoader.jar')"}
-    if($Loaders -eq 'ShaunNative'){$arguments+="-agentpath:$(Join-Path $Game 'pz3dLoader.dll')"}
+    if($Loaders -eq 'Pz3dLoaderJava'){$arguments+="-javaagent:$(Join-Path $Game 'pz3dLoader.jar')"}
+    if($Loaders -eq 'Pz3dLoaderNative'){$arguments+="-agentpath:$(Join-Path $Game 'pz3dLoader.dll')"}
     $start=[Diagnostics.ProcessStartInfo]::new()
     $start.FileName=Join-Path $Game $(if($IsLinux){'jre64/bin/java'}else{'jre64/bin/java.exe'});$start.WorkingDirectory=$Game
     $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden
