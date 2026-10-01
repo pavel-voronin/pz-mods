@@ -69,6 +69,8 @@ API.register("native",{
             event("native-player-flags","invisible="..tostring(c.player:isInvisible()).." ghost="..tostring(c.player:isGhostMode()))
         end},
     wait={validate=function(s) number(s,"seconds",0,600) end,start=function() end,tick=function(c,s,t) return t>=s.seconds end},
+    screenshot={validate=function(s) assert(type(s.name)=="string" and #s.name<=60 and s.name:match("^[a-z0-9_-]+$"),"Invalid screenshot name") end,
+        start=function(c,s) ModStudioScenario.screenshot(s.name) end,tick=function() return ModStudioScenario.screenshotReady() end},
     clearVehicles={validate=function(s)
             for _,k in ipairs({"x0","y0","x1","y1"}) do number(s,k,0,100000) end
             assert(s.x1>s.x0 and s.y1>s.y0 and s.x1-s.x0<=128 and s.y1-s.y0<=128,"Vehicle clearing requires a bounded rectangle")
@@ -84,6 +86,24 @@ API.register("native",{
         -- PZ's float overload floors x/y to native tile coordinates.
         tick=function(c,s) local p=c.player;local square=p:getSquare();return math.floor(p:getX())==math.floor(s.x) and math.floor(p:getY())==math.floor(s.y) and math.abs(p:getZ()-(s.z or 0))<.1 and square and square:getX()==math.floor(s.x) and square:getY()==math.floor(s.y) and square:getFloor() end},
     time={validate=function(s) number(s,"hour",0,23.999) end,start=function(c,s) c.fixedTime=s.freeze and s.hour or nil;getGameTime():setTimeOfDay(s.hour) end},
+    weather={validate=function(s)
+            number(s,"fog",0,1);number(s,"rain",0,1);number(s,"cloud",0,1)
+        end,start=function(c,s)
+            assert(getCore():isNoSave(),"Weather control requires the disposable NoSave world")
+            local climate=getClimateManager()
+            c.weatherSaved=c.weatherSaved or {}
+            for key,id in pairs({fog=5,rain=3,cloud=8}) do
+                local value=climate:getClimateFloat(id)
+                if not c.weatherSaved[id] then c.weatherSaved[id]={enabled=value:isEnableAdmin(),value=value:getAdminValue()} end
+                value:setAdminValue(s[key]);value:setEnableAdmin(true)
+            end
+        end,tick=function(c,s)
+            local climate=getClimateManager()
+            if math.abs(climate:getFogIntensity()-s.fog)>.001 or math.abs(climate:getPrecipitationIntensity()-s.rain)>.001 or math.abs(climate:getCloudIntensity()-s.cloud)>.001 then return false end
+            local color=climate:getColorNewFog():getExterior()
+            event("native-weather","fog="..s.fog.." rain="..s.rain.." cloud="..s.cloud.." hour="..getGameTime():getTimeOfDay().." ambient="..climate:getAmbient().." daylight="..climate:getDayLightStrength().." tint="..color:getRedFloat()..","..color:getGreenFloat()..","..color:getBlueFloat())
+            return true
+        end},
     give={validate=function(s) assert(type(s.type)=="string" and type(s.id)=="string","give requires type and id");number(s,"charge",0,1,true) end,
         start=function(c,s)
             assert(not c.items[s.id],"Duplicate item id: "..s.id)
@@ -111,6 +131,13 @@ local function advance()
     event("command",step.command.." "..(step.name or ""));handler.start(ctx,step)
 end
 local function restoreNative()
+    if ctx.weatherSaved then
+        for id,saved in pairs(ctx.weatherSaved) do
+            local value=getClimateManager():getClimateFloat(id)
+            value:setAdminValue(saved.value);value:setEnableAdmin(saved.enabled)
+        end
+        ctx.weatherSaved=nil
+    end
     if not ctx.saved or not ctx.player then return end
     local p,s=ctx.player,ctx.saved
     p:setPrimaryHandItem(s.primary);p:setSecondaryHandItem(s.secondary)

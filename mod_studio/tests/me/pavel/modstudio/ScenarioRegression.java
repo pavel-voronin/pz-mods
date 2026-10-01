@@ -21,6 +21,7 @@ public final class ScenarioRegression {
         boolean guarded=false;try{ScenarioDriving.spawn("Base.CarNormal",0);}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Normal world mutation");
         guarded=false;try{ScenarioHost.spawnHuman(0,-3);}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Human spawned outside a disposable scenario");
         ScenarioHost.clearHuman();ScenarioHost.clearHuman();
+        guarded=false;try{ScenarioHost.screenshot("test");}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Screenshot outside disposable scenario");
         ScenarioDriving.stop();ScenarioDriving.close();ScenarioDriving.close();
         var frames=new ScenarioDriving.Intervals();for(int i=0;i<99;i++)frames.add(16_000_000);frames.add(2_000_000_000L);
         if(frames.count!=100||frames.percentile(.95)!=16.1||frames.percentile(1)!=2000)throw new AssertionError("Bounded frame histogram and overflow");
@@ -56,6 +57,11 @@ public final class ScenarioRegression {
         String api=Files.readString(lua.resolve("ScenarioAPI.lua")),runtime=Files.readString(lua.resolve("Scenarios.lua"));
         String adapter=Files.readString(pz.resolve("Contents/mods/pz3d/common/media/lua/client/PZ3DScenarioAPI.lua"));
         for(String check:List.of(
+            "scenario={steps={{command='native.screenshot',name='native-view'}}};Events.OnMainMenuEnter.fire();pump(15);assert(ended=='complete' and screenshotName=='native-view' and screenshotPolls>=3)",
+            "scenario={steps={{command='native.screenshot',name='../bad'}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and screenshotName==nil)",
+            "scenario={steps={{command='native.weather',fog=1,rain=0,cloud=.6},{command='native.wait',seconds=1}}};Events.OnMainMenuEnter.fire();pump(4);assert(weatherValues[5].enabled and weatherValues[5].value==1);pump(25);assert(ended=='complete');for _,v in pairs(weatherValues) do assert(not v.enabled and v.value==.2) end",
+            "scenario={steps={{command='native.weather',fog=2,rain=0,cloud=0}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and not weatherValues[5].enabled)",
+            "core.isNoSave=function() return false end;scenario={steps={{command='native.weather',fog=1,rain=0,cloud=0}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and not weatherValues[5].enabled)",
             "humanReady=true;scenario={steps={{command='native.human',dx=3,dy=0},{command='native.humanLight',on=true,heading=90},{command='native.wait',seconds=1},{command='native.humanLight',on=false,heading=-90}}};Events.OnMainMenuEnter.fire();pump(5);assert(humanLightOn and humanHeading==90);pump(25);assert(ended=='complete' and humanLightOn==false and humanHeading==-90 and humanCleared)",
             "scenario={steps={{command='native.humanLight',on=true,heading=181}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='failed' and not humanLightOn)",
             "scenario={steps={{command='native.humanLight',on=true,heading=0}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='failed' and not humanLightOn)",

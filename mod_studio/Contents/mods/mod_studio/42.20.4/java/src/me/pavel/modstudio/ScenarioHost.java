@@ -26,6 +26,26 @@ public final class ScenarioHost {
     // A claimed external session always exits its process, including on failure.
     // Keep the filter through cleanup so held keys cannot act during shutdown.
     public static boolean suppressInput(){return claimed;}
+    private static volatile boolean screenshotDone;
+    private static volatile String screenshotError="";
+    /** Native front-buffer capture, usable with or without a renderer provider. */
+    public static void screenshot(String name){
+        if(!requested()||!claimed||!zombie.core.Core.getInstance().isNoSave())throw new IllegalStateException("Screenshot requires a disposable scenario world");
+        if(name==null||!name.matches("[a-z0-9_-]{1,60}"))throw new IllegalArgumentException("Invalid screenshot name");
+        screenshotDone=false;screenshotError="";
+        zombie.core.opengl.RenderThread.invokeOnRenderContext(()->{
+            int read=org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL30.GL_READ_FRAMEBUFFER_BINDING),buffer=org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL11.GL_READ_BUFFER),pack=org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL11.GL_PACK_ALIGNMENT);
+            try{
+                org.lwjgl.opengl.GL30.glBindFramebuffer(org.lwjgl.opengl.GL30.GL_READ_FRAMEBUFFER,0);
+                String temporary="mod-studio-"+UUID.randomUUID()+".png";
+                zombie.core.Core.getInstance().TakeFullScreenshot(temporary);
+                Path destination=output.resolve("screenshots").resolve(name+".png");Files.createDirectories(destination.getParent());
+                Files.move(Path.of(zombie.ZomboidFileSystem.instance.getScreenshotDir()).resolve(temporary),destination,StandardCopyOption.REPLACE_EXISTING);
+            }catch(Exception e){screenshotError=e.toString();}
+            finally{org.lwjgl.opengl.GL30.glBindFramebuffer(org.lwjgl.opengl.GL30.GL_READ_FRAMEBUFFER,read);org.lwjgl.opengl.GL11.glReadBuffer(buffer);org.lwjgl.opengl.GL11.glPixelStorei(org.lwjgl.opengl.GL11.GL_PACK_ALIGNMENT,pack);screenshotDone=true;}
+        });
+    }
+    public static boolean screenshotReady(){if(!screenshotError.isEmpty())throw new IllegalStateException(screenshotError);return screenshotDone;}
     public static int clearVehicles(double x0,double y0,double x1,double y1){
         if(!requested()||!claimed||!zombie.core.Core.getInstance().isNoSave())throw new IllegalStateException("Vehicle clearing requires a disposable scenario world");
         if(!(x0>=0&&y0>=0&&x1<=100000&&y1<=100000&&x1>x0&&y1>y0&&x1-x0<=128&&y1-y0<=128))throw new IllegalArgumentException("Invalid vehicle clearing bounds");

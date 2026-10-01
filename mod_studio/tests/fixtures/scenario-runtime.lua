@@ -18,6 +18,20 @@ getActivatedMods=function() return {size=function() return 0 end} end
 ISTimedActionQueue={clear=function() end}
 tm={hour=9,getTimeOfDay=function(self) return self.hour end,setTimeOfDay=function(self,v) self.hour=v end}
 getGameTime=function() return tm end
+weatherValues={}
+for _,id in ipairs({3,5,8}) do
+    weatherValues[id]={enabled=false,value=.2,
+        isEnableAdmin=function(self) return self.enabled end,getAdminValue=function(self) return self.value end,
+        setEnableAdmin=function(self,v) self.enabled=v end,setAdminValue=function(self,v) self.value=v end}
+end
+getClimateManager=function() return {
+    getAmbient=function() return .5 end,getDayLightStrength=function() return .5 end,
+    getClimateFloat=function(self,id) return weatherValues[id] end,
+    getFogIntensity=function() return weatherValues[5].value end,
+    getPrecipitationIntensity=function() return weatherValues[3].value end,
+    getCloudIntensity=function() return weatherValues[8].value end,
+    getColorNewFog=function() return {getExterior=function() return {getRedFloat=function() return .5 end,getGreenFloat=function() return .5 end,getBlueFloat=function() return .5 end} end} end}
+end
 local floor={}
 local square={getFloor=function() return floor end,getX=function() return math.floor(player.x) end,getY=function() return math.floor(player.y) end}
 inventory={items={},AddItem=function(self,name)
@@ -67,6 +81,8 @@ ModStudioScenario={clock=function() return now end,requested=function() return t
  context=function() return {definition=scenario,json="{}",output="test"} end,claim=function() return true end,
  event=function(k,v) journal[#journal+1]={k,v} end,error=function() return "" end,worldReady=ignore,
  finish=function(s,r) ended=s;reason=r end,closed=function() return true end}
+ModStudioScenario.screenshot=function(name) screenshotName=name;screenshotPolls=0 end
+ModStudioScenario.screenshotReady=function() screenshotPolls=screenshotPolls+1;return screenshotPolls>=3 end
 ModStudioScenario.clearVehicles=function(x0,y0,x1,y1)
     assert(core:isNoSave())
     local selected={}
