@@ -96,6 +96,12 @@ PZ3D.lightingReady=function() return lightingReady end
 PZ3D.lightingState=function() return {error='',cells=1,held=0} end
 PZ3D.lightingReset=function() lightingMode='current';lightingResets=lightingResets+1 end
 PZ3D.scenarioUi=function() end
+local warp={warpMode=0,warpLateral=100,warpVertical=100,warpScale=2400,warpNear=192}
+PZ3D.cameraDebugState=function() local copy={};for k,v in pairs(warp) do copy[k]=v end;return copy end
+PZ3D.cameraDebugSet=function(k,v) warp[k]=v end
+PZ3D.scenarioRenderState=function()
+    return "coneHand="..beam.." warpMode="..warp.warpMode.." warpLateral="..warp.warpLateral.." warpVertical="..warp.warpVertical.." warpScaleM="..warp.warpScale.." warpNearM="..warp.warpNear
+end
 visualAction=nil;visualReady=true;visualClears=0
 PZ3D.scenarioVisualConditionsKnown=function(a) return a=='install' or a=='a' or a=='b' or a=='missing' or a=='layers' or a=='unmatched' or a=='reload' or a=='unload' or a=='workload' or a=='clear' end
 PZ3D.scenarioVisualConditions=function(a,output) assert(output=='test');visualAction=a end

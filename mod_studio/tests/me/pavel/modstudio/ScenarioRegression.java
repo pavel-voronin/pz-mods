@@ -54,6 +54,9 @@ public final class ScenarioRegression {
         String api=Files.readString(lua.resolve("ScenarioAPI.lua")),runtime=Files.readString(lua.resolve("Scenarios.lua"));
         String adapter=Files.readString(pz.resolve("Contents/mods/pz3d/common/media/lua/client/PZ3DScenarioAPI.lua"));
         for(String check:List.of(
+            "scenario={steps={{command='pz3d.diagnostics',enabled=true},{command='pz3d.worldWarp',mode=3,lateral=200,vertical=150,scale=1000,near=160},{command='native.wait',seconds=.2}}};Events.OnMainMenuEnter.fire();pump(5);assert(PZ3D.cameraDebugState().warpMode==3);pump(40);local w=PZ3D.cameraDebugState();assert(quit and ended=='complete' and w.warpMode==0 and w.warpLateral==100 and w.warpScale==2400)",
+            "scenario={steps={{command='pz3d.worldWarp',mode=3,near=159}}};Events.OnMainMenuEnter.fire();pump(5);assert(quit and ended=='failed' and PZ3D.cameraDebugState().warpMode==0)",
+            "scenario={steps={{command='pz3d.diagnostics',enabled=true},{command='pz3d.worldWarp',mode=2},{command='native.wait',seconds=100}}};Events.OnMainMenuEnter.fire();pump(5);assert(PZ3D.cameraDebugState().warpMode==2);interruption='focus lost';pump(40);assert(quit and ended=='failed' and PZ3D.cameraDebugState().warpMode==0)",
             "scenario={steps={{command='native.vehicle',script='Base.CarNormal',heading=-90},{command='native.drive',x=1,y=100,kmh=40},{command='native.wait',seconds=1}}};Events.OnMainMenuEnter.fire();pump(6);assert(carSpawned and driving and ended==nil);driveReady=true;pump(20);assert(ended=='complete' and carClosed and not driving)",
             "scenario={steps={{command='native.vehicle',script='Base.CarNormal',heading=200}}};Events.OnMainMenuEnter.fire();pump(6);assert(ended=='failed' and not carSpawned)",
             "scenario={steps={{command='native.drive',x=1,y=100,kmh=40}}};Events.OnMainMenuEnter.fire();pump(6);assert(ended=='failed' and not driving)",
