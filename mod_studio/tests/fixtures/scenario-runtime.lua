@@ -19,7 +19,7 @@ ISTimedActionQueue={clear=function() end}
 tm={hour=9,getTimeOfDay=function(self) return self.hour end,setTimeOfDay=function(self,v) self.hour=v end}
 getGameTime=function() return tm end
 weatherValues={}
-for _,id in ipairs({3,5,8}) do
+for _,id in ipairs({3,5,6,7,8}) do
     weatherValues[id]={enabled=false,value=.2,
         isEnableAdmin=function(self) return self.enabled end,getAdminValue=function(self) return self.value end,
         setEnableAdmin=function(self,v) self.enabled=v end,setAdminValue=function(self,v) self.value=v end}
@@ -28,6 +28,8 @@ getClimateManager=function() return {
     getAmbient=function() return .5 end,getDayLightStrength=function() return .5 end,
     getClimateFloat=function(self,id) return weatherValues[id] end,
     getFogIntensity=function() return weatherValues[5].value end,
+    getWindIntensity=function() return weatherValues[6].value end,
+    getWindAngleIntensity=function() return weatherValues[7].value end,
     getPrecipitationIntensity=function() return weatherValues[3].value end,
     getCloudIntensity=function() return weatherValues[8].value end,
     getColorNewFog=function() return {getExterior=function() return {getRedFloat=function() return .5 end,getGreenFloat=function() return .5 end,getBlueFloat=function() return .5 end} end} end}

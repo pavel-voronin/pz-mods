@@ -88,18 +88,22 @@ API.register("native",{
     time={validate=function(s) number(s,"hour",0,23.999) end,start=function(c,s) c.fixedTime=s.freeze and s.hour or nil;getGameTime():setTimeOfDay(s.hour) end},
     weather={validate=function(s)
             number(s,"fog",0,1);number(s,"rain",0,1);number(s,"cloud",0,1)
+            number(s,"wind",0,1,true);number(s,"windAngle",-1,1,true)
         end,start=function(c,s)
             assert(getCore():isNoSave(),"Weather control requires the disposable NoSave world")
             local climate=getClimateManager()
             c.weatherSaved=c.weatherSaved or {}
-            for key,id in pairs({fog=5,rain=3,cloud=8}) do
+            for key,id in pairs({fog=5,rain=3,cloud=8,wind=6,windAngle=7}) do
+                if s[key]~=nil then
                 local value=climate:getClimateFloat(id)
                 if not c.weatherSaved[id] then c.weatherSaved[id]={enabled=value:isEnableAdmin(),value=value:getAdminValue()} end
                 value:setAdminValue(s[key]);value:setEnableAdmin(true)
+                end
             end
         end,tick=function(c,s)
             local climate=getClimateManager()
             if math.abs(climate:getFogIntensity()-s.fog)>.001 or math.abs(climate:getPrecipitationIntensity()-s.rain)>.001 or math.abs(climate:getCloudIntensity()-s.cloud)>.001 then return false end
+            if s.wind and math.abs(climate:getWindIntensity()-s.wind)>.001 or s.windAngle and math.abs(climate:getWindAngleIntensity()-s.windAngle)>.001 then return false end
             local color=climate:getColorNewFog():getExterior()
             event("native-weather","fog="..s.fog.." rain="..s.rain.." cloud="..s.cloud.." hour="..getGameTime():getTimeOfDay().." ambient="..climate:getAmbient().." daylight="..climate:getDayLightStrength().." tint="..color:getRedFloat()..","..color:getGreenFloat()..","..color:getBlueFloat())
             return true
