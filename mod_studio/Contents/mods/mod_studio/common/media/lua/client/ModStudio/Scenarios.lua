@@ -38,6 +38,7 @@ API.register("native",{
     equip=ScenarioLights.equip,
     weaponLight=ScenarioLights.weaponLight,
     animals=ScenarioAnimals.command,
+    killAnimals=ScenarioAnimals.kill,
     human={validate=function(s)
             assert(ModStudioScenario.spawnHuman,"Native human API unavailable")
             number(s,"dx",-8,8);number(s,"dy",-8,8)
