@@ -39,6 +39,9 @@ API.register("native",{
             assert(s.dx*s.dx+s.dy*s.dy>=1,"Human must spawn at least one tile away")
         end,start=function(c,s) c.nativeHuman=true;ModStudioScenario.spawnHuman(s.dx,s.dy) end,
         tick=function() return ModStudioScenario.humanReady() end},
+    humanLight={validate=function(s)
+            assert(type(s.on)=="boolean","humanLight requires on");number(s,"heading",-180,180)
+        end,start=function(c,s) assert(c.nativeHuman,"Spawn a human first");ModStudioScenario.humanLight(s.on,s.heading) end},
     clearHuman={start=function(c) ModStudioScenario.clearHuman();c.nativeHuman=nil end},
     vehicle={validate=function(s)
             assert(ModStudioDriving,"Native driving API unavailable")

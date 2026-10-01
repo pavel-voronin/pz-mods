@@ -42,6 +42,7 @@ public final class ScenarioHost {
         return selected.size();
     }
     private static zombie.characters.IsoPlayer human;
+    private static zombie.inventory.InventoryItem humanTorch;
     public static void spawnHuman(double dx,double dy){
         if(!requested()||!claimed||!zombie.core.Core.getInstance().isNoSave())throw new IllegalStateException("Human spawn requires a disposable scenario world");
         if(!Double.isFinite(dx)||!Double.isFinite(dy)||Math.abs(dx)>8||Math.abs(dy)>8||Math.hypot(dx,dy)<1)throw new IllegalArgumentException("Human offset must be 1..8 tiles per axis");
@@ -67,6 +68,19 @@ public final class ScenarioHost {
             event("native-human","spawn x="+human.getX()+" y="+human.getY()+" z="+human.getZ()+" npc="+human.isNpc());
         } catch(RuntimeException|Error e){clearHuman();throw e;}
     }
+    public static void humanLight(boolean on,double heading){
+        if(!requested()||!claimed||!zombie.core.Core.getInstance().isNoSave()||human==null)throw new IllegalStateException("Human light requires a disposable scenario human");
+        if(!Double.isFinite(heading)||heading< -180||heading>180)throw new IllegalArgumentException("Invalid human light heading");
+        if(humanTorch==null){
+            humanTorch=human.getInventory().AddItem("Base.HandTorch");
+            if(!(humanTorch instanceof zombie.inventory.types.DrainableComboItem battery))throw new IllegalStateException("Native hand torch unavailable");
+            battery.setUsedDelta(1);human.setPrimaryHandItem(humanTorch);
+        }
+        human.setDirectionAngle((float)heading);humanTorch.setActivated(on);
+        var active=human.getActiveLightItems(new ArrayList<>());
+        if(active.contains(humanTorch)!=on)throw new IllegalStateException("Native human light activation mismatch");
+        event("native-human-light","on="+on+" heading="+heading+" remote="+human.remote+" activeItems="+active.size()+" range="+humanTorch.getLightDistance()+" strength="+humanTorch.getLightStrength());
+    }
     public static void updateHuman(){
         // A local visual stand-in has no network packets. Preserve native remote-player
         // update/animation without expiring it or assigning the active local camera.
@@ -78,7 +92,7 @@ public final class ScenarioHost {
         return human.getCurrentSquare()!=null&&model!=null&&model.animPlayer!=null&&model.animPlayer.isReady();
     }
     public static void clearHuman(){
-        var actor=human;if(actor==null)return;human=null;
+        var actor=human;if(actor==null)return;human=null;humanTorch=null;
         try {actor.setSceneCulled(true);}finally {try {actor.removeFromWorld();}finally {actor.removeFromSquare();}}
         event("native-human","removed");
     }

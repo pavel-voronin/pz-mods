@@ -56,6 +56,9 @@ public final class ScenarioRegression {
         String api=Files.readString(lua.resolve("ScenarioAPI.lua")),runtime=Files.readString(lua.resolve("Scenarios.lua"));
         String adapter=Files.readString(pz.resolve("Contents/mods/pz3d/common/media/lua/client/PZ3DScenarioAPI.lua"));
         for(String check:List.of(
+            "humanReady=true;scenario={steps={{command='native.human',dx=3,dy=0},{command='native.humanLight',on=true,heading=90},{command='native.wait',seconds=1},{command='native.humanLight',on=false,heading=-90}}};Events.OnMainMenuEnter.fire();pump(5);assert(humanLightOn and humanHeading==90);pump(25);assert(ended=='complete' and humanLightOn==false and humanHeading==-90 and humanCleared)",
+            "scenario={steps={{command='native.humanLight',on=true,heading=181}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='failed' and not humanLightOn)",
+            "scenario={steps={{command='native.humanLight',on=true,heading=0}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='failed' and not humanLightOn)",
             "animalRendered=true;scenario={steps={{command='native.animals',all=true},{command='pz3d.animalsReady'}}};Events.OnMainMenuEnter.fire();pump(20);assert(ended=='complete' and #spawnedAnimals==3);for _,a in ipairs(spawnedAnimals) do assert(a.added and a.removed and a.squareRemoved) end",
             "animalFailure=true;scenario={steps={{command='native.animals',all=true}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and #spawnedAnimals==1 and spawnedAnimals[1].removed)",
             "animalBlocked=true;scenario={steps={{command='native.animals',all=true}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and #spawnedAnimals==0)",

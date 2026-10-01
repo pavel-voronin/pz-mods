@@ -151,3 +151,5 @@ addAnimal=function(cell,x,y,z,name,breed,skeleton)
     spawnedAnimals[#spawnedAnimals+1]=a;return a
 end
 PZ3D.scenarioAnimalRendered=function() return animalRendered==true end
+
+ModStudioScenario.humanLight=function(on,heading) assert(humanSpawned);humanLightOn=on;humanHeading=heading end
