@@ -193,10 +193,16 @@ local function galleryUpdate()
                     lamp:addLightSourceFromSprite();top:AddSpecialObject(lamp);lamp:setActivated(true)
                     assert(lamp:getLights():size()==1,"Gallery lamp must have exactly one native source")
                     g.created[i]=true
+                    if g.workbench then g.workbench.lamp=lamp end
                     print("[mod_studio] Lamp gallery station "..i.." "..station.tile.." at "..station.x..","..station.y..","..station.z)
                 end
             end
         end
+    end
+    local w=g.workbench
+    if w and w.pendingSelect and w.lamp and w.lamp:getLights():size()>0 and cell:getLamppostPositions():contains(w.lamp:getLights():get(0)) then
+        if PZ3D and PZ3D.emitterDebugSelect then PZ3D.emitterDebugSelect(0) end
+        w.pendingSelect=false
     end
 end
 M.gallery={
@@ -214,4 +220,37 @@ M.gallery={
         Events.OnTick.Add(galleryUpdate);Events.OnMainMenuEnter.Add(galleryClose)
     end,
     tick=function() galleryUpdate();return gallery and gallery.created[1]==true end
+}
+
+-- One native fixture at a fixed location, switched from the emitter editor.
+function M.workbenchState()
+    return gallery and gallery.workbench and {index=gallery.workbench.index,count=19} or nil
+end
+function M.workbenchChoose(delta)
+    local g=gallery;assert(g and g.workbench,"Lamp workbench is not active");disposable()
+    local w=g.workbench;w.index=((w.index-1+delta)%19)+1
+    -- This isolated square belongs entirely to the disposable fixture.
+    for z=0,3 do local square=getCell():getGridSquare(g.x,g.y,z)
+        if square then local objects=square:getObjects()
+            for i=objects:size()-1,0,-1 do local object=objects:get(i);if object~=square:getFloor() then square:transmitRemoveItemFromSquare(object) end end
+        end
+    end
+    local station=M.galleryLayout(g.x,g.y)[w.index];station.x=g.x;station.y=g.y
+    g.stations={station};g.created={};g.next=0;w.lamp=nil;w.pendingSelect=true
+    galleryUpdate()
+    if PZ3D and PZ3D.emitterDebugSelect then PZ3D.emitterDebugSelect(0) end
+end
+M.workbench={
+    validate=M.gallery.validate,
+    start=function(c,s)
+        M.gallery.start(c,s)
+        gallery.stations={gallery.stations[1]};gallery.workbench={index=1}
+        c.event("native-lamp-workbench","One fixture; 19 selectable native street lamp variants")
+    end,
+    tick=M.gallery.tick
+}
+M.workbenchSelect={
+    validate=function(s) assert(type(s.index)=="number" and s.index%1==0 and s.index>=1 and s.index<=19,"Invalid workbench lamp index") end,
+    start=function(c,s) M.workbenchChoose(s.index-assert(M.workbenchState(),"Workbench unavailable").index);c.event("native-workbench-selected",tostring(s.index)) end,
+    tick=function() return gallery and gallery.workbench and gallery.workbench.lamp and not gallery.workbench.pendingSelect end
 }

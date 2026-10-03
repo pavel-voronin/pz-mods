@@ -37,6 +37,8 @@ API.register("native",{
     lightFixture=ScenarioLights.fixture,
     lightYard=ScenarioLights.yard,
     lightGallery=ScenarioLights.gallery,
+    lightWorkbench=ScenarioLights.workbench,
+    lightWorkbenchSelect=ScenarioLights.workbenchSelect,
     equip=ScenarioLights.equip,
     weaponLight=ScenarioLights.weaponLight,
     animals=ScenarioAnimals.command,
