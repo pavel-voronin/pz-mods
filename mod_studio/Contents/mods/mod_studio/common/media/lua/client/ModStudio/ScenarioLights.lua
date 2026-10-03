@@ -3,7 +3,12 @@ if not getDebug() then return end
 ModStudioScenarioLights={}
 local M=ModStudioScenarioLights
 local function disposable() assert(getCore():isNoSave(),"Light fixtures require the disposable NoSave world") end
+local gallery
+local function galleryClose()
+    if gallery then Events.OnTick.Remove(gallery.update);Events.OnMainMenuEnter.Remove(galleryClose);gallery=nil end
+end
 function M.clear(c)
+    galleryClose()
     if c.lightFixtures then
         for _,fixture in pairs(c.lightFixtures) do
             if fixture.campfire then SCampfireSystem.instance:removeCampfire(fixture.campfire)
@@ -120,4 +125,93 @@ M.yard={
         assert(lamp:getLights():size()==1,"Expected exactly one authored lamp source")
         return true
     end
+}
+
+-- A native streamed fixture gallery: stations are re-created when their chunks
+-- return. The manual world's fixture lifecycle continues after input handoff.
+function M.galleryLayout(x,y)
+    local result={}
+    for _,id in ipairs({0,1,2,3,5,6,7,8,9,10,11,18,19}) do
+        result[#result+1]={tile="lighting_outdoor_01_"..id,base=id>=5 and (id<=7 and "lighting_outdoor_01_4" or "lighting_outdoor_01_16") or nil}
+    end
+    for id=136,141 do result[#result+1]={tile="appliances_com_01_"..id,base="appliances_com_01_88",crossarm="appliances_com_01_91"} end
+    for i,station in ipairs(result) do
+        local row=math.floor((i-1)/5);local column=(i-1)%5
+        if row%2==1 then column=4-column end
+        station.x=x+column*50;station.y=y+row*50;station.z=station.base and 1 or 0
+    end
+    return result
+end
+local function galleryClean(g,square)
+    if square:getModData().modStudioLampGallery==g.id then return end
+    assert(not square:getRoom(),"Lamp gallery requires outdoor squares")
+    square:getModData().modStudioLampGallery=g.id
+    local objects=square:getObjects()
+    for i=objects:size()-1,0,-1 do square:transmitRemoveItemFromSquare(objects:get(i)) end
+    if square:getZ()==0 then square:addFloor("blends_street_01_0") end
+    square:RecalcAllWithNeighbours(true)
+end
+local function galleryUpdate()
+    local g=gallery;if not g or not getCore():isNoSave() then return end
+    local now=ModStudioScenario.clock();if now<(g.next or 0) then return end;g.next=now+.5
+    local player=getPlayer();if not player then return end
+    local cell=getCell();local px,py=math.floor(player:getX()),math.floor(player:getY())
+    -- Clear only the loaded calibration plot. Ordinary native movement is retained.
+    if px>=g.x-22 and px<=g.x+222 and py>=g.y-22 and py<=g.y+172 then
+        for x=px-4,px+4 do for y=py-4,py+4 do for z=0,3 do
+            local square=cell:getGridSquare(x,y,z);if square then galleryClean(g,square) end
+        end end end
+    end
+    for i,station in ipairs(g.stations) do
+        if math.abs(station.x-px)<=35 and math.abs(station.y-py)<=35 then
+            local top=cell:getGridSquare(station.x,station.y,station.z);local found
+            if top then local objects=top:getObjects();for j=0,objects:size()-1 do
+                local object=objects:get(j);local sprite=object:getSprite()
+                if instanceof(object,"IsoLightSwitch") and sprite and sprite:getName()==station.tile then found=object;break end
+            end end
+            if not found then
+                local ready=true
+                for x=station.x-22,station.x+22 do for y=station.y-22,station.y+22 do
+                    local square=cell:getGridSquare(x,y,0);if not square or not square:getFloor() then ready=false end
+                end end
+                if ready then
+                    for x=station.x-22,station.x+22 do for y=station.y-22,station.y+22 do for z=0,3 do
+                        local square=cell:getGridSquare(x,y,z);if square then galleryClean(g,square) end
+                    end end end
+                    if station.base then
+                        local base=cell:getGridSquare(station.x,station.y,0);local exists=false;local objects=base:getObjects()
+                        for j=0,objects:size()-1 do local sprite=objects:get(j):getSprite();if sprite and sprite:getName()==station.base then exists=true end end
+                        if not exists then base:AddTileObject(IsoObject.new(cell,base,station.base)) end
+                    end
+                    top=cell:getGridSquare(station.x,station.y,station.z) or cell:createNewGridSquare(station.x,station.y,station.z,true)
+                    galleryClean(g,top)
+                    if station.crossarm then local exists=false;local objects=top:getObjects()
+                        for j=0,objects:size()-1 do local sprite=objects:get(j):getSprite();if sprite and sprite:getName()==station.crossarm then exists=true end end
+                        if not exists then top:AddTileObject(IsoObject.new(cell,top,station.crossarm)) end
+                    end
+                    local lamp=IsoLightSwitch.new(cell,top,assert(getSprite(station.tile)),top:getRoomID())
+                    lamp:addLightSourceFromSprite();top:AddSpecialObject(lamp);lamp:setActivated(true)
+                    assert(lamp:getLights():size()==1,"Gallery lamp must have exactly one native source")
+                    g.created[i]=true
+                    print("[mod_studio] Lamp gallery station "..i.." "..station.tile.." at "..station.x..","..station.y..","..station.z)
+                end
+            end
+        end
+    end
+end
+M.gallery={
+    validate=function(s) assert(s.x==nil or type(s.x)=="number" and s.x%1==0 and s.x>=32 and s.x<=99700,"Invalid gallery x");assert(s.y==nil or type(s.y)=="number" and s.y%1==0 and s.y>=32 and s.y<=99700,"Invalid gallery y") end,
+    start=function(c,s)
+        disposable();assert(c.definition.manual,"Lamp gallery requires explicit manual setup");galleryClose()
+        local x,y=s.x or math.floor(c.player:getX())+2,s.y or math.floor(c.player:getY())
+        assert(ModStudioScenario.lightYardSources()==0,"Gallery location has unrelated native sources")
+        gallery={id=c.output,x=x,y=y,stations=M.galleryLayout(x,y),created={},update=galleryUpdate}
+        for i,station in ipairs(gallery.stations) do
+            local props=assert(getSprite(station.tile)):getProperties()
+            assert(props:has("streetlight") and props:has("LightRadius"),"Gallery sprite is not a native street lamp")
+            c.event("native-gallery-station",i.." "..station.tile.." x="..station.x.." y="..station.y.." z="..station.z)
+        end
+        Events.OnTick.Add(galleryUpdate);Events.OnMainMenuEnter.Add(galleryClose)
+    end,
+    tick=function() galleryUpdate();return gallery and gallery.created[1]==true end
 }

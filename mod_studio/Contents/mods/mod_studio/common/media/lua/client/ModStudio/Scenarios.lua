@@ -36,6 +36,7 @@ API.register("native",{
 }, {
     lightFixture=ScenarioLights.fixture,
     lightYard=ScenarioLights.yard,
+    lightGallery=ScenarioLights.gallery,
     equip=ScenarioLights.equip,
     weaponLight=ScenarioLights.weaponLight,
     animals=ScenarioAnimals.command,
