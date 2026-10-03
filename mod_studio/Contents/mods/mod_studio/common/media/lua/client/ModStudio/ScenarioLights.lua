@@ -134,13 +134,22 @@ function M.galleryLayout(x,y)
     for _,id in ipairs({0,1,2,3,5,6,7,8,9,10,11,18,19}) do
         result[#result+1]={tile="lighting_outdoor_01_"..id,base=id>=5 and (id<=7 and "lighting_outdoor_01_4" or "lighting_outdoor_01_16") or nil}
     end
-    for id=136,141 do result[#result+1]={tile="appliances_com_01_"..id,base="appliances_com_01_88",crossarm="appliances_com_01_91"} end
+    -- Match native map assemblies: two shaft sections, then the crossarm.
+    -- X-facing arms use 88/89/93; Y-facing arms use 94/95/92.
+    for id=136,141 do
+        local axisX=id==137 or id==138 or id==141
+        result[#result+1]={tile="appliances_com_01_"..id,base="appliances_com_01_"..(axisX and 88 or 94),middle="appliances_com_01_"..(axisX and 89 or 95),crossarm="appliances_com_01_"..(axisX and 93 or 92)}
+    end
     for i,station in ipairs(result) do
         local row=math.floor((i-1)/5);local column=(i-1)%5
         if row%2==1 then column=4-column end
         station.x=x+column*50;station.y=y+row*50;station.z=station.base and 1 or 0
     end
     return result
+end
+function M.galleryParts(station)
+    if not station.base then return {} end
+    return {{tile=station.base,z=0},{tile=station.middle,z=1},{tile=station.crossarm,z=2}}
 end
 local function galleryClean(g,square)
     if square:getModData().modStudioLampGallery==g.id then return end
@@ -178,16 +187,14 @@ local function galleryUpdate()
                     for x=station.x-22,station.x+22 do for y=station.y-22,station.y+22 do for z=0,3 do
                         local square=cell:getGridSquare(x,y,z);if square then galleryClean(g,square) end
                     end end end
-                    if station.base then
-                        local base=cell:getGridSquare(station.x,station.y,0);local exists=false;local objects=base:getObjects()
-                        for j=0,objects:size()-1 do local sprite=objects:get(j):getSprite();if sprite and sprite:getName()==station.base then exists=true end end
-                        if not exists then base:AddTileObject(IsoObject.new(cell,base,station.base)) end
-                    end
                     top=cell:getGridSquare(station.x,station.y,station.z) or cell:createNewGridSquare(station.x,station.y,station.z,true)
                     galleryClean(g,top)
-                    if station.crossarm then local exists=false;local objects=top:getObjects()
-                        for j=0,objects:size()-1 do local sprite=objects:get(j):getSprite();if sprite and sprite:getName()==station.crossarm then exists=true end end
-                        if not exists then top:AddTileObject(IsoObject.new(cell,top,station.crossarm)) end
+                    for _,part in ipairs(M.galleryParts(station)) do
+                        local square=cell:getGridSquare(station.x,station.y,part.z) or cell:createNewGridSquare(station.x,station.y,part.z,true)
+                        galleryClean(g,square)
+                        local exists=false;local objects=square:getObjects()
+                        for j=0,objects:size()-1 do local sprite=objects:get(j):getSprite();if sprite and sprite:getName()==part.tile then exists=true end end
+                        if not exists then square:AddTileObject(IsoObject.new(cell,square,part.tile)) end
                     end
                     local lamp=IsoLightSwitch.new(cell,top,assert(getSprite(station.tile)),top:getRoomID())
                     lamp:addLightSourceFromSprite();top:AddSpecialObject(lamp);lamp:setActivated(true)
