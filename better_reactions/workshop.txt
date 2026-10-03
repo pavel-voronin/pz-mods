@@ -1,0 +1,14 @@
+version=1
+id=3812650654
+title=Better Reactions
+description=Better Reactions - an immediate zombie response to your shout, whisper or car horn.
+description=
+description=Ever shouted at a nearby zombie, only for it to stand there as if nothing happened? This mod removes those reaction delays: zombies that hear you immediately respond and start heading toward the sound.
+description=
+description=Hearing range and individual hearing abilities still matter. What changes is the response time - they hear you, they react.
+description=
+description=Works with shouting, whispering and manually sounding the car horn. Whistles, megaphones and other items that modify your shout retain their normal range. Alarms keep their vanilla behavior.
+description=
+description=MP is working
+tags=Build 42
+visibility=public
