@@ -86,3 +86,38 @@ M.weaponLight={
         c.player:resetEquippedHandsModels();c.event("native-weapon-light",s.id.."="..tostring(s.on))
     end
 }
+
+-- Native authored street lamp, prepared only in a throwaway world.
+M.yard={
+    validate=function(s)
+        assert(s.radius==nil or type(s.radius)=="number" and s.radius%1==0 and s.radius>=24 and s.radius<=32,"Invalid yard radius")
+    end,
+    start=function(c,s) disposable();assert(c.definition.manual,"Light yard requires explicit manual setup");c.lightYardPending=true end,
+    tick=function(c,s)
+        if not c.lightYardPending then return true end
+        local cell=getCell();local x,y=math.floor(c.player:getX()),math.floor(c.player:getY());local r=s.radius or 28
+        -- Wait for every square before making any changes.
+        for xx=x-r,x+r do for yy=y-r,y+r do local sq=cell:getGridSquare(xx,yy,0);if not sq or not sq:getFloor() then return false end end end
+        assert(ModStudioScenario.lightYardSources()==0,"Choose an outdoor yard without loaded native sources")
+        for xx=x-r,x+r do for yy=y-r,y+r do
+            for z=0,3 do
+                local sq=cell:getGridSquare(xx,yy,z)
+                if sq then
+                    local objs=sq:getObjects()
+                    for i=objs:size()-1,0,-1 do sq:transmitRemoveItemFromSquare(objs:get(i)) end
+                    if z==0 then sq:addFloor("blends_street_01_0") end
+                    sq:RecalcAllWithNeighbours(true)
+                end
+            end
+        end end
+        local base=cell:getGridSquare(x+2,y,0)
+        base:AddTileObject(IsoObject.new(cell,base,"lighting_outdoor_01_16"))
+        local top=cell:createNewGridSquare(x+2,y,1,true)
+        local lamp=IsoLightSwitch.new(cell,top,getSprite("lighting_outdoor_01_11"),top:getRoomID())
+        lamp:addLightSourceFromSprite();top:AddSpecialObject(lamp);lamp:setActivated(true)
+        c.yardLamp=lamp;c.lightYardPending=false
+        c.event("native-light-yard","lamp="..(x+2)..","..y..",1 clearRadius="..r.." sources="..lamp:getLights():size())
+        assert(lamp:getLights():size()==1,"Expected exactly one authored lamp source")
+        return true
+    end
+}

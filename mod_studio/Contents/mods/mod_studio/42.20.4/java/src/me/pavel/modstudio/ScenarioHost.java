@@ -16,6 +16,7 @@ public final class ScenarioHost {
     private static Path output;
     private static boolean loading;
     private static volatile boolean claimed;
+    private static volatile boolean manual;
     private static volatile boolean closed,finishing;
     private static final ArrayBlockingQueue<Map<String,Object>> events=new ArrayBlockingQueue<>(4096);
     private static volatile String status="running",reason="";
@@ -25,7 +26,7 @@ public final class ScenarioHost {
     public static boolean requested(){return !System.getProperty("modstudio.scenario","").isEmpty();}
     // A claimed external session always exits its process, including on failure.
     // Keep the filter through cleanup so held keys cannot act during shutdown.
-    public static boolean suppressInput(){return claimed;}
+    public static boolean suppressInput(){return claimed&&!manual;}
     private static volatile boolean screenshotDone;
     private static volatile String screenshotError="";
     /** Native front-buffer capture, usable with or without a renderer provider. */
@@ -132,6 +133,8 @@ public final class ScenarioHost {
         if(number(root,"schema",0,1,1)!=1)throw new IllegalArgumentException("Expected schema 1");
         if(!ScenarioJson.string(root,"id").matches("[a-z0-9_-]{1,80}"))throw new IllegalArgumentException("Invalid id");
         var spawn=ScenarioJson.object(root.get("spawn"));number(spawn,"x",-1,0,100000);number(spawn,"y",-1,0,100000);number(spawn,"z",0,-32,31);
+        if(root.containsKey("manual")&&!(root.get("manual") instanceof Boolean))throw new IllegalArgumentException("manual must be boolean");
+        if(Boolean.TRUE.equals(root.get("manual"))&&number(root,"repeats",1,1,20)!=1)throw new IllegalArgumentException("Manual setup cannot repeat");
         double repeats=number(root,"repeats",1,1,20);if(repeats!=Math.rint(repeats))throw new IllegalArgumentException("Nonintegral repeats");
         if(!(root.get("steps") instanceof List<?> steps)||steps.isEmpty()||steps.size()>512)throw new IllegalArgumentException("Expected 1..512 steps");
         double budget=0;
@@ -153,6 +156,16 @@ public final class ScenarioHost {
     public static synchronized boolean claim(){
         if(claimed||context()==null)return false;claimed=loading=true;
         Thread writer=new Thread(ScenarioHost::write,"ModStudio-scenario-artifacts");writer.setDaemon(true);writer.start();return true;
+    }
+    public static int lightYardSources(){
+        if(!claimed||!zombie.core.Core.getInstance().isNoSave())throw new IllegalStateException("Yard check requires disposable world");
+        var cell=zombie.iso.IsoWorld.instance.currentCell;
+        return cell.getLamppostPositions().size()+cell.roomLights.size();
+    }
+    public static void handoff(){
+        if(!claimed||definition==null||!Boolean.TRUE.equals(definition.get("manual"))||!zombie.core.Core.getInstance().isNoSave())
+            throw new IllegalStateException("Manual handoff requires an explicit disposable manual scenario");
+        manual=true;finish("interactive","World prepared; control handed to player");
     }
     public static void worldReady(){loading=false;}
     public static void event(String kind,String detail){

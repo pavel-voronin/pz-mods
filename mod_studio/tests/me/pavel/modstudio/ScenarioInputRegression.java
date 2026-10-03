@@ -32,6 +32,9 @@ public final class ScenarioInputRegression {
         check(GLFW.glfwWindowShouldClose(1)&&GLFW.glfwGetWindowAttrib(1,0)==0,"close and focus unchanged");
         // Host finish keeps filtering during artifact flush and process shutdown.
         ScenarioHost.finish("failed","test");check(GLFW.glfwGetKey(1,87)==0,"cleanup still protected");
+        var manual=ScenarioHost.class.getDeclaredField("manual");manual.setAccessible(true);manual.setBoolean(null,true);
+        check(GLFW.glfwGetKey(1,87)==1&&GLFW.glfwGetMouseButton(1,0)==1,"manual handoff restores keyboard and mouse while claimed");
+        manual.setBoolean(null,false);check(GLFW.glfwGetKey(1,87)==0,"normal claimed shutdown remains protected");
         claimed.setBoolean(null,false);
         check(GLFW.glfwGetKey(1,87)==1&&GLFW.glfwGetMouseButton(1,0)==1,"unclaimed process passes input");
         GLFW.glfwGetCursorPos(1,x,y);check(x[0]==500,"normal cursor restored");

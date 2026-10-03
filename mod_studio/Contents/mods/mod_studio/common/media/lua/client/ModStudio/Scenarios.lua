@@ -35,6 +35,7 @@ API.register("native",{
     finish=function(c) ScenarioLights.clear(c);ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;return true end
 }, {
     lightFixture=ScenarioLights.fixture,
+    lightYard=ScenarioLights.yard,
     equip=ScenarioLights.equip,
     weaponLight=ScenarioLights.weaponLight,
     animals=ScenarioAnimals.command,
@@ -128,7 +129,13 @@ local function advance()
     ctx.stepIndex=ctx.stepIndex+1
     if ctx.stepIndex>#cfg.steps then
         ctx.repeatIndex=ctx.repeatIndex+1;ctx.stepIndex=1
-        if ctx.repeatIndex>(cfg.repeats or 1) then stop("complete","Scenario finished");return end
+        if ctx.repeatIndex>(cfg.repeats or 1) then
+            if cfg.manual then
+                for i=#opened,1,-1 do local p=opened[i];if p.handoff then p.handoff(ctx) end end
+                ModStudioScenario.handoff();state="MANUAL";return
+            end
+            stop("complete","Scenario finished");return
+        end
     end
     step=cfg.steps[ctx.stepIndex];handler=API.commands[step.command]
     phase("ACTION",step.timeout or math.max(30,(step.seconds or 0)+5))
@@ -170,6 +177,7 @@ local function finish()
 end
 local function tick()
     if not claimed then return end
+    if state=="MANUAL" then if ctx.fixedTime then getGameTime():setTimeOfDay(ctx.fixedTime) end;return end
     if state=="CLOSED" then
         if ModStudioScenario.closed() or now()-finishAt>10 then getCore():quitToDesktop() end
         return
