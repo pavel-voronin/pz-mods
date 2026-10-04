@@ -5,6 +5,8 @@ param(
     [string]$OutputRoot=(Join-Path $env:USERPROFILE 'Zomboid/ModStudio/multiplayer'),
     [ValidateRange(1024,65534)][int]$Port=16371,
     [ValidateRange(60,7200)][int]$TimeoutSeconds=600,
+    [ValidateSet('zombieBuddy','pz3d')][string]$ClientLoader='zombieBuddy',
+    [string]$Pz3dLoaderJar=(Join-Path $PSScriptRoot '../pz3d/Contents.release/mods/pz3d/common/media/pz3d/loader/pz3dLoader.jar'),
     [switch]$SkipBuild,
     [switch]$ValidateOnly
 )
@@ -18,12 +20,28 @@ foreach($coordinate in @('x','y','z')){
     if($null -eq $value -or $value -isnot [ValueType] -or ![double]::IsFinite([double]$value) -or $value -ne [math]::Floor($value) -or $value -lt $min -or $value -gt $max){throw "Invalid MP spawn $coordinate"}
 }
 foreach($client in $suite.clients){
+    if($client.loader -and $client.loader -notin @('zombieBuddy','pz3d')){throw 'Unsupported client loader'}
     if($client.steps.Count -lt 1 -or $client.steps.Count -gt 512){throw 'Expected 1..512 steps per client'}
     foreach($step in $client.steps){if($step.command -notmatch '^[a-z][a-z0-9_]*\.[a-z][a-zA-Z0-9_]*$'){throw 'Expected owner.command'}}
 }
 foreach($id in (@($suite.server.mods)+@($suite.clients | ForEach-Object {$_.mods}))){if($id -notmatch '^[A-Za-z0-9_-]+$'){throw 'Invalid native mod id'}}
 foreach($property in $suite.server.options.psobject.Properties){if($property.Name -notmatch '^[A-Za-z0-9_.-]+$' -or [string]$property.Value -match '[\r\n]'){throw 'Invalid native server option'}}
 foreach($property in $suite.server.javaProperties.psobject.Properties){if($property.Name -notmatch '^[A-Za-z0-9_.-]+$'){throw 'Invalid server Java property'}}
+function Format-Sandbox($value,[int]$depth=0){
+    if($depth -gt 8){throw 'Sandbox nesting limit'}
+    if($value -is [bool]){return $value.ToString().ToLowerInvariant()}
+    if($value -is [ValueType] -and [double]::IsFinite([double]$value)){return [string]::Format([Globalization.CultureInfo]::InvariantCulture,'{0}',$value)}
+    if($value -is [pscustomobject]){
+        $parts=@()
+        foreach($property in $value.psobject.Properties){
+            if($property.Name -notmatch '^[A-Za-z_][A-Za-z0-9_]*$'){throw 'Invalid sandbox key'}
+            $parts+="$($property.Name) = $(Format-Sandbox $property.Value ($depth+1)),"
+        }
+        return '{ '+($parts -join ' ')+' }'
+    }
+    throw 'MP sandbox values must be booleans, numbers or nested option tables'
+}
+$sandboxExtra=if($suite.server.sandbox){Format-Sandbox $suite.server.sandbox}else{'{ }'}
 if($ValidateOnly){Write-Output 'MP suite preflight passed';return}
 $live=Get-CimInstance Win32_Process | Where-Object {$_.Name -like 'ProjectZomboid*' -or ($_.Name -match '^javaw?\.exe$' -and $_.CommandLine -match 'zombie\.(gameStates\.MainScreenState|network\.GameServer)')}
 if($live){throw "A game or server is already running: $($live.ProcessId -join ', ')"}
@@ -53,11 +71,13 @@ foreach($id in (@($suite.server.mods)+@($suite.clients | ForEach-Object {$_.mods
     if(!$source){throw "Native mod source not found: $id"}
     $sources[$id]=$source
 }
+if($ClientLoader -eq 'pz3d' -or @($suite.clients | Where-Object {$_.loader -eq 'pz3d'}).Count){$Pz3dLoaderJar=(Resolve-Path -LiteralPath $Pz3dLoaderJar).Path}
 $runtime=@()
 foreach($file in @('pz3dLoader.jar','pz3dLoader.dll','ZombieBuddy.jar')){
     $path=Join-Path $Game $file
     if(Test-Path -LiteralPath $path){$runtime+=@{path=$path;sha256=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()}}
 }
+if(Test-Path -LiteralPath $Pz3dLoaderJar){$runtime+=@{role='selected-pz3d-loader';path=$Pz3dLoaderJar;sha256=(Get-FileHash -LiteralPath $Pz3dLoaderJar -Algorithm SHA256).Hash.ToLowerInvariant()}}
 $runtime | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $output 'runtime.json') -Encoding utf8
 $config=Get-Content -LiteralPath (Join-Path $Game 'ProjectZomboid64.json') -Raw | ConvertFrom-Json
 $port=$Port
@@ -67,14 +87,22 @@ if(Get-NetUDPEndpoint -LocalPort $port,$udp -ErrorAction SilentlyContinue){throw
 function Prepare-Profile([string]$profile,[string[]]$mods){
     $root=Join-Path $output $profile
     New-Item -ItemType Directory -Path (Join-Path $root 'mods') -Force | Out-Null
-    foreach($id in $mods){
-        if(!$sources.ContainsKey($id)){throw "No native mod source for $id"}
+    foreach($id in $sources.Keys){
         New-Item -ItemType Junction -Path (Join-Path $root "mods/$id") -Target $sources[$id] | Out-Null
     }
     $preset="VERSION = 1,`nmods`n{`n"+ (($mods | ForEach-Object {"    mod = $_,"}) -join "`n")+"`n}`nmaps`n{`n}`n"
     [IO.File]::WriteAllText((Join-Path $root 'mods/default.txt'),$preset)
     [IO.File]::WriteAllText((Join-Path $root 'mods/reset-mods-42_00.txt'),'Native 42.x profile initialized by Mod Studio.')
     [IO.File]::WriteAllText((Join-Path $root 'options.ini'),"version=8`nfullScreen=false`nborderless=false`nwidth=900`nheight=650`nfocusloss=false`nshowSurvivalGuide=false`nframeRate=30`nuncappedFPS=false`nvsync=false`nvoiceEnable=false`nmusicVolume=0`nlanguage=EN`ntermsOfServiceVersion=$acceptedTermsVersion`nlockCursorToWindow=false`n")
+    # Native per-profile approval records are restricted to the exact test packages.
+    # No global decisions, trust policy or signature checking are changed.
+    $approvals=@()
+    foreach($id in $sources.Keys){foreach($jar in Get-ChildItem -LiteralPath $sources[$id] -Recurse -Filter '*.jar'){
+        $approvals+=@{id=$id;jar_hash=(Get-FileHash -LiteralPath $jar.FullName -Algorithm SHA256).Hash.ToLowerInvariant();decision=$true;time=[DateTime]::UtcNow.ToString('o')}
+    }}
+    $approvalDir=Join-Path $root 'ZombieBuddy'
+    New-Item -ItemType Directory -Path $approvalDir -Force | Out-Null
+    @{formatVersion=2;mods=$approvals} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $approvalDir 'mod_approvals.json') -Encoding utf8
     return $root
 }
 function Start-Native([string]$role,[string]$cache,[string[]]$Arguments){
@@ -86,7 +114,7 @@ function Start-Native([string]$role,[string]$cache,[string[]]$Arguments){
     return @{role=$role;cache=$cache;process=$process;stdout=$process.StandardOutput.ReadToEndAsync();stderr=$process.StandardError.ReadToEndAsync()}
 }
 $owned=[Collections.Generic.List[object]]::new()
-$launch=[ordered]@{schema=1;status='prepared';output=$output;serverMods=@($suite.server.mods);clients=@();processes=@();createdUtc=[DateTime]::UtcNow.ToString('o')}
+$launch=[ordered]@{clientLoader=$ClientLoader;schema=1;status='prepared';output=$output;serverMods=@($suite.server.mods);clients=@();processes=@();createdUtc=[DateTime]::UtcNow.ToString('o')}
 try {
     $packages=@()
     foreach($mod in $sources.GetEnumerator()){
@@ -110,8 +138,8 @@ try {
     $ini=@('Public=false','Open=true','AutoCreateUserInWhiteList=true','PauseEmpty=false','PVP=false','UPnP=false','SteamVAC=false','DoLuaChecksum=true','WorkshopItems=','Map=Muldraugh, KY',"DefaultPort=$port","UDPPort=$udp",'MaxPlayers=2','PingLimit=0','BackupsOnStart=false','BackupsOnVersionChange=false','SaveWorldEveryMinutes=0',"Mods=$($suite.server.mods -join ';')", "SpawnPoint=$($suite.spawn.x),$($suite.spawn.y),$($suite.spawn.z)")
     if($suite.server.options){foreach($property in $suite.server.options.psobject.Properties){$value=if($property.Value -is [bool]){$property.Value.ToString().ToLowerInvariant()}else{[string]$property.Value};$ini+="$($property.Name)=$value"}}
     [IO.File]::WriteAllText((Join-Path $serverCache 'Server/ModStudioMP.ini'),($ini -join "`n")+"`n")
-    [IO.File]::WriteAllText((Join-Path $serverCache 'Server/ModStudioMP_SandboxVars.lua'),"SandboxVars = { VERSION = 6, Zombies = 6, StartYear = 1, StartMonth = 7, StartDay = 9, StartTime = 2, WaterShutModifier = 365, ElecShutModifier = 365, StarterKit = false }")
-    $vm=@($config.vmArgs | Where-Object {$_ -notmatch '^-Xmx|^-Dzomboid.steam|^-Djava.library.path'})+@('-Xmx3072m','-XX:+UseZGC','-Dzomboid.steam=0','-Djava.library.path=./natives/;./natives/win64/;./')
+    [IO.File]::WriteAllText((Join-Path $serverCache 'Server/ModStudioMP_SandboxVars.lua'),"SandboxVars = { VERSION = 6, Zombies = 6, StartYear = 1, StartMonth = 7, StartDay = 9, StartTime = 2, WaterShutModifier = 365, ElecShutModifier = 365, StarterKit = false, $($sandboxExtra.Substring(1,$sandboxExtra.Length-2)) }")
+    $vm=@($config.vmArgs | Where-Object {$_ -notmatch '^-Xmx|^-Dzomboid.steam|^-Djava.library.path|^-agentlib:pz3dLoader|^-agentpath:.*pz3dLoader\.dll|^-javaagent:.*(pz3dLoader|ZombieBuddy)'})+@('-Xmx3072m',"-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')=config_dir=$serverCache/ZombieBuddy",'-XX:+UseZGC','-Dzomboid.steam=0','-Djava.library.path=./natives/;./natives/win64/;./')
     if($suite.server.javaProperties){foreach($property in $suite.server.javaProperties.psobject.Properties){
         if($property.Name -notmatch '^[A-Za-z0-9_.-]+$'){throw 'Invalid server Java property'}
         $vm+="-D$($property.Name)=$($property.Value)"
@@ -133,14 +161,15 @@ try {
     Start-Sleep -Seconds 2
     # Observer first: the second launched window leaves the active driver focused.
     foreach($index in @(1,0)){
-        $client=$suite.clients[$index];$name=if($index -eq 0){'TestA'}else{'TestB'};$peer=if($index -eq 0){'TestB'}else{'TestA'}
+        $client=$suite.clients[$index];$loader=if($client.loader){$client.loader}else{$ClientLoader};$name=if($index -eq 0){'TestA'}else{'TestB'};$peer=if($index -eq 0){'TestB'}else{'TestA'}
         $mods=@('ZombieBuddy','mod_studio')+@($client.mods) | Select-Object -Unique
         $cache=Prepare-Profile "client-$name" $mods
         $definition=[ordered]@{schema=1;id=("$($suite.id)-$name").ToLowerInvariant();spawn=$suite.spawn;steps=$client.steps;multiplayer=@{host='127.0.0.1';port=$port;username=$name;password='modstudio-test';peer=$peer}}
         $scenarioPath=Join-Path $cache 'scenario.json';$definition | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $scenarioPath -Encoding utf8
-        $clientVm=@($config.vmArgs | Where-Object {$_ -notmatch '^-Xmx|^-Dzomboid.steam'})+@('-Xmx4096m','-XX:+UseZGC','-Dzomboid.steam=0',"-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')",'-Ddebug=true','-Dmodstudio.scenario.multiplayer=true',"-Dmodstudio.scenario=$scenarioPath","-Dmodstudio.scenario.output=$cache")
+        $clientVm=@($config.vmArgs | Where-Object {$_ -notmatch '^-Xmx|^-Dzomboid.steam|^-agentlib:pz3dLoader|^-agentpath:.*pz3dLoader\.dll|^-javaagent:.*(pz3dLoader|ZombieBuddy)'})+@('-Xmx4096m','-XX:+UseZGC','-Dzomboid.steam=0',"-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')=config_dir=$cache/ZombieBuddy",'-Ddebug=true','-Dmodstudio.scenario.multiplayer=true',"-Dmodstudio.scenario=$scenarioPath","-Dmodstudio.scenario.output=$cache")
+        if($loader -eq 'pz3d'){$clientVm+="-javaagent:$Pz3dLoaderJar"}
         $record=Start-Native $name $cache ($clientVm+@('-cp','.;projectzomboid.jar','zombie.gameStates.MainScreenState','-debug','-nosteam','-windowed',"-cachedir=$cache"))
-        $owned.Add($record);$launch.clients+=@{name=$name;mods=$mods;pid=$record.process.Id;cache=$cache}
+        $owned.Add($record);$launch.clients+=@{loader=$loader;name=$name;mods=$mods;pid=$record.process.Id;cache=$cache}
     }
     $launch.status='launched';$launch.processes=@($owned | ForEach-Object {@{role=$_.role;pid=$_.process.Id}})
     $launch | ConvertTo-Json -Depth 9 | Set-Content -LiteralPath (Join-Path $output 'launch.json') -Encoding utf8
@@ -176,6 +205,15 @@ try {
         [IO.File]::WriteAllText((Join-Path $entry.cache 'stdout.txt'),$entry.stdout.GetAwaiter().GetResult())
         [IO.File]::WriteAllText((Join-Path $entry.cache 'stderr.txt'),$entry.stderr.GetAwaiter().GetResult())
         $entry.process.Dispose()
+    }
+    foreach($client in $launch.clients){
+        if($client.mods -notcontains 'pz3d'){continue}
+        $expectedOwner=if($client.loader -eq 'pz3d'){'Pz3dLoader'}else{'ZombieBuddy'}
+        $consolePath=Join-Path $client.cache 'console.txt'
+        $consoleText=if(Test-Path -LiteralPath $consolePath){[IO.File]::ReadAllText($consolePath)}else{''}
+        if($launch.status -eq 'complete' -and $consoleText -notmatch ('owner='+$expectedOwner+'(?:[\r\n]|$)')){
+            $launch.status='failed';$launch.reason="$($client.name): expected pz3d owner $expectedOwner was not confirmed"
+        }
     }
     $changedSources=@()
     foreach($file in $luaSources){
