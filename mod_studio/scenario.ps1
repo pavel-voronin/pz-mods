@@ -15,8 +15,8 @@ $data=$text | ConvertFrom-Json
 if($data.schema -ne 1 -or $data.id -notmatch '^[a-z0-9_-]{1,80}$' -or !$data.spawn -or !$data.steps){throw 'Expected schema=1, id, spawn and steps.'}
 if($data.steps.Count -gt 512){throw 'At most 512 steps.'}
 $running=Get-Process -ErrorAction SilentlyContinue | Where-Object {$_.ProcessName -like 'ProjectZomboid*'}
-$javaGame=Get-CimInstance Win32_Process -Filter "Name = 'java.exe' OR Name = 'javaw.exe'" | Where-Object {$_.CommandLine -match 'zombie.gameStates.MainScreenState'}
-if(!$PrepareOnly -and ($running -or $javaGame)){throw 'Project Zomboid is already running. Close it normally before a scenario launch.'}
+$javaGame=Get-CimInstance Win32_Process -Filter "Name = 'java.exe' OR Name = 'javaw.exe'" | Where-Object {$_.CommandLine -match 'zombie\.(gameStates\.MainScreenState|network\.GameServer)'}
+if(!$PrepareOnly -and ($running -or $javaGame)){throw 'A Project Zomboid client or server is already running. Close it normally before a scenario launch.'}
 $roots=@($PSScriptRoot)+@($ModRoots | ForEach-Object {(Resolve-Path -LiteralPath $_).Path}) | Select-Object -Unique
 if(!$SkipBuild){foreach($root in $roots){& (Join-Path $root 'build.ps1') -Game $Game}}
 $id=[DateTime]::UtcNow.ToString('yyyyMMdd-THHmmssZ')+'-'+[guid]::NewGuid().ToString('N')

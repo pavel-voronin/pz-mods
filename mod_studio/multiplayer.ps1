@@ -6,11 +6,13 @@ param(
     [ValidateRange(1024,65534)][int]$Port=16371,
     [ValidateRange(60,7200)][int]$TimeoutSeconds=600,
     [ValidateSet('zombieBuddy','pz3d')][string]$ClientLoader='zombieBuddy',
+    [ValidateSet('Z','G1')][string]$GarbageCollector='Z',
     [string]$Pz3dLoaderJar=(Join-Path $PSScriptRoot '../pz3d/Contents.release/mods/pz3d/common/media/pz3d/loader/pz3dLoader.jar'),
     [switch]$SkipBuild,
     [switch]$ValidateOnly
 )
 $ErrorActionPreference='Stop'
+$gcArgument=if($GarbageCollector -eq 'G1'){'-XX:+UseG1GC'}else{'-XX:+UseZGC'}
 $suite=Get-Content -LiteralPath $Scenario -Raw | ConvertFrom-Json
 if($suite.schema -ne 1 -or $suite.clients.Count -ne 2){throw 'Expected schema 1 and exactly two clients'}
 if($suite.id -notmatch '^[a-z0-9_-]{1,60}$'){throw 'Invalid MP suite id'}
@@ -109,12 +111,14 @@ function Start-Native([string]$role,[string]$cache,[string[]]$Arguments){
     $start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=Join-Path $Game 'jre64/bin/java.exe';$start.WorkingDirectory=$Game
     $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WindowStyle='Hidden'
     $start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true;$start.RedirectStandardInput=$true
-    foreach($a in $Arguments){$start.ArgumentList.Add($a)}
+    $start.ArgumentList.Add("-XX:ErrorFile=$cache/hs_err_pid%p.log")
+    $start.ArgumentList.Add("-XX:ReplayDataFile=$cache/replay_pid%p.log")
+    foreach($a in $Arguments){if($a -notmatch '^-XX:(ErrorFile|ReplayDataFile)='){$start.ArgumentList.Add($a)}}
     $process=[Diagnostics.Process]::Start($start)
     return @{role=$role;cache=$cache;process=$process;stdout=$process.StandardOutput.ReadToEndAsync();stderr=$process.StandardError.ReadToEndAsync()}
 }
 $owned=[Collections.Generic.List[object]]::new()
-$launch=[ordered]@{clientLoader=$ClientLoader;schema=1;status='prepared';output=$output;serverMods=@($suite.server.mods);clients=@();processes=@();createdUtc=[DateTime]::UtcNow.ToString('o')}
+$launch=[ordered]@{garbageCollector=$GarbageCollector;clientLoader=$ClientLoader;schema=1;status='prepared';output=$output;serverMods=@($suite.server.mods);clients=@();processes=@();createdUtc=[DateTime]::UtcNow.ToString('o')}
 try {
     $packages=@()
     foreach($mod in $sources.GetEnumerator()){
@@ -139,7 +143,7 @@ try {
     if($suite.server.options){foreach($property in $suite.server.options.psobject.Properties){$value=if($property.Value -is [bool]){$property.Value.ToString().ToLowerInvariant()}else{[string]$property.Value};$ini+="$($property.Name)=$value"}}
     [IO.File]::WriteAllText((Join-Path $serverCache 'Server/ModStudioMP.ini'),($ini -join "`n")+"`n")
     [IO.File]::WriteAllText((Join-Path $serverCache 'Server/ModStudioMP_SandboxVars.lua'),"SandboxVars = { VERSION = 6, Zombies = 6, StartYear = 1, StartMonth = 7, StartDay = 9, StartTime = 2, WaterShutModifier = 365, ElecShutModifier = 365, StarterKit = false, $($sandboxExtra.Substring(1,$sandboxExtra.Length-2)) }")
-    $vm=@($config.vmArgs | Where-Object {$_ -notmatch '^-Xmx|^-Dzomboid.steam|^-Djava.library.path|^-agentlib:pz3dLoader|^-agentpath:.*pz3dLoader\.dll|^-javaagent:.*(pz3dLoader|ZombieBuddy)'})+@('-Xmx3072m',"-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')=config_dir=$serverCache/ZombieBuddy",'-XX:+UseZGC','-Dzomboid.steam=0','-Djava.library.path=./natives/;./natives/win64/;./')
+    $vm=@($config.vmArgs | Where-Object {$_ -notmatch '^-Xmx|^-Dzomboid.steam|^-Djava.library.path|^-agentlib:pz3dLoader|^-agentpath:.*pz3dLoader\.dll|^-javaagent:.*(pz3dLoader|ZombieBuddy)|^-XX:[+-]Use(?:Z|G1|Parallel|Serial|Shenandoah)GC'})+@('-Xmx3072m',"-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')=config_dir=$serverCache/ZombieBuddy",$gcArgument,'-Dzomboid.steam=0','-Djava.library.path=./natives/;./natives/win64/;./')
     if($suite.server.javaProperties){foreach($property in $suite.server.javaProperties.psobject.Properties){
         if($property.Name -notmatch '^[A-Za-z0-9_.-]+$'){throw 'Invalid server Java property'}
         $vm+="-D$($property.Name)=$($property.Value)"
@@ -166,7 +170,7 @@ try {
         $cache=Prepare-Profile "client-$name" $mods
         $definition=[ordered]@{schema=1;id=("$($suite.id)-$name").ToLowerInvariant();spawn=$suite.spawn;steps=$client.steps;multiplayer=@{host='127.0.0.1';port=$port;username=$name;password='modstudio-test';peer=$peer}}
         $scenarioPath=Join-Path $cache 'scenario.json';$definition | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $scenarioPath -Encoding utf8
-        $clientVm=@($config.vmArgs | Where-Object {$_ -notmatch '^-Xmx|^-Dzomboid.steam|^-agentlib:pz3dLoader|^-agentpath:.*pz3dLoader\.dll|^-javaagent:.*(pz3dLoader|ZombieBuddy)'})+@('-Xmx4096m','-XX:+UseZGC','-Dzomboid.steam=0',"-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')=config_dir=$cache/ZombieBuddy",'-Ddebug=true','-Dmodstudio.scenario.multiplayer=true',"-Dmodstudio.scenario=$scenarioPath","-Dmodstudio.scenario.output=$cache")
+        $clientVm=@($config.vmArgs | Where-Object {$_ -notmatch '^-Xmx|^-Dzomboid.steam|^-agentlib:pz3dLoader|^-agentpath:.*pz3dLoader\.dll|^-javaagent:.*(pz3dLoader|ZombieBuddy)|^-XX:[+-]Use(?:Z|G1|Parallel|Serial|Shenandoah)GC'})+@('-Xmx4096m',$gcArgument,'-Dzomboid.steam=0',"-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')=config_dir=$cache/ZombieBuddy",'-Ddebug=true','-Dmodstudio.scenario.multiplayer=true',"-Dmodstudio.scenario=$scenarioPath","-Dmodstudio.scenario.output=$cache")
         if($loader -eq 'pz3d'){$clientVm+="-javaagent:$Pz3dLoaderJar"}
         $record=Start-Native $name $cache ($clientVm+@('-cp','.;projectzomboid.jar','zombie.gameStates.MainScreenState','-debug','-nosteam','-windowed',"-cachedir=$cache"))
         $owned.Add($record);$launch.clients+=@{loader=$loader;name=$name;mods=$mods;pid=$record.process.Id;cache=$cache}

@@ -22,13 +22,13 @@ $running=if($IsLinux){
         if($_.ProcessName -like 'ProjectZomboid*'){return $true}
         if($_.ProcessName -notmatch '^java$'){return $false}
         $cmdline=Get-Content -LiteralPath "/proc/$($_.Id)/cmdline" -Raw -ErrorAction SilentlyContinue
-        $cmdline -match 'zombie[./]gameStates[./]MainScreenState'
+        $cmdline -match 'zombie[./](gameStates[./]MainScreenState|network[./]GameServer)'
     }
 }else{Get-CimInstance Win32_Process | Where-Object {
-    $_.Name -like 'ProjectZomboid*' -or ($_.Name -match '^javaw?\.exe$' -and $_.CommandLine -match 'zombie.gameStates.MainScreenState')
+    $_.Name -like 'ProjectZomboid*' -or ($_.Name -match '^javaw?\.exe$' -and $_.CommandLine -match 'zombie\.(gameStates\.MainScreenState|network\.GameServer)')
 }}
 if(!$IsLinux){$running=@($running | Where-Object {try{!(Get-Process -Id $_.ProcessId -ErrorAction Stop).HasExited}catch{$false}})}
-if($running){throw 'Project Zomboid is already running; an existing session will not be closed.'}
+if($running){throw 'A Project Zomboid client or server is already running; an existing session will not be closed.'}
 $cache=Join-Path ([Environment]::GetFolderPath('UserProfile')) 'Zomboid'
 if($IsLinux -and $Loaders -eq 'Pz3dLoaderNative'){throw 'Pz3dLoaderNative is only supported on Windows.'}
 if($IsLinux -and $Launcher -eq 'Native'){throw 'Linux menu checks currently use the Java launcher.'}
