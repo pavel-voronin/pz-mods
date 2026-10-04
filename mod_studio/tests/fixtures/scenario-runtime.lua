@@ -98,6 +98,7 @@ journal={};quit=false;diag=false;diagClosed=true;ownedControl=false;beam=0;camer
 ModStudioDriving={
  spawn=function() carSpawned=true;if spawnFailure then error('spawn failed') end end,
  spawnConfigured=function(script,heading,enter,headlights) carSpawned=true;carEntry=enter;carHeadlights=headlights;return not configuredSpawnFailure end,
+ spawnConfiguredAt=function(script,heading,enter,headlights,x,y) carX=x;carY=y;return ModStudioDriving.spawnConfigured(script,heading,enter,headlights) end,
  drive=function() driving=true end,poll=function() return driveReady end,
  stop=function() driving=false end,close=function() driving=false;carClosed=true end}
 PZ3D={ready=function() return true end,scenarioControlStart=function() ownedControl=true;return true end,scenarioControlEnd=function() ownedControl=false end,

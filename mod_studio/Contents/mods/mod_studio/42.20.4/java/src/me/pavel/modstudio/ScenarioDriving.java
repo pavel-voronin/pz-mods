@@ -52,15 +52,20 @@ public final class ScenarioDriving {
     public static void spawn(String scriptName,double heading){spawnConfigured(scriptName,heading,true,false);}
     /** Same native owned car, optionally parked with headlights and the player on foot. */
     public static boolean spawnConfigured(String scriptName,double heading,boolean enter,boolean headlights){
+        guard();var p=IsoPlayer.getInstance();if(p==null)throw new IllegalStateException("Player unavailable");
+        return spawnConfiguredAt(scriptName,heading,enter,headlights,p.getX(),p.getY());
+    }
+    public static boolean spawnConfiguredAt(String scriptName,double heading,boolean enter,boolean headlights,double x,double y){
         guard();var p=IsoPlayer.getInstance();
         if(vehicle!=null||p==null||p.getVehicle()!=null)throw new IllegalStateException("Spawn requires a player on foot and no scenario car");
         if(!Double.isFinite(heading)||heading< -180||heading>180)throw new IllegalArgumentException("Invalid heading");
         var script=zombie.scripting.ScriptManager.instance.getVehicle(scriptName);
         if(script==null||script.getPassengerCount()<1)throw new IllegalArgumentException("Unknown passenger vehicle");
-        var square=p.getSquare();if(square==null||!square.TreatAsSolidFloor())throw new IllegalStateException("Spawn requires a native floor");
+        if(!Double.isFinite(x)||!Double.isFinite(y)||x<0||y<0||x>100000||y>100000||Math.hypot(x-p.getX(),y-p.getY())>64)throw new IllegalArgumentException("Spawn position must be loaded within 64 tiles of the player");
+        var square=p.getCell().getGridSquare((int)Math.floor(x),(int)Math.floor(y),(int)p.getZ());if(square==null||square.getChunk()==null||!square.TreatAsSolidFloor())throw new IllegalStateException("Spawn requires a loaded native floor");
         WorldSimulation.instance.create();var v=new BaseVehicle(IsoWorld.instance.currentCell);boolean added=false;
         try {
-            v.setScriptName(scriptName);v.setScript();v.setX(p.getX());v.setY(p.getY());v.setZ(p.getZ());
+            v.setScriptName(scriptName);v.setScript();v.setX((float)x);v.setY((float)y);v.setZ(p.getZ());
             double yaw=Math.toRadians(heading);v.setDir(zombie.iso.IsoDirections.fromAngle(new zombie.iso.Vector2((float)Math.cos(yaw),(float)Math.sin(yaw))));
             v.savedRot.rotationY((float)(Math.PI/2-yaw));v.jniTransform.setRotation(v.savedRot);
             v.setSquare(square);v.chunk=square.getChunk();v.chunk.vehicles.add(v);added=true;v.addToWorld();
