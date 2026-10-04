@@ -6,6 +6,7 @@ param(
     [switch]$SkipBuild,
     [switch]$PrepareOnly,
     [ValidateSet('Java','Native')][string]$Launcher='Java',
+    [ValidateSet('Z','G1')][string]$GarbageCollector='Z',
     [int]$TimeoutSeconds=600
 )
 $ErrorActionPreference='Stop'
@@ -25,8 +26,9 @@ New-Item -ItemType Directory -Path $output | Out-Null
 $copy=Join-Path $output 'scenario.json'
 [IO.File]::WriteAllText($copy,$text,[Text.UTF8Encoding]::new($false))
 $config=Get-Content -LiteralPath (Join-Path $Game 'ProjectZomboid64.json') -Raw | ConvertFrom-Json
-$arguments=@($config.vmArgs)+@('-XX:+UseZGC',"-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')",'-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")
-if($Launcher -eq 'Native'){$arguments=@('-XX:+UseZGC','-agentlib:zbNative=policy=allow-all','-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")}
+$gcArguments=if($GarbageCollector -eq 'G1'){@('-XX:-UseZGC','-XX:+UseG1GC')}else{@('-XX:-UseG1GC','-XX:+UseZGC')}
+$arguments=@($config.vmArgs)+$gcArguments+@("-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')",'-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")
+if($Launcher -eq 'Native'){$arguments=$gcArguments+@('-agentlib:zbNative=policy=allow-all','-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")}
 $packages=@()
 foreach($root in $roots){
     $commit=git -C $root rev-parse HEAD
@@ -46,7 +48,7 @@ $packages | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $outpu
 foreach($entry in @(@('options.ini','game-options.ini'),@('mods/default.txt','active-mods.txt'))){
     $from=Join-Path $env:USERPROFILE ('Zomboid/'+$entry[0]);if(Test-Path -LiteralPath $from){Copy-Item -LiteralPath $from -Destination (Join-Path $output $entry[1])}
 }
-$launch=[ordered]@{schema=1;status='prepared';source=$scenarioPath;output=$output;createdUtc=[DateTime]::UtcNow.ToString('o');launcher=$Launcher}
+$launch=[ordered]@{schema=1;status='prepared';source=$scenarioPath;output=$output;createdUtc=[DateTime]::UtcNow.ToString('o');launcher=$Launcher;garbageCollector=$GarbageCollector}
 $launchPath=Join-Path $output 'launch.json'
 $launch | ConvertTo-Json | Set-Content -LiteralPath $launchPath -Encoding utf8
 Write-Output "Scenario artifact: $output"
