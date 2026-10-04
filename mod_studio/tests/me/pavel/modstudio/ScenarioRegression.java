@@ -22,6 +22,7 @@ public final class ScenarioRegression {
         guarded=false;try{ScenarioHost.spawnHuman(0,-3);}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Human spawned outside a disposable scenario");
         ScenarioHost.clearHuman();ScenarioHost.clearHuman();
         guarded=false;try{ScenarioHost.screenshot("test");}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Screenshot outside disposable scenario");
+        guarded=false;try{ScenarioDriving.spawnConfigured("Base.CarNormal",0,false,true);}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Parked car spawned outside a disposable scenario");
         ScenarioDriving.stop();ScenarioDriving.close();ScenarioDriving.close();
         var frames=new ScenarioDriving.Intervals();for(int i=0;i<99;i++)frames.add(16_000_000);frames.add(2_000_000_000L);
         if(frames.count!=100||frames.percentile(.95)!=16.1||frames.percentile(1)!=2000)throw new AssertionError("Bounded frame histogram and overflow");
@@ -86,6 +87,12 @@ public final class ScenarioRegression {
             "scenario={steps={{command='pz3d.worldWarp',mode=3,near=159}}};Events.OnMainMenuEnter.fire();pump(5);assert(quit and ended=='failed' and PZ3D.cameraDebugState().warpMode==0)",
             "scenario={steps={{command='pz3d.diagnostics',enabled=true},{command='pz3d.worldWarp',mode=2},{command='native.wait',seconds=100}}};Events.OnMainMenuEnter.fire();pump(5);assert(PZ3D.cameraDebugState().warpMode==2);interruption='focus lost';pump(40);assert(quit and ended=='failed' and PZ3D.cameraDebugState().warpMode==0)",
             "scenario={steps={{command='native.vehicle',script='Base.CarNormal',heading=-90},{command='native.drive',x=1,y=100,kmh=40},{command='native.wait',seconds=1}}};Events.OnMainMenuEnter.fire();pump(6);assert(carSpawned and driving and ended==nil);driveReady=true;pump(20);assert(ended=='complete' and carClosed and not driving)",
+            "scenario={steps={{command='native.vehicle',script='Base.CarNormal',heading=0,enter=false,headlights=true},{command='native.wait',seconds=.2}}};Events.OnMainMenuEnter.fire();pump(12);assert(ended=='complete' and carSpawned and carEntry==false and carHeadlights==true and carClosed)",
+            "scenario={steps={{command='native.vehicle',script='Base.CarNormal',heading=0,enter=true,headlights=false}}};Events.OnMainMenuEnter.fire();pump(12);assert(ended=='complete' and carEntry==true and carHeadlights==false and carClosed)",
+            "configuredSpawnFailure=true;scenario={steps={{command='native.vehicle',script='Base.CarNormal',heading=0,enter=false,headlights=true}}};Events.OnMainMenuEnter.fire();pump(12);assert(ended=='failed' and carClosed)",
+            "ModStudioDriving.spawnConfigured=nil;scenario={steps={{command='native.vehicle',script='Base.CarNormal',heading=0,enter=false}}};Events.OnMainMenuEnter.fire();pump(12);assert(ended=='failed' and not carSpawned)",
+            "scenario={steps={{command='native.vehicle',script='Base.CarNormal',heading=0,enter='no'}}};Events.OnMainMenuEnter.fire();pump(12);assert(ended=='failed' and not carSpawned)",
+            "scenario={steps={{command='native.vehicle',script='Base.CarNormal',heading=0,headlights=1}}};Events.OnMainMenuEnter.fire();pump(12);assert(ended=='failed' and not carSpawned)",
             "scenario={steps={{command='native.vehicle',script='Base.CarNormal',heading=200}}};Events.OnMainMenuEnter.fire();pump(6);assert(ended=='failed' and not carSpawned)",
             "scenario={steps={{command='native.drive',x=1,y=100,kmh=40}}};Events.OnMainMenuEnter.fire();pump(6);assert(ended=='failed' and not driving)",
             "scenario={steps={{command='native.vehicle',script='Base.CarNormal',heading=0},{command='native.drive',x=1,y=100,kmh=40,timeout=1}}};Events.OnMainMenuEnter.fire();pump(4);assert(driving);advance(2);pump(8);assert(ended=='failed' and carClosed and not driving)",

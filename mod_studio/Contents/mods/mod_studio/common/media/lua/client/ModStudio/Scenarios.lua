@@ -57,7 +57,13 @@ API.register("native",{
             assert(ModStudioDriving,"Native driving API unavailable")
             assert(type(s.script)=="string" and #s.script>0 and #s.script<=128,"Invalid vehicle script")
             number(s,"heading",-180,180)
-        end,start=function(c,s) c.nativeDriving=true;ModStudioDriving.spawn(s.script,s.heading) end},
+            for _,key in ipairs({"enter","headlights"}) do assert(s[key]==nil or type(s[key])=="boolean","Invalid vehicle "..key) end
+            if s.enter~=nil or s.headlights~=nil then assert(ModStudioDriving.spawnConfigured,"Native parked vehicle API unavailable") end
+        end,start=function(c,s)
+            c.nativeDriving=true
+            if s.enter~=nil or s.headlights~=nil then assert(ModStudioDriving.spawnConfigured(s.script,s.heading,s.enter~=false,s.headlights==true),"Native configured vehicle was not created")
+            else ModStudioDriving.spawn(s.script,s.heading) end
+        end},
     drive={validate=function(s)
             assert(ModStudioDriving,"Native driving API unavailable")
             number(s,"x",0,100000);number(s,"y",0,100000);number(s,"kmh",5,100)

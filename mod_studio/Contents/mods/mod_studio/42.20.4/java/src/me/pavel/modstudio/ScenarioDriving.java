@@ -49,7 +49,9 @@ public final class ScenarioDriving {
         if(!ScenarioHost.requested()||!ScenarioHost.suppressInput()||!zombie.core.Core.getInstance().isNoSave())
             throw new IllegalStateException("Driving requires a disposable scenario world");
     }
-    public static void spawn(String scriptName,double heading){
+    public static void spawn(String scriptName,double heading){spawnConfigured(scriptName,heading,true,false);}
+    /** Same native owned car, optionally parked with headlights and the player on foot. */
+    public static boolean spawnConfigured(String scriptName,double heading,boolean enter,boolean headlights){
         guard();var p=IsoPlayer.getInstance();
         if(vehicle!=null||p==null||p.getVehicle()!=null)throw new IllegalStateException("Spawn requires a player on foot and no scenario car");
         if(!Double.isFinite(heading)||heading< -180||heading>180)throw new IllegalArgumentException("Invalid heading");
@@ -63,13 +65,19 @@ public final class ScenarioDriving {
             v.savedRot.rotationY((float)(Math.PI/2-yaw));v.jniTransform.setRotation(v.savedRot);
             v.setSquare(square);v.chunk=square.getChunk();v.chunk.vehicles.add(v);added=true;v.addToWorld();
             v.setGeneralPartCondition(1.3f,10f);v.repair();v.setLocked(false);v.setAlarmed(false);v.setHotwired(true);
-            if(!v.enter(0,p))throw new IllegalStateException("Driver seat unavailable");
-            p.setRunning(false);p.setSprinting(false);p.setIsAiming(false);p.setBlockMovement(false);
-            p.clearVariable("bEnteringVehicle");p.clearVariable("bExitingVehicle");
-            v.setCharacterPosition(p,0,"inside");v.transmitCharacterPosition(0,"inside");v.playPassengerAnim(0,"idle");
-            zombie.vehicles.VehiclesDB2.instance.addVehicle(v);v.engineDoRunning();vehicle=v;
-            zombie.Lua.LuaEventManager.triggerEvent("OnEnterVehicle",p);
-            ScenarioHost.event("native-car","script="+scriptName+" heading="+heading+" x="+v.getX()+" y="+v.getY()+" grid="+zombie.iso.IsoChunkMap.chunkGridWidth);
+            if(enter){
+                if(!v.enter(0,p))throw new IllegalStateException("Driver seat unavailable");
+                p.setRunning(false);p.setSprinting(false);p.setIsAiming(false);p.setBlockMovement(false);
+                p.clearVariable("bEnteringVehicle");p.clearVariable("bExitingVehicle");
+                v.setCharacterPosition(p,0,"inside");v.transmitCharacterPosition(0,"inside");v.playPassengerAnim(0,"idle");
+            }
+            zombie.vehicles.VehiclesDB2.instance.addVehicle(v);v.engineDoRunning();v.setHeadlightsOn(headlights);
+            if(v.getHeadlightsOn()!=headlights||headlights&&!v.hasHeadlights())throw new IllegalStateException("Native vehicle headlights unavailable");
+            if((p.getVehicle()==v)!=enter)throw new IllegalStateException("Native vehicle entry state differs");
+            vehicle=v;v.getController().getClientControls().brake=true;
+            if(enter)zombie.Lua.LuaEventManager.triggerEvent("OnEnterVehicle",p);
+            ScenarioHost.event("native-car","script="+scriptName+" heading="+heading+" enter="+enter+" headlights="+v.getHeadlightsOn()+" x="+v.getX()+" y="+v.getY()+" grid="+zombie.iso.IsoChunkMap.chunkGridWidth);
+            return true;
         } catch(RuntimeException|Error e){if(added){if(p.getVehicle()==v)v.exit(p);v.permanentlyRemove();}vehicle=null;throw e;}
     }
     public static void drive(double x,double y,double kmh){
