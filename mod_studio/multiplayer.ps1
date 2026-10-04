@@ -1,0 +1,188 @@
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)][string]$Scenario,
+    [string]$Game='C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid',
+    [string]$OutputRoot=(Join-Path $env:USERPROFILE 'Zomboid/ModStudio/multiplayer'),
+    [ValidateRange(1024,65534)][int]$Port=16371,
+    [ValidateRange(60,7200)][int]$TimeoutSeconds=600,
+    [switch]$SkipBuild,
+    [switch]$ValidateOnly
+)
+$ErrorActionPreference='Stop'
+$suite=Get-Content -LiteralPath $Scenario -Raw | ConvertFrom-Json
+if($suite.schema -ne 1 -or $suite.clients.Count -ne 2){throw 'Expected schema 1 and exactly two clients'}
+if($suite.id -notmatch '^[a-z0-9_-]{1,60}$'){throw 'Invalid MP suite id'}
+foreach($coordinate in @('x','y','z')){
+    $value=$suite.spawn.$coordinate
+    $min=if($coordinate -eq 'z'){-32}else{0};$max=if($coordinate -eq 'z'){31}else{100000}
+    if($null -eq $value -or $value -isnot [ValueType] -or ![double]::IsFinite([double]$value) -or $value -ne [math]::Floor($value) -or $value -lt $min -or $value -gt $max){throw "Invalid MP spawn $coordinate"}
+}
+foreach($client in $suite.clients){
+    if($client.steps.Count -lt 1 -or $client.steps.Count -gt 512){throw 'Expected 1..512 steps per client'}
+    foreach($step in $client.steps){if($step.command -notmatch '^[a-z][a-z0-9_]*\.[a-z][a-zA-Z0-9_]*$'){throw 'Expected owner.command'}}
+}
+foreach($id in (@($suite.server.mods)+@($suite.clients | ForEach-Object {$_.mods}))){if($id -notmatch '^[A-Za-z0-9_-]+$'){throw 'Invalid native mod id'}}
+foreach($property in $suite.server.options.psobject.Properties){if($property.Name -notmatch '^[A-Za-z0-9_.-]+$' -or [string]$property.Value -match '[\r\n]'){throw 'Invalid native server option'}}
+foreach($property in $suite.server.javaProperties.psobject.Properties){if($property.Name -notmatch '^[A-Za-z0-9_.-]+$'){throw 'Invalid server Java property'}}
+if($ValidateOnly){Write-Output 'MP suite preflight passed';return}
+$live=Get-CimInstance Win32_Process | Where-Object {$_.Name -like 'ProjectZomboid*' -or ($_.Name -match '^javaw?\.exe$' -and $_.CommandLine -match 'zombie\.(gameStates\.MainScreenState|network\.GameServer)')}
+if($live){throw "A game or server is already running: $($live.ProcessId -join ', ')"}
+if(!$SkipBuild){& (Join-Path $PSScriptRoot 'build.ps1') -Game $Game}
+$OutputRoot=[IO.Path]::GetFullPath($OutputRoot)
+$output=Join-Path $OutputRoot ([DateTime]::UtcNow.ToString('yyyyMMdd-THHmmssZ')+'-'+[guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $output | Out-Null
+Copy-Item -LiteralPath $Scenario -Destination (Join-Path $output 'suite.json')
+Write-Output "MP artifact: $output"
+$acceptedTermsVersion=0
+$nativeOptions=Join-Path $env:USERPROFILE 'Zomboid/options.ini'
+if(Test-Path -LiteralPath $nativeOptions){
+    $acceptedLine=Get-Content -LiteralPath $nativeOptions | Where-Object {$_ -match '^termsOfServiceVersion=[0-9]+$'} | Select-Object -First 1
+    if($acceptedLine){$acceptedTermsVersion=[int]($acceptedLine.Split('=')[1])}
+}
+$sources=@{mod_studio=(Join-Path $PSScriptRoot 'Contents/mods/mod_studio')}
+$workshop=Join-Path (Split-Path $Game) '../workshop/content/108600'
+$buddy=Get-ChildItem -LiteralPath ([IO.Path]::GetFullPath($workshop)) -Directory | ForEach-Object {Join-Path $_.FullName 'mods/ZombieBuddy'} | Where-Object {Test-Path -LiteralPath $_} | Select-Object -First 1
+if(!$buddy){throw 'ZombieBuddy native mod not found'}
+$sources.ZombieBuddy=$buddy
+# Other mods use the same native package links; the runner has no renderer dependency.
+foreach($id in (@($suite.server.mods)+@($suite.clients | ForEach-Object {$_.mods}) | Select-Object -Unique)){
+    if($id -notmatch '^[A-Za-z0-9_-]+$'){throw "Invalid native mod id: $id"}
+    if($sources.ContainsKey($id)){continue}
+    $source=Get-ChildItem -LiteralPath (Split-Path $PSScriptRoot) -Directory | ForEach-Object {Join-Path $_.FullName "Contents/mods/$id"} | Where-Object {Test-Path -LiteralPath $_} | Select-Object -First 1
+    if(!$source){$source=Get-ChildItem -LiteralPath ([IO.Path]::GetFullPath($workshop)) -Directory | ForEach-Object {Join-Path $_.FullName "mods/$id"} | Where-Object {Test-Path -LiteralPath $_} | Select-Object -First 1}
+    if(!$source){throw "Native mod source not found: $id"}
+    $sources[$id]=$source
+}
+$runtime=@()
+foreach($file in @('pz3dLoader.jar','pz3dLoader.dll','ZombieBuddy.jar')){
+    $path=Join-Path $Game $file
+    if(Test-Path -LiteralPath $path){$runtime+=@{path=$path;sha256=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()}}
+}
+$runtime | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $output 'runtime.json') -Encoding utf8
+$config=Get-Content -LiteralPath (Join-Path $Game 'ProjectZomboid64.json') -Raw | ConvertFrom-Json
+$port=$Port
+$udp=$Port+1
+# Fail before launching if these dedicated loopback ports belong to another process.
+if(Get-NetUDPEndpoint -LocalPort $port,$udp -ErrorAction SilentlyContinue){throw 'MP test ports already occupied'}
+function Prepare-Profile([string]$profile,[string[]]$mods){
+    $root=Join-Path $output $profile
+    New-Item -ItemType Directory -Path (Join-Path $root 'mods') -Force | Out-Null
+    foreach($id in $mods){
+        if(!$sources.ContainsKey($id)){throw "No native mod source for $id"}
+        New-Item -ItemType Junction -Path (Join-Path $root "mods/$id") -Target $sources[$id] | Out-Null
+    }
+    $preset="VERSION = 1,`nmods`n{`n"+ (($mods | ForEach-Object {"    mod = $_,"}) -join "`n")+"`n}`nmaps`n{`n}`n"
+    [IO.File]::WriteAllText((Join-Path $root 'mods/default.txt'),$preset)
+    [IO.File]::WriteAllText((Join-Path $root 'mods/reset-mods-42_00.txt'),'Native 42.x profile initialized by Mod Studio.')
+    [IO.File]::WriteAllText((Join-Path $root 'options.ini'),"version=8`nfullScreen=false`nborderless=false`nwidth=900`nheight=650`nfocusloss=false`nshowSurvivalGuide=false`nframeRate=30`nuncappedFPS=false`nvsync=false`nvoiceEnable=false`nmusicVolume=0`nlanguage=EN`ntermsOfServiceVersion=$acceptedTermsVersion`nlockCursorToWindow=false`n")
+    return $root
+}
+function Start-Native([string]$role,[string]$cache,[string[]]$Arguments){
+    $start=[Diagnostics.ProcessStartInfo]::new();$start.FileName=Join-Path $Game 'jre64/bin/java.exe';$start.WorkingDirectory=$Game
+    $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WindowStyle='Hidden'
+    $start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true;$start.RedirectStandardInput=$true
+    foreach($a in $Arguments){$start.ArgumentList.Add($a)}
+    $process=[Diagnostics.Process]::Start($start)
+    return @{role=$role;cache=$cache;process=$process;stdout=$process.StandardOutput.ReadToEndAsync();stderr=$process.StandardError.ReadToEndAsync()}
+}
+$owned=[Collections.Generic.List[object]]::new()
+$launch=[ordered]@{schema=1;status='prepared';output=$output;serverMods=@($suite.server.mods);clients=@();processes=@();createdUtc=[DateTime]::UtcNow.ToString('o')}
+try {
+    $packages=@()
+    foreach($mod in $sources.GetEnumerator()){
+        if($mod.Key -notin (@($suite.server.mods)+@($suite.clients | ForEach-Object {$_.mods})+@('ZombieBuddy','mod_studio'))){continue}
+        foreach($jar in Get-ChildItem -LiteralPath $mod.Value -Recurse -Filter '*.jar'){
+            $packages+=@{id=$mod.Key;path=$jar.FullName;sha256=(Get-FileHash -LiteralPath $jar.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}
+        }
+    }
+    $packages | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $output 'packages.json') -Encoding utf8
+    $luaSources=@()
+    foreach($mod in $sources.GetEnumerator()){
+        if($mod.Key -notin (@($suite.server.mods)+@($suite.clients | ForEach-Object {$_.mods})+@('ZombieBuddy','mod_studio'))){continue}
+        $luaRoot=Join-Path $mod.Value 'common/media/lua'
+        if(Test-Path -LiteralPath $luaRoot){foreach($file in Get-ChildItem -LiteralPath $luaRoot -Recurse -Filter '*.lua'){
+            $luaSources+=@{id=$mod.Key;path=$file.FullName;sha256=(Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash}
+        }}
+    }
+    $luaSources | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $output 'lua-sources.json') -Encoding utf8
+    $serverCache=Prepare-Profile 'server'  @($suite.server.mods)
+    New-Item -ItemType Directory -Path (Join-Path $serverCache 'Server') | Out-Null
+    $ini=@('Public=false','Open=true','AutoCreateUserInWhiteList=true','PauseEmpty=false','PVP=false','UPnP=false','SteamVAC=false','DoLuaChecksum=true','WorkshopItems=','Map=Muldraugh, KY',"DefaultPort=$port","UDPPort=$udp",'MaxPlayers=2','PingLimit=0','BackupsOnStart=false','BackupsOnVersionChange=false','SaveWorldEveryMinutes=0',"Mods=$($suite.server.mods -join ';')", "SpawnPoint=$($suite.spawn.x),$($suite.spawn.y),$($suite.spawn.z)")
+    if($suite.server.options){foreach($property in $suite.server.options.psobject.Properties){$value=if($property.Value -is [bool]){$property.Value.ToString().ToLowerInvariant()}else{[string]$property.Value};$ini+="$($property.Name)=$value"}}
+    [IO.File]::WriteAllText((Join-Path $serverCache 'Server/ModStudioMP.ini'),($ini -join "`n")+"`n")
+    [IO.File]::WriteAllText((Join-Path $serverCache 'Server/ModStudioMP_SandboxVars.lua'),"SandboxVars = { VERSION = 6, Zombies = 6, StartYear = 1, StartMonth = 7, StartDay = 9, StartTime = 2, WaterShutModifier = 365, ElecShutModifier = 365, StarterKit = false }")
+    $vm=@($config.vmArgs | Where-Object {$_ -notmatch '^-Xmx|^-Dzomboid.steam|^-Djava.library.path'})+@('-Xmx3072m','-XX:+UseZGC','-Dzomboid.steam=0','-Djava.library.path=./natives/;./natives/win64/;./')
+    if($suite.server.javaProperties){foreach($property in $suite.server.javaProperties.psobject.Properties){
+        if($property.Name -notmatch '^[A-Za-z0-9_.-]+$'){throw 'Invalid server Java property'}
+        $vm+="-D$($property.Name)=$($property.Value)"
+    }}
+    $server=Start-Native 'server' $serverCache ($vm+@('-cp','.;projectzomboid.jar','zombie.network.GameServer',"-cachedir=$serverCache",'-nosteam','-ip','127.0.0.1','-servername','ModStudioMP','-adminusername','TestA','-adminpassword','modstudio-test'))
+    $owned.Add($server)
+    $watch=[Diagnostics.Stopwatch]::StartNew()
+    $serverConsole=Join-Path $serverCache 'server-console.txt'
+    while($watch.Elapsed.TotalSeconds -lt 120){
+        if($server.process.HasExited){throw 'Dedicated server exited during startup'}
+        $serverText="";try {if(Test-Path -LiteralPath $serverConsole){$serverText=[string](Get-Content -LiteralPath $serverConsole -Raw -ErrorAction Stop)}} catch {}
+        if($serverText -match '\*\*\* SERVER STARTED'){break}
+        Start-Sleep -Milliseconds 500
+    }
+    if($watch.Elapsed.TotalSeconds -ge 120){throw 'Dedicated server startup timeout'}
+    $server.process.StandardInput.WriteLine('adduser TestB modstudio-test')
+    $server.process.StandardInput.WriteLine('setaccesslevel TestB admin')
+    $server.process.StandardInput.Flush()
+    Start-Sleep -Seconds 2
+    # Observer first: the second launched window leaves the active driver focused.
+    foreach($index in @(1,0)){
+        $client=$suite.clients[$index];$name=if($index -eq 0){'TestA'}else{'TestB'};$peer=if($index -eq 0){'TestB'}else{'TestA'}
+        $mods=@('ZombieBuddy','mod_studio')+@($client.mods) | Select-Object -Unique
+        $cache=Prepare-Profile "client-$name" $mods
+        $definition=[ordered]@{schema=1;id=("$($suite.id)-$name").ToLowerInvariant();spawn=$suite.spawn;steps=$client.steps;multiplayer=@{host='127.0.0.1';port=$port;username=$name;password='modstudio-test';peer=$peer}}
+        $scenarioPath=Join-Path $cache 'scenario.json';$definition | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $scenarioPath -Encoding utf8
+        $clientVm=@($config.vmArgs | Where-Object {$_ -notmatch '^-Xmx|^-Dzomboid.steam'})+@('-Xmx4096m','-XX:+UseZGC','-Dzomboid.steam=0',"-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')",'-Ddebug=true','-Dmodstudio.scenario.multiplayer=true',"-Dmodstudio.scenario=$scenarioPath","-Dmodstudio.scenario.output=$cache")
+        $record=Start-Native $name $cache ($clientVm+@('-cp','.;projectzomboid.jar','zombie.gameStates.MainScreenState','-debug','-nosteam','-windowed',"-cachedir=$cache"))
+        $owned.Add($record);$launch.clients+=@{name=$name;mods=$mods;pid=$record.process.Id;cache=$cache}
+    }
+    $launch.status='launched';$launch.processes=@($owned | ForEach-Object {@{role=$_.role;pid=$_.process.Id}})
+    $launch | ConvertTo-Json -Depth 9 | Set-Content -LiteralPath (Join-Path $output 'launch.json') -Encoding utf8
+    $watch.Restart()
+    while($watch.Elapsed.TotalSeconds -lt $TimeoutSeconds){
+        $done=$true
+        foreach($entry in @($owned | Where-Object {$_.role -ne 'server'})){
+            $resultPath=Join-Path $entry.cache 'scenario-result.json'
+            if(Test-Path -LiteralPath $resultPath){
+                $result=Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json -ErrorAction SilentlyContinue
+                if($result -and $result.status -notin @('running','complete')){throw "$($entry.role): $($result.reason)"}
+            }else{$result=$null}
+            if(!$result -or $result.status -ne 'complete'){$done=$false;if($entry.process.HasExited){throw "$($entry.role) exited without completion"}}
+        }
+        if($done){break}
+        if($server.process.HasExited){throw 'Dedicated server exited during session'}
+        Start-Sleep -Milliseconds 500
+    }
+    if(!$done){throw 'MP suite timeout'}
+    $launch.status='complete'
+} catch {
+    $launch.status='failed';[IO.File]::WriteAllText((Join-Path $output 'abort.txt'),'Peer failure or suite timeout.');$launch.reason=$_.Exception.Message;$launch.errorPosition=$_.InvocationInfo.PositionMessage;Write-Warning ($launch.reason+' '+$launch.errorPosition)
+} finally {
+    foreach($entry in @($owned | Where-Object {$_.role -ne 'server'})){
+        if(!$entry.process.HasExited){$entry.process.WaitForExit(15000) | Out-Null}
+        if(!$entry.process.HasExited){$entry.process.Kill();$entry.process.WaitForExit();$launch.status='failed';$launch.reason=($launch.reason+'; client shutdown required termination').TrimStart('; ')}
+    }
+    if($server -and !$server.process.HasExited){$server.process.StandardInput.WriteLine('quit');$server.process.StandardInput.Flush();$server.process.WaitForExit(30000) | Out-Null}
+    foreach($entry in $owned){
+        if(!$entry.process.HasExited){$entry.process.Kill();$entry.process.WaitForExit();$launch.status='failed';$launch.reason=($launch.reason+'; server shutdown required termination').TrimStart('; ')}
+        $launch.processes | Where-Object {$_.pid -eq $entry.process.Id} | ForEach-Object {$_['exitCode']=$entry.process.ExitCode}
+        if($launch.status -eq 'complete' -and $entry.process.ExitCode -ne 0){$launch.status='failed';$launch.reason="$($entry.role) exited with $($entry.process.ExitCode)"}
+        [IO.File]::WriteAllText((Join-Path $entry.cache 'stdout.txt'),$entry.stdout.GetAwaiter().GetResult())
+        [IO.File]::WriteAllText((Join-Path $entry.cache 'stderr.txt'),$entry.stderr.GetAwaiter().GetResult())
+        $entry.process.Dispose()
+    }
+    $changedSources=@()
+    foreach($file in $luaSources){
+        if(!(Test-Path -LiteralPath $file.path) -or (Get-FileHash -LiteralPath $file.path -Algorithm SHA256).Hash -ne $file.sha256){$changedSources+=$file.path}
+    }
+    if($changedSources.Count){$launch.changedSources=$changedSources;if($launch.status -eq 'complete'){$launch.status='failed';$launch.reason='Enabled Lua sources changed during session'}}
+    $launch | ConvertTo-Json -Depth 9 | Set-Content -LiteralPath (Join-Path $output 'launch.json') -Encoding utf8
+}
+Write-Output "MP status: $($launch.status)"
+if($launch.status -ne 'complete'){throw $launch.reason}

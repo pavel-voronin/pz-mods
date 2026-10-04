@@ -21,7 +21,15 @@ public final class ScenarioHost {
     private static final ArrayBlockingQueue<Map<String,Object>> events=new ArrayBlockingQueue<>(4096);
     private static volatile String status="running",reason="";
     public static double clock(){return System.nanoTime()*1e-9;}
-    public static String error(){return error;}
+    private static long abortPoll;
+    public static String error(){
+        long now=System.nanoTime();
+        if(claimed&&multiplayer()&&output!=null&&now>=abortPoll){
+            abortPoll=now+250_000_000L;
+            if(Files.isRegularFile(output.getParent().resolve("abort.txt")))error="External MP suite stopped after peer failure";
+        }
+        return error;
+    }
     public static boolean closed(){return closed;}
     public static boolean requested(){return !System.getProperty("modstudio.scenario","").isEmpty();}
     // A claimed external session always exits its process, including on failure.
@@ -118,7 +126,7 @@ public final class ScenarioHost {
         event("native-human","removed");
     }
     public static KahluaTable context() {
-        if(!requested()||!zombie.core.Core.debug||zombie.network.GameClient.client||zombie.network.GameServer.server)return null;
+        if(!requested()||!zombie.core.Core.debug||zombie.network.GameServer.server||zombie.network.GameClient.client&&!multiplayer())return null;
         try {
             if(definition==null){
                 Path path=Path.of(System.getProperty("modstudio.scenario"));
@@ -129,12 +137,57 @@ public final class ScenarioHost {
             return (KahluaTable)lua(Map.of("definition",definition,"json",json,"output",output.toString()));
         }catch(Exception e){error="Invalid scenario: "+e;return null;}
     }
+    public static boolean multiplayer(){return Boolean.getBoolean("modstudio.scenario.multiplayer")&&requested();}
+    public static boolean resume(){return multiplayer()&&claimed&&!finishing&&zombie.network.GameClient.client;}
+    public static void focus(){
+        if(!claimed||!multiplayer())throw new IllegalStateException("Focus requires an external MP scenario");
+        zombie.core.opengl.RenderThread.invokeOnRenderContext(()->org.lwjgl.glfw.GLFW.glfwFocusWindow(org.lwjglx.opengl.Display.getWindow()));
+    }
+    public static void signal(String name){
+        networkGuard(name);
+        try {
+            var player=zombie.characters.IsoPlayer.getInstance();
+            if(player==null)throw new IllegalStateException("Local network player unavailable");
+            Path target=output.getParent().resolve(name+"-"+ScenarioJson.string(ScenarioJson.object(definition.get("multiplayer")),"username"));
+            if(Files.exists(target))throw new IllegalArgumentException("MP barrier name already used");
+            Path temp=target.resolveSibling(target.getFileName()+".tmp");
+            Files.writeString(temp,ScenarioJson.write(Map.of("x",player.getX(),"y",player.getY(),"z",player.getZ(),"onlineID",player.getOnlineID())));
+            Files.move(temp,target,StandardCopyOption.ATOMIC_MOVE);
+        }
+        catch(Exception e){throw new IllegalStateException("MP barrier write",e);}
+    }
+    public static boolean signaled(String name,String user){
+        networkGuard(name);
+        if(!user.matches("[A-Za-z0-9_]{1,32}"))throw new IllegalArgumentException("Invalid peer");
+        return Files.isRegularFile(output.getParent().resolve(name+"-"+user));
+    }
+    public static KahluaTable checkpoint(String name,String user){
+        networkGuard(name);
+        if(user==null||!user.matches("[A-Za-z0-9_]{1,32}"))throw new IllegalArgumentException("Invalid peer");
+        Path file=output.getParent().resolve(name+"-"+user);
+        if(!Files.isRegularFile(file))return null;
+        try {
+            if(Files.size(file)>4096)throw new IllegalArgumentException("Oversized MP checkpoint");
+            return (KahluaTable)lua(ScenarioJson.parse(Files.readString(file)));
+        }catch(Exception e){throw new IllegalStateException("MP checkpoint read",e);}
+    }
+    private static void networkGuard(String name){
+        if(!multiplayer()||!claimed||!zombie.network.GameClient.client||!zombie.core.Core.getInstance().isNoSave())throw new IllegalStateException("MP command requires an isolated external client");
+        if(name==null||!name.matches("[a-z0-9_-]{1,60}"))throw new IllegalArgumentException("Invalid barrier");
+    }
     static void validate(Map<String,Object> root)throws Exception {
         if(number(root,"schema",0,1,1)!=1)throw new IllegalArgumentException("Expected schema 1");
         if(!ScenarioJson.string(root,"id").matches("[a-z0-9_-]{1,80}"))throw new IllegalArgumentException("Invalid id");
         var spawn=ScenarioJson.object(root.get("spawn"));number(spawn,"x",-1,0,100000);number(spawn,"y",-1,0,100000);number(spawn,"z",0,-32,31);
         if(root.containsKey("manual")&&!(root.get("manual") instanceof Boolean))throw new IllegalArgumentException("manual must be boolean");
         if(Boolean.TRUE.equals(root.get("manual"))&&number(root,"repeats",1,1,20)!=1)throw new IllegalArgumentException("Manual setup cannot repeat");
+        if(root.containsKey("multiplayer")){
+            var mp=ScenarioJson.object(root.get("multiplayer"));
+            if(!multiplayer()||!"127.0.0.1".equals(ScenarioJson.string(mp,"host")))throw new IllegalArgumentException("MP scenarios require explicit loopback launch");
+            double port=number(mp,"port",0,1024,65534);if(port!=Math.rint(port))throw new IllegalArgumentException("Nonintegral MP port");
+            for(String key:List.of("username","peer"))if(!ScenarioJson.string(mp,key).matches("[A-Za-z0-9_]{1,32}"))throw new IllegalArgumentException("Invalid MP "+key);
+            if(number(root,"repeats",1,1,20)!=1||Boolean.TRUE.equals(root.get("manual")))throw new IllegalArgumentException("MP sessions cannot repeat or hand off");
+        }
         double repeats=number(root,"repeats",1,1,20);if(repeats!=Math.rint(repeats))throw new IllegalArgumentException("Nonintegral repeats");
         if(!(root.get("steps") instanceof List<?> steps)||steps.isEmpty()||steps.size()>512)throw new IllegalArgumentException("Expected 1..512 steps");
         double budget=0;

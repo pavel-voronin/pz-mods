@@ -1,5 +1,6 @@
 if not getDebug() then return end
 require "ModStudio/ScenarioAPI"
+require "ModStudio/ScenarioMultiplayer"
 require "DebugUIs/DebugScenarios"
 require "TimedActions/ISTimedActionQueue"
 require "ModStudio/ScenarioAnimals"
@@ -30,10 +31,28 @@ local function number(s,k,min,max,optional)
 end
 local function coordinates(s) number(s,"x",0,100000);number(s,"y",0,100000);number(s,"z",-32,31,true) end
 API.register("native",{
+    begin=function(c)
+        if c.definition.multiplayer then
+            assert(isClient(),"MP client unavailable");getCore():setNoSave(true)
+            local info=getPlayerInfoPanel(c.player:getPlayerNum());if info then info:setVisible(false) end
+            if SurvivalGuide and SurvivalGuide.instance then SurvivalGuide.instance:setVisible(false) end
+            if ISChat and ISChat.instance then ISChat.instance:unfocus();ISChat.instance:setVisible(false) end
+            c.event("network-local",c.player:getUsername().." id="..c.player:getOnlineID().." x="..c.player:getX().." y="..c.player:getY())
+        end
+        return true
+    end,
     update=function(c) if c.nativeHuman then ModStudioScenario.updateHuman() end end,
     boundary=function(c) if c.nativeDriving then ModStudioDriving.stop() end end,
     finish=function(c) ScenarioLights.clear(c);ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;return true end
 }, {
+    networkWindow=ModStudio.Network.commands.window,
+    networkClimb=ModStudio.Network.commands.climb,
+    networkDrop=ModStudio.Network.commands.drop,
+    networkItem=ModStudio.Network.commands.item,
+    networkPeer=ModStudio.Network.commands.peer,
+    networkBarrier=ModStudio.Network.commands.barrier,
+    networkFocus=ModStudio.Network.commands.focus,
+    networkObserve=ModStudio.Network.commands.observe,
     lightFixture=ScenarioLights.fixture,
     lightYard=ScenarioLights.yard,
     lightGallery=ScenarioLights.gallery,
@@ -124,10 +143,17 @@ API.register("native",{
     give={validate=function(s) assert(type(s.type)=="string" and type(s.id)=="string","give requires type and id");number(s,"charge",0,1,true) end,
         start=function(c,s)
             assert(not c.items[s.id],"Duplicate item id: "..s.id)
+            if c.definition.multiplayer then ModStudio.Network.give(c,s);return end
             local item=c.player:getInventory():AddItem(s.type);assert(item,"Unknown item: "..s.type);c.items[s.id]=item
             if s.charge then item:setUsedDelta(s.charge) end
             if s.equip=="primary" then c.player:setPrimaryHandItem(item) elseif s.equip=="secondary" then c.player:setSecondaryHandItem(item) end
             event("item",s.id.."="..item:getFullType())
+        end,tick=function(c,s)
+            if not c.definition.multiplayer then return true end
+            local item=ModStudio.Network.given(c,s);if not item then return false end;c.items[s.id]=item
+            if s.charge then item:setUsedDelta(s.charge) end
+            if s.equip=="primary" then c.player:setPrimaryHandItem(item) elseif s.equip=="secondary" then c.player:setSecondaryHandItem(item) end
+            event("item",s.id.."="..item:getFullType());return true
         end},
     torch={validate=function(s) assert(type(s.id)=="string" and type(s.on)=="boolean","torch requires id and on") end,
         start=function(c,s) local item=c.items[s.id];assert(item,"Unknown item id: "..s.id);item:setActivated(s.on);assert(item:isActivated()==s.on,"Native activation failed");event("native-light",s.id.."="..tostring(s.on)) end},
@@ -198,10 +224,11 @@ local function tick()
     assert(ModStudioScenario.error()=="",ModStudioScenario.error())
     assert(now()<=deadline,"Timeout: "..state.." step "..ctx.stepIndex)
     if state=="LOADING" then
+        if cfg.multiplayer then ModStudio.Network.bootstrap(ctx) end
         local p=getPlayer();if not p or not p:getSquare() or not p:getSquare():getFloor() then return end
         ctx.player=p;ctx.items={}
         ctx.saved={primary=p:getPrimaryHandItem(),secondary=p:getSecondaryHandItem(),god=p:isGodMod(),invisible=p:isInvisible(),ghost=p:isGhostMode(),running=p:isRunning(),sprinting=p:isSprinting(),sneaking=p:isSneaking(),hour=getGameTime():getTimeOfDay()}
-        p:setGodMod(true);p:setInvisible(false);p:setGhostMode(false);p:setRunning(false);p:setSprinting(false);p:setSneaking(false)
+        if not cfg.multiplayer then p:setGodMod(true) end;p:setInvisible(false);p:setGhostMode(false);p:setRunning(false);p:setSprinting(false);p:setSneaking(false)
         ISTimedActionQueue.clear(p);phase("PREPARE",120)
     end
     if state=="PREPARE" then
@@ -220,9 +247,12 @@ local function start()
     if claimed or not ModStudioScenario or not ModStudioScenario.requested() then return end
     ctx=ModStudioScenario.context()
     if not ctx then print("[Mod Studio] "..ModStudioScenario.error());getCore():quitToDesktop();return end
-    if not ModStudioScenario.claim() then return end
+    if not (ctx.definition.multiplayer and ModStudioScenario.resume()) and not ModStudioScenario.claim() then return end
     claimed=true;cfg=ctx.definition;ctx.stepIndex=0;ctx.repeatIndex=1
     ctx.event=event;ctx.phase=phase;ctx.clock=now
+    ctx.nativeAction=function(action,s)
+        for _,provider in ipairs(opened) do if provider.nativeAction then provider.nativeAction(ctx,action,s) end end
+    end
     previousDebugger=UIManager.isShowLuaDebuggerOnError();UIManager.setShowLuaDebuggerOnError(false)
     phase("LOADING",240)
     local owners={}
@@ -233,6 +263,16 @@ local function start()
     end
     local names={};for owner in pairs(owners) do names[#names+1]=owner end;table.sort(names)
     for _,owner in ipairs(names) do providers[#providers+1]=API.providers[owner] end
+    if cfg.multiplayer then
+        -- Native connection creates its reset-ID/time cache before world loading.
+        getCore():setNoSave(false)
+        if not isClient() then
+            local mp=cfg.multiplayer
+            ConnectToServer.instance:connect(MainScreen.instance.bottomPanel,"",mp.username,mp.password,mp.host,"",tostring(mp.port),"",false,true,1)
+            event("network-connect","native connection requested: "..mp.username)
+        end
+        return
+    end
     ActiveMods.getById("currentGame"):copyFrom(ActiveMods.getById("default"))
     local scenario={name="Mod Studio scenario",world=cfg.map or "Muldraugh, KY",startLoc=cfg.spawn,
         setSandbox=function()
@@ -248,7 +288,7 @@ local function start()
     getCore():setNoSave(true)
 end
 Events.OnMainMenuEnter.Add(function()
-    if claimed then stop("aborted","Returned to menu");return end
+    if claimed then if cfg and cfg.multiplayer and not ctx.player then return end;stop("aborted","Returned to menu");return end
     local ok,err=pcall(start);if not ok then stop("failed",err) end
 end)
 local function update()
