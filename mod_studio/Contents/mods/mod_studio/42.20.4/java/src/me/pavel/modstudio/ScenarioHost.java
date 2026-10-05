@@ -37,9 +37,14 @@ public final class ScenarioHost {
     public static boolean suppressInput(){return claimed&&!manual;}
     private static volatile boolean screenshotDone;
     private static volatile String screenshotError="";
+    private static int loadingScreenshots;
+    private static long loadingScreenshotAt;
     /** Native front-buffer capture, usable with or without a renderer provider. */
     public static void screenshot(String name){
         if(!requested()||!claimed||!zombie.core.Core.getInstance().isNoSave())throw new IllegalStateException("Screenshot requires a disposable scenario world");
+        capture(name);
+    }
+    private static void capture(String name){
         if(name==null||!name.matches("[a-z0-9_-]{1,60}"))throw new IllegalArgumentException("Invalid screenshot name");
         screenshotDone=false;screenshotError="";
         zombie.core.opengl.RenderThread.invokeOnRenderContext(()->{
@@ -180,6 +185,7 @@ public final class ScenarioHost {
         if(!ScenarioJson.string(root,"id").matches("[a-z0-9_-]{1,80}"))throw new IllegalArgumentException("Invalid id");
         var spawn=ScenarioJson.object(root.get("spawn"));number(spawn,"x",-1,0,100000);number(spawn,"y",-1,0,100000);number(spawn,"z",0,-32,31);
         if(root.containsKey("manual")&&!(root.get("manual") instanceof Boolean))throw new IllegalArgumentException("manual must be boolean");
+        if(root.containsKey("loadingScreenshots")&&!(root.get("loadingScreenshots") instanceof Boolean))throw new IllegalArgumentException("loadingScreenshots must be boolean");
         if(Boolean.TRUE.equals(root.get("manual"))&&number(root,"repeats",1,1,20)!=1)throw new IllegalArgumentException("Manual setup cannot repeat");
         if(root.containsKey("multiplayer")){
             var mp=ScenarioJson.object(root.get("multiplayer"));
@@ -250,6 +256,18 @@ public final class ScenarioHost {
         boolean shortcut=env!=null && env.rawget("ModStudio") instanceof KahluaTable studio
             && studio.rawget("Launch") instanceof KahluaTable launch
             && Boolean.TRUE.equals(launch.rawget("autoContinueLoading"));
+        // The native world's onStart callback can clear 'loading' while the
+        // GameLoadingState still waits for additional preparation or input.
+        if(requested()&&claimed&&!finishing&&definition!=null&&zombie.core.Core.getInstance().isNoSave()
+                &&Boolean.TRUE.equals(definition.get("loadingScreenshots"))&&loadingScreenshots<16
+                &&zombie.gameStates.GameLoadingState.loader!=null&&!zombie.gameStates.GameLoadingState.loader.isAlive()
+                &&System.nanoTime()>=loadingScreenshotAt){
+            loadingScreenshotAt=System.nanoTime()+750_000_000L;
+            String name="loading-"+ ++loadingScreenshots;
+            screenshot(name);
+            if(screenshotError.isEmpty())events.offer(Map.of("monotonic_ns",System.nanoTime(),"kind","loading-screenshot","detail",name));
+            else {error="Loading screenshot failed: "+screenshotError;loadingScreenshots=16;}
+        }
         if(!loading && !shortcut)return;
         if(loading)zombie.core.Core.getInstance().setNoSave(true);
         try{var field=zombie.gameStates.GameLoadingState.class.getDeclaredField("forceDone");field.setAccessible(true);field.setBoolean(state,true);}

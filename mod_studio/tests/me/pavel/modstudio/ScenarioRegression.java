@@ -31,6 +31,9 @@ public final class ScenarioRegression {
         if(!mpRejected)throw new AssertionError("MP without explicit external launch accepted");
         System.setProperty("modstudio.scenario","test.json");System.setProperty("modstudio.scenario.multiplayer","true");
         ScenarioHost.validate(ScenarioJson.parse(mp));
+        ScenarioHost.validate(ScenarioJson.parse(mp.replace("\"steps\"","\"loadingScreenshots\":true,\"steps\"")));
+        boolean captureRejected=false;try{ScenarioHost.validate(ScenarioJson.parse(mp.replace("\"steps\"","\"loadingScreenshots\":1,\"steps\"")));}catch(Exception e){captureRejected=true;}
+        if(!captureRejected)throw new AssertionError("Non-boolean loading screenshot option");
         for(String bad:List.of(mp.replace("127.0.0.1","example.org"),mp.replace("TestA","../user"),mp.replace("16371","0"),mp.replace("16371","16371.5"),mp.replace("\"steps\"","\"manual\":true,\"steps\""))){
             mpRejected=false;try{ScenarioHost.validate(ScenarioJson.parse(bad));}catch(Exception e){mpRejected=true;}
             if(!mpRejected)throw new AssertionError("Unsafe MP context accepted");
