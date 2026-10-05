@@ -163,11 +163,18 @@ API.register("native",{
     end}
 })
 local function advance()
+    if step and step.command=="mcp.session" then stop("complete","MCP continuation closed");return end
     for _,p in ipairs(opened) do if p.boundary then p.boundary(ctx) end end
     ctx.stepIndex=ctx.stepIndex+1
     if ctx.stepIndex>#cfg.steps then
         ctx.repeatIndex=ctx.repeatIndex+1;ctx.stepIndex=1
         if ctx.repeatIndex>(cfg.repeats or 1) then
+            if ctx.mcpSession then
+                ctx.repeatIndex=cfg.repeats or 1;ctx.stepIndex=#cfg.steps+1
+                step={command="mcp.session",session=ctx.mcpSession,timeout=ModStudioScenario.mcpSeconds()}
+                handler=API.commands[step.command];phase("ACTION",step.timeout)
+                handler.start(ctx,step);return
+            end
             if cfg.manual then
                 for i=#opened,1,-1 do local p=opened[i];if p.handoff then p.handoff(ctx) end end
                 ModStudioScenario.handoff();state="MANUAL";return
@@ -240,7 +247,7 @@ local function tick()
     end
     assert(getPlayer()==ctx.player and not ctx.player:isDead(),"Player unavailable")
     if ctx.fixedTime then getGameTime():setTimeOfDay(ctx.fixedTime) end
-    for _,p in ipairs(opened) do if p.update then p.update(ctx) end end
+    for _,p in ipairs(opened) do if p.ready and p.update then p.update(ctx) end end
     if not handler.tick or handler.tick(ctx,step,now()-since) then advance() end
 end
 local function start()
@@ -250,6 +257,19 @@ local function start()
     if not (ctx.definition.multiplayer and ModStudioScenario.resume()) and not ModStudioScenario.claim() then return end
     claimed=true;cfg=ctx.definition;ctx.stepIndex=0;ctx.repeatIndex=1
     ctx.event=event;ctx.phase=phase;ctx.clock=now
+    local mcpSession=ModStudioScenario.mcpSession and ModStudioScenario.mcpSession() or ""
+    if mcpSession~="" then
+        assert(not cfg.multiplayer,"MCP requires a single-player scenario")
+        ctx.mcpSession=mcpSession
+    end
+    ctx.ensureProvider=function(owner)
+        local p=API.providers[owner];assert(p,"Unknown provider: "..owner)
+        if not p.opened then p.opened=true;opened[#opened+1]=p end
+        if not p.ready then p.ready=not p.begin or p.begin(ctx) end
+        return p.ready
+    end
+    ctx.boundary=function() for _,p in ipairs(opened) do if p.boundary then p.boundary(ctx) end end end
+    ctx.livePhase=function(name) for _,p in ipairs(opened) do if p.phase then p.phase(ctx,name) end end end
     ctx.nativeAction=function(action,s)
         for _,provider in ipairs(opened) do if provider.nativeAction then provider.nativeAction(ctx,action,s) end end
     end
@@ -260,6 +280,10 @@ local function start()
         local h=API.commands[s.command];assert(h,"Unregistered command: "..s.command)
         if h.validate then h.validate(s) end
         local owner=string.match(s.command,"^([^.]+)");owners[owner]=true
+    end
+    if ctx.mcpSession then
+        assert(API.commands["mcp.session"],"MCP bridge unavailable; rebuild Mod Studio")
+        owners.mcp=true;owners.native=true
     end
     local names={};for owner in pairs(owners) do names[#names+1]=owner end;table.sort(names)
     for _,owner in ipairs(names) do providers[#providers+1]=API.providers[owner] end

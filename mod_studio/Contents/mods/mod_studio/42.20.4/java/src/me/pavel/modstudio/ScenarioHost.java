@@ -142,6 +142,37 @@ public final class ScenarioHost {
             return (KahluaTable)lua(Map.of("definition",definition,"json",json,"output",output.toString()));
         }catch(Exception e){error="Invalid scenario: "+e;return null;}
     }
+    public static String mcpSession(){
+        String id=System.getProperty("modstudio.scenario.mcp","");
+        return requested()&&!multiplayer()&&id.matches("[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}")?id:"";
+    }
+    public static double mcpSeconds(){
+        double seconds=Double.parseDouble(System.getProperty("modstudio.scenario.mcp.seconds","1800"));
+        if(!Double.isFinite(seconds)||seconds<60||seconds>7200)throw new IllegalArgumentException("Invalid MCP lifetime");
+        return seconds;
+    }
+    private static Path mcpPath(String name){
+        if(mcpSession().isEmpty()||!claimed||output==null||!zombie.core.Core.getInstance().isNoSave())
+            throw new IllegalStateException("MCP requires an explicitly enabled disposable scenario");
+        if(!Set.of("request.json","reply.json","status.json","history.jsonl").contains(name))throw new IllegalArgumentException("Invalid MCP file");
+        return output.resolve("mcp").resolve(name);
+    }
+    public static KahluaTable mcpRead(){
+        Path file=mcpPath("request.json");if(!Files.exists(file))return null;
+        try {if(Files.size(file)>65536)throw new IllegalArgumentException("MCP request exceeds 64 KiB");
+            return (KahluaTable)lua(ScenarioJson.parse(Files.readString(file)));
+        }catch(Exception e){throw new IllegalStateException("MCP request read",e);}
+    }
+    public static void mcpWrite(String name,String value){
+        Path file=mcpPath(name);
+        try {
+            // Parse before publishing, so incomplete or malformed data cannot escape.
+            ScenarioJson.parse(value);Files.createDirectories(file.getParent());
+            if(name.equals("history.jsonl")){Files.writeString(file,value+"\n",StandardOpenOption.CREATE,StandardOpenOption.APPEND);return;}
+            Path temp=file.resolveSibling(name+".tmp");Files.writeString(temp,value);
+            Files.move(temp,file,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
+        }catch(Exception e){throw new IllegalStateException("MCP response write",e);}
+    }
     public static boolean multiplayer(){return Boolean.getBoolean("modstudio.scenario.multiplayer")&&requested();}
     public static boolean resume(){return multiplayer()&&claimed&&!finishing&&zombie.network.GameClient.client;}
     public static void focus(){

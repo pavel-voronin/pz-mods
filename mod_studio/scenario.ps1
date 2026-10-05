@@ -5,6 +5,8 @@ param(
     [string[]]$ModRoots=@(),
     [switch]$SkipBuild,
     [switch]$PrepareOnly,
+    [switch]$Mcp,
+    [ValidateRange(60,7200)][int]$McpSeconds=1800,
     [ValidateSet('Java','Native')][string]$Launcher='Java',
     [ValidateSet('Z','G1')][string]$GarbageCollector='Z',
     [int]$TimeoutSeconds=600
@@ -15,6 +17,8 @@ $text=[IO.File]::ReadAllText($scenarioPath)
 $data=$text | ConvertFrom-Json
 if($data.schema -ne 1 -or $data.id -notmatch '^[a-z0-9_-]{1,80}$' -or !$data.spawn -or !$data.steps){throw 'Expected schema=1, id, spawn and steps.'}
 if($data.steps.Count -gt 512){throw 'At most 512 steps.'}
+if($Mcp -and $data.multiplayer){throw 'Use the single-player scenario launcher for MCP continuation.'}
+if(@($data.steps | Where-Object {$_.command -like 'mcp.*'}).Count){throw 'Enable MCP with -Mcp, not a scenario command.'}
 $running=Get-Process -ErrorAction SilentlyContinue | Where-Object {$_.ProcessName -like 'ProjectZomboid*'}
 $javaGame=Get-CimInstance Win32_Process -Filter "Name = 'java.exe' OR Name = 'javaw.exe'" | Where-Object {$_.CommandLine -match 'zombie\.(gameStates\.MainScreenState|network\.GameServer)'}
 if(!$PrepareOnly -and ($running -or $javaGame)){throw 'A Project Zomboid client or server is already running. Close it normally before a scenario launch.'}
@@ -29,6 +33,14 @@ $config=Get-Content -LiteralPath (Join-Path $Game 'ProjectZomboid64.json') -Raw 
 $gcArguments=if($GarbageCollector -eq 'G1'){@('-XX:-UseZGC','-XX:+UseG1GC')}else{@('-XX:-UseG1GC','-XX:+UseZGC')}
 $arguments=@($config.vmArgs)+$gcArguments+@("-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')",'-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")
 if($Launcher -eq 'Native'){$arguments=$gcArguments+@('-agentlib:zbNative=policy=allow-all','-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")}
+$mcpSession=$null
+if($Mcp){
+    $mcpSession=[guid]::NewGuid().ToString()
+    $arguments+=@("-Dmodstudio.scenario.mcp=$mcpSession","-Dmodstudio.scenario.mcp.seconds=$McpSeconds")
+    New-Item -ItemType Directory -Path (Join-Path $output 'mcp') | Out-Null
+    # The scenario watchdog still owns the process throughout the continuation.
+    $TimeoutSeconds+=$McpSeconds
+}
 $packages=@()
 foreach($root in $roots){
     $commit=git -C $root rev-parse HEAD
@@ -53,6 +65,15 @@ $launchPath=Join-Path $output 'launch.json'
 $launch | ConvertTo-Json | Set-Content -LiteralPath $launchPath -Encoding utf8
 Write-Output "Scenario artifact: $output"
 if($PrepareOnly){return}
+if($Mcp){
+    $connection=@{id=$mcpSession;output=$output;mailbox=(Join-Path $output 'mcp');launcherPid=$PID;createdUtc=[DateTime]::UtcNow.ToString('o')}
+    $connection | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $output 'mcp-session.json') -Encoding utf8
+    $current=Join-Path $env:USERPROFILE 'Zomboid/ModStudio/mcp-current.json'
+    $temporary=$current+'.'+$mcpSession+'.tmp'
+    $connection | ConvertTo-Json | Set-Content -LiteralPath $temporary -Encoding utf8
+    Move-Item -LiteralPath $temporary -Destination $current -Force
+    $launch.mcpSession=$mcpSession;$launch.mcpSeconds=$McpSeconds
+}
 $start=[Diagnostics.ProcessStartInfo]::new()
 $start.FileName=Join-Path $Game 'jre64/bin/java.exe';$start.WorkingDirectory=$Game
 $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden
