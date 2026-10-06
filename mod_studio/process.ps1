@@ -9,8 +9,11 @@ function Invoke-ModStudioProcess {
         $watch=[Diagnostics.Stopwatch]::StartNew();$finishedAt=$null;$detached=$false
         while(!$process.HasExited -and $watch.Elapsed.TotalSeconds -lt $TimeoutSeconds){
             if(Test-Path -LiteralPath $resultPath){
-                # A writer may still be replacing its result. Retry incomplete JSON.
-                $result=Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json -ErrorAction SilentlyContinue
+                # Native result writes briefly hold an exclusive file handle.
+                # Retry that IO race as well as incomplete JSON within the deadline.
+                $result=$null
+                try {$result=Get-Content -LiteralPath $resultPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction SilentlyContinue}
+                catch [System.IO.IOException] {}
                 if($result -and $result.status -eq 'interactive'){$detached=$true;break}
                 if($result -and $result.status -ne 'running' -and $null -eq $finishedAt){$finishedAt=$watch.Elapsed.TotalSeconds}
             }
