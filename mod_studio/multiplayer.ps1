@@ -16,6 +16,10 @@ $gcArgument=if($GarbageCollector -eq 'G1'){'-XX:+UseG1GC'}else{'-XX:+UseZGC'}
 $suite=Get-Content -LiteralPath $Scenario -Raw | ConvertFrom-Json
 if($suite.schema -ne 1 -or $suite.clients.Count -ne 2){throw 'Expected schema 1 and exactly two clients'}
 if($suite.id -notmatch '^[a-z0-9_-]{1,60}$'){throw 'Invalid MP suite id'}
+if($null -ne $suite.loadingTimeout){
+    $loadingDeadline=$suite.loadingTimeout
+    if($loadingDeadline -isnot [ValueType] -or ![double]::IsFinite([double]$loadingDeadline) -or $loadingDeadline -lt 1 -or $loadingDeadline -gt 3600){throw 'Invalid native loading timeout'}
+}
 foreach($coordinate in @('x','y','z')){
     $value=$suite.spawn.$coordinate
     $min=if($coordinate -eq 'z'){-32}else{0};$max=if($coordinate -eq 'z'){31}else{100000}
@@ -169,6 +173,7 @@ try {
         $mods=@('ZombieBuddy','mod_studio')+@($client.mods) | Select-Object -Unique
         $cache=Prepare-Profile "client-$name" $mods
         $definition=[ordered]@{schema=1;id=("$($suite.id)-$name").ToLowerInvariant();spawn=$suite.spawn;steps=$client.steps;multiplayer=@{host='127.0.0.1';port=$port;username=$name;password='modstudio-test';peer=$peer}}
+        if($null -ne $suite.loadingTimeout){$definition.loadingTimeout=$suite.loadingTimeout}
         $scenarioPath=Join-Path $cache 'scenario.json';$definition | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $scenarioPath -Encoding utf8
         $clientVm=@($config.vmArgs | Where-Object {$_ -notmatch '^-Xmx|^-Dzomboid.steam|^-agentlib:pz3dLoader|^-agentpath:.*pz3dLoader\.dll|^-javaagent:.*(pz3dLoader|ZombieBuddy)|^-XX:[+-]Use(?:Z|G1|Parallel|Serial|Shenandoah)GC'})+@('-Xmx4096m',$gcArgument,'-Dzomboid.steam=0',"-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')=config_dir=$cache/ZombieBuddy",'-Ddebug=true','-Dmodstudio.scenario.multiplayer=true',"-Dmodstudio.scenario=$scenarioPath","-Dmodstudio.scenario.output=$cache")
         if($loader -eq 'pz3d'){$clientVm+="-javaagent:$Pz3dLoaderJar"}

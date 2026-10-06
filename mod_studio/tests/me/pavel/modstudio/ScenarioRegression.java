@@ -31,6 +31,12 @@ public final class ScenarioRegression {
         if(!mpRejected)throw new AssertionError("MP without explicit external launch accepted");
         System.setProperty("modstudio.scenario","test.json");System.setProperty("modstudio.scenario.multiplayer","true");
         ScenarioHost.validate(ScenarioJson.parse(mp));
+        ScenarioHost.validate(ScenarioJson.parse(mp.replace("\"steps\"","\"loadingTimeout\":1200,\"steps\"")));
+        for(String invalid:List.of("0","3601","\"slow\"")){
+            boolean rejected=false;
+            try{ScenarioHost.validate(ScenarioJson.parse(mp.replace("\"steps\"","\"loadingTimeout\":"+invalid+",\"steps\"")));}catch(Exception e){rejected=true;}
+            if(!rejected)throw new AssertionError("Invalid initial loading timeout accepted");
+        }
         ScenarioHost.validate(ScenarioJson.parse(mp.replace("\"steps\"","\"loadingScreenshots\":true,\"steps\"")));
         boolean captureRejected=false;try{ScenarioHost.validate(ScenarioJson.parse(mp.replace("\"steps\"","\"loadingScreenshots\":1,\"steps\"")));}catch(Exception e){captureRejected=true;}
         if(!captureRejected)throw new AssertionError("Non-boolean loading screenshot option");

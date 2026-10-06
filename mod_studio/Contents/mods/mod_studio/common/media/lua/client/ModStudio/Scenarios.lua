@@ -274,7 +274,7 @@ local function start()
         for _,provider in ipairs(opened) do if provider.nativeAction then provider.nativeAction(ctx,action,s) end end
     end
     previousDebugger=UIManager.isShowLuaDebuggerOnError();UIManager.setShowLuaDebuggerOnError(false)
-    phase("LOADING",240)
+    phase("LOADING",cfg.loadingTimeout or 240)
     local owners={}
     for _,s in ipairs(cfg.steps) do
         local h=API.commands[s.command];assert(h,"Unregistered command: "..s.command)
