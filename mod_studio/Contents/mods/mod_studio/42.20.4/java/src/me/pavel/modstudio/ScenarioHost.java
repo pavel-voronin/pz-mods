@@ -14,6 +14,7 @@ public final class ScenarioHost {
     private static String json;
     private static volatile String error="";
     private static Path output;
+    private static ScenarioPersistence.Profile persistentProfile;
     private static boolean loading;
     private static volatile boolean claimed;
     private static volatile boolean manual;
@@ -31,6 +32,15 @@ public final class ScenarioHost {
         return error;
     }
     public static boolean closed(){return closed;}
+    public static boolean persistent(){return persistentProfile!=null;}
+    public static String persistentMode(){return persistent()?persistentProfile.mode():"";}
+    public static String savedWorld(){return persistent()?persistentProfile.world():"";}
+    public static boolean disposable(){return zombie.core.Core.getInstance().isNoSave()||persistent()&&ScenarioPersistence.current(persistentProfile,Path.of(zombie.ZomboidFileSystem.instance.getCacheDir()),Path.of(zombie.ZomboidFileSystem.instance.getCurrentSaveDir()));}
+    public static void saveNativeWorld()throws java.io.IOException {
+        if(!requested()||!claimed||!persistent()||zombie.core.Core.getInstance().isNoSave()||!disposable()||zombie.network.GameClient.client||zombie.network.GameServer.server)throw new IllegalStateException("Save requires the owned persistent single-player scenario");
+        zombie.GameWindow.save(false);if(zombie.savefile.PlayerDB.isAllow())zombie.savefile.PlayerDB.getInstance().saveLocalPlayersForce();zombie.iso.ChunkSaveWorker.instance.SaveNow();
+        ScenarioPersistence.saved(persistentProfile,zombie.core.Core.gameSaveWorld,Path.of(zombie.ZomboidFileSystem.instance.getCurrentSaveDir()));event("native-save",zombie.core.Core.gameSaveWorld);
+    }
     public static boolean requested(){return !System.getProperty("modstudio.scenario","").isEmpty();}
     // A claimed external session always exits its process, including on failure.
     // Keep the filter through cleanup so held keys cannot act during shutdown.
@@ -41,7 +51,7 @@ public final class ScenarioHost {
     private static long loadingScreenshotAt;
     /** Native front-buffer capture, usable with or without a renderer provider. */
     public static void screenshot(String name){
-        if(!requested()||!claimed||!zombie.core.Core.getInstance().isNoSave())throw new IllegalStateException("Screenshot requires a disposable scenario world");
+        if(!requested()||!claimed||!disposable())throw new IllegalStateException("Screenshot requires an owned disposable scenario world");
         capture(name);
     }
     private static void capture(String name){
@@ -138,6 +148,7 @@ public final class ScenarioHost {
                 if(Files.size(path)>262144)throw new IllegalArgumentException("Scenario exceeds 256 KiB");
                 json=Files.readString(path);definition=ScenarioJson.parse(json);validate(definition);
                 output=Path.of(System.getProperty("modstudio.scenario.output"));
+                persistentProfile=ScenarioPersistence.open(definition,output,Path.of(zombie.ZomboidFileSystem.instance.getCacheDir()),System.getProperty("modstudio.scenario.profile",""),System.getProperty("modstudio.scenario.profile.token",""));
             }
             return (KahluaTable)lua(Map.of("definition",definition,"json",json,"output",output.toString()));
         }catch(Exception e){error="Invalid scenario: "+e;return null;}
@@ -212,6 +223,7 @@ public final class ScenarioHost {
         if(name==null||!name.matches("[a-z0-9_-]{1,60}"))throw new IllegalArgumentException("Invalid barrier");
     }
     static void validate(Map<String,Object> root)throws Exception {
+        ScenarioPersistence.mode(root);
         if(number(root,"schema",0,1,1)!=1)throw new IllegalArgumentException("Expected schema 1");
         if(!ScenarioJson.string(root,"id").matches("[a-z0-9_-]{1,80}"))throw new IllegalArgumentException("Invalid id");
         var spawn=ScenarioJson.object(root.get("spawn"));number(spawn,"x",-1,0,100000);number(spawn,"y",-1,0,100000);number(spawn,"z",0,-32,31);
@@ -290,7 +302,7 @@ public final class ScenarioHost {
             && Boolean.TRUE.equals(launch.rawget("autoContinueLoading"));
         // The native world's onStart callback can clear 'loading' while the
         // GameLoadingState still waits for additional preparation or input.
-        if(requested()&&claimed&&!finishing&&definition!=null&&zombie.core.Core.getInstance().isNoSave()
+        if(requested()&&claimed&&!finishing&&definition!=null&&(zombie.core.Core.getInstance().isNoSave()||persistent())
                 &&Boolean.TRUE.equals(definition.get("loadingScreenshots"))&&loadingScreenshots<16
                 &&zombie.gameStates.GameLoadingState.loader!=null&&!zombie.gameStates.GameLoadingState.loader.isAlive()
                 &&System.nanoTime()>=loadingScreenshotAt){
@@ -301,7 +313,7 @@ public final class ScenarioHost {
             else {error="Loading screenshot failed: "+screenshotError;loadingScreenshots=16;}
         }
         if(!loading && !shortcut)return;
-        if(loading)zombie.core.Core.getInstance().setNoSave(true);
+        if(loading)zombie.core.Core.getInstance().setNoSave(!persistent());
         try{var field=zombie.gameStates.GameLoadingState.class.getDeclaredField("forceDone");field.setAccessible(true);field.setBoolean(state,true);}
         catch(Exception e){error="Native loading gate: "+e;}
     }

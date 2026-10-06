@@ -3,6 +3,7 @@ import java.nio.DoubleBuffer;
 /** Device boundary fixture: deliberately reports held keys/buttons and moving cursor. */
 public final class GLFW {
     public static double position=12;
+    public static void glfwFocusWindow(long window){}
     public static int glfwGetKey(long window,int key){return 1;}
     public static int glfwGetMouseButton(long window,int button){return 1;}
     public static void glfwGetCursorPos(long window,double[] x,double[] y){if(x!=null)x[0]=position;if(y!=null)y[0]=position+1;}

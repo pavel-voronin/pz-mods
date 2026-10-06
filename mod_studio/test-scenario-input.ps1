@@ -8,7 +8,7 @@ $compiler=Join-Path $env:TEMP 'PZModBuild/ecj-3.44.0.jar'
 $src=Join-Path $PSScriptRoot 'Contents/mods/mod_studio/42.20.4/java/src/me/pavel/modstudio'
 $cp=(Join-Path $Game 'projectzomboid.jar')+';'+(Join-Path $Game 'ZombieBuddy.jar')
 $fixtures=@(Get-ChildItem (Join-Path $PSScriptRoot 'tests/fixtures/scenario-input') -Recurse -Filter '*.java' | ForEach-Object FullName)
-& $java -jar $compiler -25 -encoding UTF-8 -proc:none -nowarn -cp $cp -d $classes (Join-Path $src 'ScenarioHost.java') (Join-Path $src 'ScenarioJson.java') (Join-Path $src 'ScenarioInput.java') (Join-Path $PSScriptRoot 'tests/me/pavel/modstudio/ScenarioInputRegression.java') @fixtures
+& $java -jar $compiler -25 -encoding UTF-8 -proc:none -nowarn -cp $cp -d $classes (Join-Path $src 'ScenarioHost.java') (Join-Path $src 'ScenarioPersistence.java') (Join-Path $src 'ScenarioJson.java') (Join-Path $src 'ScenarioInput.java') (Join-Path $PSScriptRoot 'tests/me/pavel/modstudio/ScenarioInputRegression.java') @fixtures
 if($LASTEXITCODE -ne 0){throw 'Input regression compilation failed.'}
 New-Item -ItemType Directory -Path (Join-Path $classes 'META-INF') | Out-Null
 [IO.File]::WriteAllText((Join-Path $classes 'META-INF/MANIFEST.MF'),"Manifest-Version: 1.0`nPremain-Class: me.pavel.modstudio.ScenarioInputRegression`nCan-Retransform-Classes: true`nCan-Redefine-Classes: true`n`n")

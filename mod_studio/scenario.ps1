@@ -5,6 +5,7 @@ param(
     [string[]]$ModRoots=@(),
     [switch]$SkipBuild,
     [switch]$PrepareOnly,
+    [string]$ResumeArtifact='',
     [switch]$Mcp,
     [ValidateRange(60,7200)][int]$McpSeconds=1800,
     [ValidateSet('Java','Native')][string]$Launcher='Java',
@@ -17,6 +18,13 @@ $text=[IO.File]::ReadAllText($scenarioPath)
 $data=$text | ConvertFrom-Json
 if($data.schema -ne 1 -or $data.id -notmatch '^[a-z0-9_-]{1,80}$' -or !$data.spawn -or !$data.steps){throw 'Expected schema=1, id, spawn and steps.'}
 if($data.steps.Count -gt 512){throw 'At most 512 steps.'}
+$persistenceMode=''
+if($data.persistence){
+    $persistenceMode=[string]$data.persistence.mode
+    if($persistenceMode -notin @('new','resume') -or @($data.persistence.PSObject.Properties).Count -ne 1){throw 'Persistence requires only mode new or resume'}
+    if($data.multiplayer -or $data.manual -or ($data.repeats -and $data.repeats -ne 1) -or $Mcp -or $Launcher -ne 'Java'){throw 'Persistent acceptance requires one owned Java single-player run'}
+    if(($persistenceMode -eq 'resume') -ne [bool]$ResumeArtifact){throw 'ResumeArtifact is required only for persistence mode resume'}
+}elseif($ResumeArtifact){throw 'ResumeArtifact requires persistence mode resume'}
 if($Mcp -and $data.multiplayer){throw 'Use the single-player scenario launcher for MCP continuation.'}
 if(@($data.steps | Where-Object {$_.command -like 'mcp.*'}).Count){throw 'Enable MCP with -Mcp, not a scenario command.'}
 $running=Get-Process -ErrorAction SilentlyContinue | Where-Object {$_.ProcessName -like 'ProjectZomboid*'}
@@ -61,6 +69,13 @@ foreach($entry in @(@('options.ini','game-options.ini'),@('mods/default.txt','ac
     $from=Join-Path $env:USERPROFILE ('Zomboid/'+$entry[0]);if(Test-Path -LiteralPath $from){Copy-Item -LiteralPath $from -Destination (Join-Path $output $entry[1])}
 }
 $launch=[ordered]@{schema=1;status='prepared';source=$scenarioPath;output=$output;createdUtc=[DateTime]::UtcNow.ToString('o');launcher=$Launcher;garbageCollector=$GarbageCollector}
+$persistentProfile=$null
+if($persistenceMode){
+    . (Join-Path $PSScriptRoot 'scenario-profile.ps1')
+    $persistentProfile=Get-ModStudioPersistentProfile -Output $output -Game $Game -Roots $roots -Mode $persistenceMode -ResumeArtifact $ResumeArtifact
+    $launch.nativeProfile=$persistentProfile.path;$launch.profileToken=$persistentProfile.token;$launch.persistence=$persistenceMode;$launch.resumeArtifact=$persistentProfile.previous
+    $arguments+=@("-Dmodstudio.scenario.profile=$($persistentProfile.path)","-Dmodstudio.scenario.profile.token=$($persistentProfile.token)")
+}
 $launchPath=Join-Path $output 'launch.json'
 $launch | ConvertTo-Json | Set-Content -LiteralPath $launchPath -Encoding utf8
 Write-Output "Scenario artifact: $output"
@@ -82,7 +97,8 @@ if($Launcher -eq 'Native'){
     $start.FileName=Join-Path $Game 'ProjectZomboid64.exe'
     foreach($arg in ($arguments+@('--','-debug'))){$start.ArgumentList.Add($arg)}
 }else{
-    foreach($arg in ($arguments+@('-cp',($config.classpath -join ';'),'zombie.gameStates.MainScreenState','-debug'))){$start.ArgumentList.Add($arg)}
+    $nativeArguments=@('-debug');if($persistentProfile){$nativeArguments+=@('-windowed',"-cachedir=$($persistentProfile.path)")}
+    foreach($arg in ($arguments+@('-cp',($config.classpath -join ';'),'zombie.gameStates.MainScreenState')+$nativeArguments)){$start.ArgumentList.Add($arg)}
 }
 . (Join-Path $PSScriptRoot 'process.ps1')
-Invoke-ModStudioProcess -Start $start -Launch $launch -Output $output -TimeoutSeconds $TimeoutSeconds
+if($persistentProfile){Invoke-ModStudioProcess -Start $start -Launch $launch -Output $output -TimeoutSeconds $TimeoutSeconds -ConsolePath (Join-Path $persistentProfile.path 'console.txt')}else{Invoke-ModStudioProcess -Start $start -Launch $launch -Output $output -TimeoutSeconds $TimeoutSeconds}

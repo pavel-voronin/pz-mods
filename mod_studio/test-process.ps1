@@ -25,8 +25,10 @@ Start-Sleep -Milliseconds 350
     $start.UseShellExecute=$false;$start.CreateNoWindow=$true
     foreach($a in @('-NoProfile','-File',$child)){$start.ArgumentList.Add($a)}
     $launch=[ordered]@{status='prepared'};$failed=$false
-    try {Invoke-ModStudioProcess -Start $start -Launch $launch -Output $output -TimeoutSeconds $(if($case -eq 'locked-result'){5}else{2})}
+    $console=Join-Path $output 'profile-console.txt';[IO.File]::WriteAllText($console,'owned profile console')
+    try {Invoke-ModStudioProcess -Start $start -Launch $launch -Output $output -TimeoutSeconds $(if($case -eq 'locked-result'){5}else{2}) -ConsolePath $console}
     catch {$failed=$true}
+    if([IO.File]::ReadAllText((Join-Path $output 'console.txt')) -ne 'owned profile console'){throw 'Owned profile console was not preserved'}
     $saved=Get-Content -LiteralPath (Join-Path $output 'launch.json') -Raw | ConvertFrom-Json
     if($case -eq 'interactive'){
         try {

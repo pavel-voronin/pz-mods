@@ -3,7 +3,7 @@ getDebug=function() return true end
 isClient=function() return false end
 isServer=function() return false end
 Events={}
-for _,name in ipairs({"OnTick","OnTickEvenPaused","OnMainMenuEnter","OnFETick"}) do
+for _,name in ipairs({"OnTick","OnTickEvenPaused","OnMainMenuEnter","OnFETick","OnGameStart"}) do
     local e={handlers={}}
     e.Add=function(f) e.handlers[#e.handlers+1]=f end
     e.fire=function() for _,f in ipairs(e.handlers) do f() end end
@@ -174,3 +174,9 @@ end
 PZ3D.scenarioAnimalRendered=function() return animalRendered==true end
 
 ModStudioScenario.humanLight=function(on,heading) assert(humanSpawned);humanLightOn=on;humanHeading=heading end
+
+PZ3D.scenarioStaticHold=function(enabled) staticHeld=enabled end
+PZ3D.scenarioDynamicProbe=function(enabled) dynamicProbed=enabled end
+ModStudioScenario.savedWorld=function() return 'owned_test_world' end
+ModStudioScenario.saveNativeWorld=function() assert(not core:isNoSave());nativeSaved=(nativeSaved or 0)+1 end
+MainScreen={continueLatestSave=function(mode,name) resumedMode=mode;resumedWorld=name end}

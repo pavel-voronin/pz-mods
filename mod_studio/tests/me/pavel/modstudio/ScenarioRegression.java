@@ -8,7 +8,7 @@ import se.krka.kahlua.luaj.compiler.LuaCompiler;
 public final class ScenarioRegression {
     static void run(KahluaThread thread,KahluaTable env,String code)throws Exception {
         var result=thread.pcall(LuaCompiler.loadstring(code,"scenario-test",env),new Object[0]);
-        if(!Boolean.TRUE.equals(result[0]))throw new AssertionError(Arrays.toString(result));
+        if(!Boolean.TRUE.equals(result[0]))throw new AssertionError(code+"\n"+Arrays.toString(result));
     }
     public static void main(String[] args)throws Exception {
         var road=new ScenarioDriving.Route(10,100,10,0,40);
@@ -71,6 +71,7 @@ public final class ScenarioRegression {
         } finally {zombie.Lua.LuaManager.env=previousEnv;core.setNoSave(previousNoSave);}
         String valid="{\"schema\":1,\"id\":\"test\",\"spawn\":{\"x\":1,\"y\":2},\"steps\":[{\"command\":\"native.wait\",\"seconds\":1}]}";
         ScenarioHost.validate(ScenarioJson.parse(valid));
+        persistence(valid);
         for(String bad:List.of(valid.replace("native.wait","wait"),valid.replace("\"schema\":1","\"schema\":1.2"),valid.replace("\"id\":\"test\"","\"id\":\"test\",\"repeats\":1.5"))) {
             boolean rejected=false;try{ScenarioHost.validate(ScenarioJson.parse(bad));}catch(Exception e){rejected=true;}if(!rejected)throw new AssertionError("Invalid scenario accepted");
         }
@@ -79,6 +80,9 @@ public final class ScenarioRegression {
         String api=Files.readString(lua.resolve("ScenarioAPI.lua")),runtime=Files.readString(lua.resolve("Scenarios.lua"));
         String adapter=Files.readString(pz.resolve("Contents/mods/pz3d/common/media/lua/client/PZ3DScenarioAPI.lua"));
         for(String check:List.of(
+            "core.setNoSave=function(self,v) self.noSave=v end;core.isNoSave=function(self) return self.noSave~=false end;scenario={persistence={mode='new'},steps={{command='native.save'}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='complete' and nativeSaved==1 and not core:isNoSave())",
+            "core.setNoSave=function(self,v) self.noSave=v end;core.isNoSave=function(self) return self.noSave~=false end;scenario={persistence={mode='resume'},steps={{command='native.save'}}};Events.OnMainMenuEnter.fire();assert(resumedMode=='Sandbox' and resumedWorld=='owned_test_world');Events.OnGameStart.fire();pump(10);assert(ended=='complete' and nativeSaved==1 and not core:isNoSave())",
+            "scenario={steps={{command='native.save'}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and nativeSaved==nil)",
             "local handed=false;local state={};ClimbThroughWindowState={instance=function() return state end};local climbing=false;local x=10.5;local w={IsOpen=function() return true end,getNorth=function() return false end};instanceof=function(o,kind) return o==w and kind=='IsoWindow' end;getCell=function() return {getGridSquare=function() return {getObjects=function() return {size=function() return 1 end,get=function() return w end} end} end} end;ISWorldObjectContextMenu={onClimbThroughWindow=function() assert(handed,'native climb requested before motion handoff');requestedClimb=true end};local c={player={getX=function() return x end,getY=function() return 20.5 end,getPlayerNum=function() return 0 end,getSquare=function() return {} end,isCurrentState=function() return climbing end,getUsername=function() return 'TestA' end,getOnlineID=function() return 1 end,getZ=function() return 0 end,isRunning=function() return false end,isMoving=function() return false end},nativeAction=function(action) assert(action=='timedAction');handed=true end,event=function() end};local cmd=ModStudio.Network.commands.climb;local step={x=10,y=20};cmd.start(c,step);assert(not cmd.tick(c,step,0) and requestedClimb);climbing=true;x=9.9;assert(not cmd.tick(c,step,1));climbing=false;x=9.8;assert(cmd.tick(c,step,2))",
             "local handed=false;local open=false;local w={IsOpen=function() return open end,isLocked=function() return false end};instanceof=function(o,kind) return o==w and kind=='IsoWindow' end;getCell=function() return {getGridSquare=function() return {getObjects=function() return {size=function() return 1 end,get=function() return w end} end} end} end;ISWorldObjectContextMenu={onOpenCloseWindow=function() assert(handed,'native window requested before motion handoff');open=true end};local c={player={getX=function() return 10.5 end,getY=function() return 20.5 end,getPlayerNum=function() return 0 end,isBlockMovement=function() return not handed end},nativeAction=function(action) assert(action=='timedAction');handed=true end,event=function() end};local cmd=ModStudio.Network.commands.window;local step={x=10,y=20,open=true,change=true};cmd.start(c,step);assert(cmd.tick(c,step,0) and open)",
             "local calls=0;triggerEvent=function(name,forced) assert(name=='OnPZ3DUiActions' and forced);calls=calls+1 end;ModStudio.Scenarios.providers.pz3d.nativeAction({},'timedAction',{});assert(calls==1)",
@@ -101,7 +105,7 @@ public final class ScenarioRegression {
             "humanReady=true;scenario={steps={{command='native.human',dx=3,dy=0},{command='native.humanLight',on=true,heading=90},{command='native.wait',seconds=1},{command='native.humanLight',on=false,heading=-90}}};Events.OnMainMenuEnter.fire();pump(5);assert(humanLightOn and humanHeading==90);pump(25);assert(ended=='complete' and humanLightOn==false and humanHeading==-90 and humanCleared)",
             "scenario={steps={{command='native.humanLight',on=true,heading=181}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='failed' and not humanLightOn)",
             "scenario={steps={{command='native.humanLight',on=true,heading=0}}};Events.OnMainMenuEnter.fire();pump(8);assert(ended=='failed' and not humanLightOn)",
-            "animalRendered=true;scenario={steps={{command='native.animals',all=true},{command='pz3d.animalsReady'}}};Events.OnMainMenuEnter.fire();pump(20);assert(ended=='complete' and #spawnedAnimals==3);for _,a in ipairs(spawnedAnimals) do assert(a.added and a.removed and a.squareRemoved) end",
+            "animalRendered=true;scenario={steps={{command='native.animals',all=true},{command='pz3d.animalsReady'}}};Events.OnMainMenuEnter.fire();pump(20);assert(ended=='complete' and #spawnedAnimals==3,tostring(ended)..' '..tostring(reason)..' count='..#spawnedAnimals);for _,a in ipairs(spawnedAnimals) do assert(a.added and a.removed and a.squareRemoved) end",
             "scenario={steps={{command='native.animals',type='cow',dx=0,dy=-4}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='complete' and #spawnedAnimals==1 and spawnedAnimals[1]:getAnimalType()=='cow' and spawnedAnimals[1].removed)",
             "scenario={steps={{command='native.animals',type='missing',dx=0,dy=-4}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and #spawnedAnimals==0)",
             "scenario={steps={{command='native.killAnimals'}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed')",
@@ -168,5 +172,24 @@ public final class ScenarioRegression {
             for(String code:List.of(fixture,api,"local animals=(function()\n"+Files.readString(lua.resolve("ScenarioAnimals.lua"))+"\nend)()",Files.readString(lua.resolve("ScenarioLights.lua")),Files.readString(lua.resolve("ScenarioMultiplayer.lua")),runtime,adapter,check))run(thread,env,code);
         }
         System.out.println("PASS: bounded schema, native-only launch, item cleanup, teleport, timeout, unknown commands, independent diagnostics, PZ3D route failure, interruption and automatic exit.");
+    }
+    static void persistence(String valid)throws Exception {
+        for(String mode:List.of("new","resume"))ScenarioHost.validate(ScenarioJson.parse(valid.replace("\"steps\"","\"persistence\":{\"mode\":\""+mode+"\"},\"steps\"")));
+        for(String fields:List.of("\"persistence\":{\"mode\":\"other\"}","\"persistence\":{\"mode\":\"new\",\"path\":\"user\"}","\"persistence\":{\"mode\":\"new\"},\"manual\":true","\"persistence\":{\"mode\":\"new\"},\"repeats\":2")){
+            boolean rejected=false;try{ScenarioHost.validate(ScenarioJson.parse(valid.replace("\"steps\"",fields+",\"steps\"")));}catch(Exception e){rejected=true;}if(!rejected)throw new AssertionError("Invalid persistent context: "+fields);
+        }
+        boolean guarded=false;try{ScenarioHost.saveNativeWorld();}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Unowned native save");
+        Path artifacts=Files.createTempDirectory("modstudio-save-test-"),output=Files.createDirectory(artifacts.resolve("20261007-T000000Z-00000000000000000000000000000000")),profile=Files.createDirectory(output.resolve("native-profile"));
+        String token="test-owner";Files.writeString(profile.resolve("profile-owner.json"),ScenarioJson.write(Map.of("schema",1,"profile",profile.toString(),"token",token)));
+        Files.writeString(output.resolve("launch.json"),ScenarioJson.write(Map.of("nativeProfile",profile.toString(),"profileToken",token)));
+        var fresh=ScenarioJson.parse(valid.replace("\"steps\"","\"persistence\":{\"mode\":\"new\"},\"steps\""));
+        var owner=ScenarioPersistence.open(fresh,output,profile,profile.toString(),token);
+        Path save=Files.createDirectories(profile.resolve("Saves/Sandbox/test_world"));Files.write(save.resolve("map_ver.bin"),new byte[]{1});Files.write(save.resolve("map.bin"),new byte[]{2});ScenarioPersistence.saved(owner,"test_world",save);
+        Path next=Files.createDirectory(artifacts.resolve("20261007-T000001Z-00000000000000000000000000000001"));
+        var resume=ScenarioJson.parse(valid.replace("\"steps\"","\"persistence\":{\"mode\":\"resume\"},\"steps\""));
+        if(!ScenarioPersistence.open(resume,next,profile,profile.toString(),token).world().equals("test_world")||ScenarioPersistence.current(owner,artifacts,save))throw new AssertionError("Native profile isolation");
+        for(String badToken:List.of("","other-owner")){boolean rejected=false;try{ScenarioPersistence.open(resume,next,profile,profile.toString(),badToken);}catch(java.io.IOException e){rejected=true;}if(!rejected)throw new AssertionError("Wrong owner admitted");}
+        boolean rejected=false;try{ScenarioPersistence.open(fresh,next,profile,profile.toString(),token);}catch(java.io.IOException e){rejected=true;}if(!rejected)throw new AssertionError("New run reused old profile");
+        Files.delete(save.resolve("map_ver.bin"));rejected=false;try{ScenarioPersistence.open(resume,next,profile,profile.toString(),token);}catch(java.io.IOException e){rejected=true;}if(!rejected)throw new AssertionError("Missing native save admitted");
     }
 }

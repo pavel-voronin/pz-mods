@@ -93,6 +93,7 @@ API.register("native",{
             assert(c.nativeDriving,"Create a native scenario vehicle first")
             ModStudioDriving.drive(s.x,s.y,s.kmh);c.phase("MEASURE",s.timeout or 30)
         end,tick=function() return ModStudioDriving.poll() end},
+    save={start=function(c) assert(c.definition.persistence,"Native save requires persistent acceptance");ModStudioScenario.saveNativeWorld() end},
     playerFlags={validate=function(s)
             assert(type(s.invisible)=="boolean","Invalid invisible")
             assert(s.ghost==nil,"Use invisible: GhostMode is the same native flag")
@@ -201,7 +202,7 @@ local function restoreNative()
     p:setGodMod(s.god);p:setInvisible(s.invisible);p:setGhostMode(s.ghost)
     p:setRunning(s.running);p:setSprinting(s.sprinting);p:setSneaking(s.sneaking);p:setMoving(false)
     getGameTime():setTimeOfDay(s.hour)
-    event("restore","native loadout, flags and time restored; fresh simulation is discarded")
+    event("restore","native loadout, flags and time restored; "..(cfg.persistence and "owned persistent world retained" or "fresh simulation is discarded"))
 end
 local function finish()
     local complete=true
@@ -298,18 +299,25 @@ local function start()
         return
     end
     ActiveMods.getById("currentGame"):copyFrom(ActiveMods.getById("default"))
+    if cfg.persistence and cfg.persistence.mode=="resume" then
+        local saveName=ModStudioScenario.savedWorld();assert(saveName and #saveName>0,"Owned native saved world unavailable")
+        getCore():setNoSave(false)
+        Events.OnGameStart.Add(function() getCore():setNoSave(false);ModStudioScenario.worldReady();event("world-ready","native saved world; NoSave=false") end)
+        MainScreen.continueLatestSave("Sandbox",saveName)
+        event("world-resume","native Sandbox load: "..saveName);return
+    end
     local scenario={name="Mod Studio scenario",world=cfg.map or "Muldraugh, KY",startLoc=cfg.spawn,
         setSandbox=function()
             SandboxVars.Zombies=6;SandboxVars.StartMonth=7;SandboxVars.StartDay=9;SandboxVars.StartTime=2
             SandboxVars.WaterShutModifier=365;SandboxVars.ElecShutModifier=365;SandboxVars.StarterKit=false
             if cfg.sandbox then for k,v in pairs(cfg.sandbox) do SandboxVars[k]=v end end
         end,
-        onStart=function() getCore():setNoSave(true);ModStudioScenario.worldReady();event("world-ready","native fresh world; NoSave=true") end}
+        onStart=function() getCore():setNoSave(not cfg.persistence);ModStudioScenario.worldReady();event("world-ready","native fresh world; NoSave="..tostring(getCore():isNoSave())) end}
     if not DebugScenarios.instance then doDebugScenarios() end
     getWorld():setGameMode("Sandbox")
     getCore():setNoSave(false) -- Native createWorld requires the empty bootstrap directory.
     DebugScenarios.instance:launchScenario(scenario)
-    getCore():setNoSave(true)
+    getCore():setNoSave(not cfg.persistence)
 end
 Events.OnMainMenuEnter.Add(function()
     if claimed then if cfg and cfg.multiplayer and not ctx.player then return end;stop("aborted","Returned to menu");return end
