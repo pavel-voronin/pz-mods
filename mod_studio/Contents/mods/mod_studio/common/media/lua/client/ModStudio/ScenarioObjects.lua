@@ -31,6 +31,11 @@ Objects.cell={
                 assert(remaining==0,"Native removal did not remove object")
             elseif s.action=="expect" then assert(#matches==s.count,"Native saved cell count "..#matches..", expected "..s.count) end
             c.event("native-cell",s.action.." x="..x.." y="..y.." z="..(s.z or 0).." count="..#matches.." sprites="..table.concat(names,","))
+            if s.action=="inspect" then
+                local floor=square:getFloor();local sprite=floor and floor:getSprite();local types={}
+                for i=1,#matches do types[i]=tostring(matches[i]:getType()) end
+                c.event("native-cell-state","x="..x.." y="..y.." z="..(s.z or 0).." floor="..(sprite and sprite:getName() or "none").." room="..tostring(square:getRoom()~=nil).." outside="..tostring(square:isOutside()).." covered="..(square.haveRoof==nil and "unavailable" or tostring(square.haveRoof)).." stairs="..tostring(square:HasStairs()).." types="..table.concat(types,","))
+            end
         end end
     end
 }
