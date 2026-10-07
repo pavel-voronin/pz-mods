@@ -37,6 +37,15 @@ final class ScenarioPersistence {
         try{return profile!=null&&profile.directory().equals(cache.toRealPath())&&save.toRealPath().startsWith(profile.directory().resolve("Saves/Sandbox"));}
         catch(IOException invalid){return false;}
     }
+    static boolean packageMatches(Path version,Path jar,String hash)throws IOException {
+        Path loaded=version.toRealPath(),expected=jar.toRealPath();
+        if(!expected.startsWith(loaded))return false;
+        try(var input=Files.newInputStream(expected)){
+            var digest=java.security.MessageDigest.getInstance("SHA-256");var bytes=new byte[65536];int count;
+            while((count=input.read(bytes))!=-1)digest.update(bytes,0,count);
+            return HexFormat.of().formatHex(digest.digest()).equals(hash);
+        }catch(java.security.NoSuchAlgorithmException impossible){throw new IllegalStateException(impossible);}
+    }
     static void saved(Profile profile,String world,Path save)throws IOException {
         if(!current(profile,profile.directory(),save)||!world.matches("[A-Za-z0-9_-]{1,128}")||!save.toRealPath().equals(profile.directory().resolve("Saves/Sandbox").resolve(world).toRealPath()))throw new IOException("Native save identity escaped profile");
         if(Files.size(save.resolve("map_ver.bin"))==0||Files.size(save.resolve("map.bin"))==0)throw new IOException("Native save files are incomplete");

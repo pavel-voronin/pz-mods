@@ -15,6 +15,7 @@ public final class ScenarioHost {
     private static volatile String error="";
     private static Path output;
     private static ScenarioPersistence.Profile persistentProfile;
+    private static final List<String> nativePackages=new ArrayList<>();
     private static boolean loading;
     private static volatile boolean claimed;
     private static volatile boolean manual;
@@ -142,6 +143,7 @@ public final class ScenarioHost {
     }
     public static KahluaTable context() {
         if(!requested()||!zombie.core.Core.debug||zombie.network.GameServer.server||zombie.network.GameClient.client&&!multiplayer())return null;
+        if(!error.isEmpty())return null;
         try {
             if(definition==null){
                 Path path=Path.of(System.getProperty("modstudio.scenario"));
@@ -149,6 +151,12 @@ public final class ScenarioHost {
                 json=Files.readString(path);definition=ScenarioJson.parse(json);validate(definition);
                 output=Path.of(System.getProperty("modstudio.scenario.output"));
                 persistentProfile=ScenarioPersistence.open(definition,output,Path.of(zombie.ZomboidFileSystem.instance.getCacheDir()),System.getProperty("modstudio.scenario.profile",""),System.getProperty("modstudio.scenario.profile.token",""));
+                if(persistent())for(String name:System.getProperties().stringPropertyNames())if(name.startsWith("modstudio.scenario.")&&name.endsWith(".jarSha256")){
+                    String prefix=name.substring(0,name.length()-".jarSha256".length()),id=prefix.substring("modstudio.scenario.".length());
+                    var loaded=zombie.gameStates.ChooseGameInfo.getModDetails(id);
+                    if(loaded==null||!ScenarioPersistence.packageMatches(Path.of(loaded.getVersionDir()),Path.of(System.getProperty(prefix+".jarPath","")),System.getProperty(name)))throw new java.io.IOException("Loaded native package differs from scenario build: "+id);
+                    nativePackages.add(id+" versionDir="+loaded.getVersionDir()+" sha256="+System.getProperty(name));
+                }
             }
             return (KahluaTable)lua(Map.of("definition",definition,"json",json,"output",output.toString()));
         }catch(Exception e){error="Invalid scenario: "+e;return null;}
@@ -258,6 +266,7 @@ public final class ScenarioHost {
     }
     public static synchronized boolean claim(){
         if(claimed||context()==null)return false;claimed=loading=true;
+        for(String detail:nativePackages)event("native-package",detail);
         Thread writer=new Thread(ScenarioHost::write,"ModStudio-scenario-artifacts");writer.setDaemon(true);writer.start();return true;
     }
     public static int lightYardSources(){

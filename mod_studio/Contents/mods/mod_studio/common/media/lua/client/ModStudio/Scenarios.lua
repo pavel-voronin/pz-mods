@@ -5,6 +5,7 @@ require "DebugUIs/DebugScenarios"
 require "TimedActions/ISTimedActionQueue"
 require "ModStudio/ScenarioAnimals"
 require "ModStudio/ScenarioLights"
+require "ModStudio/ScenarioObjects"
 local ScenarioLights=ModStudioScenarioLights
 local ScenarioAnimals=ModStudioScenarioAnimals
 local API=ModStudio.Scenarios
@@ -45,6 +46,7 @@ API.register("native",{
     boundary=function(c) if c.nativeDriving then ModStudioDriving.stop() end end,
     finish=function(c) ScenarioLights.clear(c);ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;return true end
 }, {
+    cell=ModStudioScenarioObjects.cell,
     networkWindow=ModStudio.Network.commands.window,
     networkClimb=ModStudio.Network.commands.climb,
     networkDrop=ModStudio.Network.commands.drop,

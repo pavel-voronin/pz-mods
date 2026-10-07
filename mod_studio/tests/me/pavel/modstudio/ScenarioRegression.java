@@ -80,6 +80,7 @@ public final class ScenarioRegression {
         String api=Files.readString(lua.resolve("ScenarioAPI.lua")),runtime=Files.readString(lua.resolve("Scenarios.lua"));
         String adapter=Files.readString(pz.resolve("Contents/mods/pz3d/common/media/lua/client/PZ3DScenarioAPI.lua"));
         for(String check:List.of(
+            "local cmd=ModStudioScenarioObjects.cell;assert(not pcall(cmd.validate,{x=1.5,y=2,action='inspect'}));assert(not pcall(cmd.validate,{x=1,y=2,action='remove'}));assert(not pcall(cmd.validate,{x=1,y=2,action='remove',sprite='wall',radius=1}));assert(not pcall(cmd.validate,{x=1,y=2,action='expect',sprite='wall',count=-1}));local wall={getSprite=function() return {getName=function() return 'wall' end} end};local chair={getSprite=function() return {getName=function() return 'chair' end} end};local objects={wall,chair};local list={size=function() return #objects end,get=function(_,i) return objects[i+1] end};local square={getObjects=function() return list end,transmitRemoveItemFromSquare=function(_,obj) assert(obj==wall);table.remove(objects,1);removedWall=true end};getCell=function() return {getGridSquare=function() return square end} end;ModStudioScenario.disposable=function() return true end;local c={event=function() end};cmd.start(c,{x=1,y=2,action='expect',sprite='wall',count=1});cmd.start(c,{x=1,y=2,action='remove',sprite='wall'});cmd.start(c,{x=1,y=2,action='expect',sprite='wall',count=0});assert(removedWall and #objects==1 and objects[1]==chair);assert(not pcall(cmd.start,c,{x=1,y=2,action='remove',sprite='wall'}));ModStudioScenario.disposable=function() return false end;assert(not pcall(cmd.start,c,{x=1,y=2,action='inspect'}))",
             "core.setNoSave=function(self,v) self.noSave=v end;core.isNoSave=function(self) return self.noSave~=false end;scenario={persistence={mode='new'},steps={{command='native.save'}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='complete' and nativeSaved==1 and not core:isNoSave())",
             "core.setNoSave=function(self,v) self.noSave=v end;core.isNoSave=function(self) return self.noSave~=false end;scenario={persistence={mode='resume'},steps={{command='native.save'}}};Events.OnMainMenuEnter.fire();assert(resumedMode=='Sandbox' and resumedWorld=='owned_test_world');Events.OnGameStart.fire();pump(10);assert(ended=='complete' and nativeSaved==1 and not core:isNoSave())",
             "scenario={steps={{command='native.save'}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and nativeSaved==nil)",
@@ -169,7 +170,7 @@ public final class ScenarioRegression {
             "scenario={steps={{command='pz3d.move',x=20,y=2,z=0}}};Events.OnMainMenuEnter.fire();pump(3);assert(motion==1 and not diag);advance(6);pump(4);assert(quit and ended=='failed' and motion==0 and teleports==0 and not ownedControl)",
             "scenario={steps={{command='pz3d.diagnostics',enabled=true},{command='pz3d.measure',seconds=10}}};Events.OnMainMenuEnter.fire();pump(3);interruption='focus lost';pump(40);assert(quit and ended=='failed' and not diag and not ownedControl)")) {
             var platform=J2SEPlatform.getInstance();var env=platform.newEnvironment();var thread=new KahluaThread(platform,env);thread.debugOwnerThread=Thread.currentThread();
-            for(String code:List.of(fixture,api,"local animals=(function()\n"+Files.readString(lua.resolve("ScenarioAnimals.lua"))+"\nend)()",Files.readString(lua.resolve("ScenarioLights.lua")),Files.readString(lua.resolve("ScenarioMultiplayer.lua")),runtime,adapter,check))run(thread,env,code);
+            for(String code:List.of(fixture,api,"local animals=(function()\n"+Files.readString(lua.resolve("ScenarioAnimals.lua"))+"\nend)()",Files.readString(lua.resolve("ScenarioLights.lua")),Files.readString(lua.resolve("ScenarioObjects.lua")),Files.readString(lua.resolve("ScenarioMultiplayer.lua")),runtime,adapter,check))run(thread,env,code);
         }
         System.out.println("PASS: bounded schema, native-only launch, item cleanup, teleport, timeout, unknown commands, independent diagnostics, PZ3D route failure, interruption and automatic exit.");
     }
@@ -184,6 +185,8 @@ public final class ScenarioRegression {
         Files.writeString(output.resolve("launch.json"),ScenarioJson.write(Map.of("nativeProfile",profile.toString(),"profileToken",token)));
         var fresh=ScenarioJson.parse(valid.replace("\"steps\"","\"persistence\":{\"mode\":\"new\"},\"steps\""));
         var owner=ScenarioPersistence.open(fresh,output,profile,profile.toString(),token);
+        Path version=Files.createDirectory(profile.resolve("test-package")),jar=version.resolve("fixture.jar");Files.write(jar,new byte[]{1,2,3});String hash=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(new byte[]{1,2,3}));
+        if(!ScenarioPersistence.packageMatches(version,jar,hash)||ScenarioPersistence.packageMatches(nextSibling(profile),jar,hash)||ScenarioPersistence.packageMatches(version,jar,"wrong"))throw new AssertionError("Actual package path/hash validation");
         Path save=Files.createDirectories(profile.resolve("Saves/Sandbox/test_world"));Files.write(save.resolve("map_ver.bin"),new byte[]{1});Files.write(save.resolve("map.bin"),new byte[]{2});ScenarioPersistence.saved(owner,"test_world",save);
         Path next=Files.createDirectory(artifacts.resolve("20261007-T000001Z-00000000000000000000000000000001"));
         var resume=ScenarioJson.parse(valid.replace("\"steps\"","\"persistence\":{\"mode\":\"resume\"},\"steps\""));
@@ -192,4 +195,5 @@ public final class ScenarioRegression {
         boolean rejected=false;try{ScenarioPersistence.open(fresh,next,profile,profile.toString(),token);}catch(java.io.IOException e){rejected=true;}if(!rejected)throw new AssertionError("New run reused old profile");
         Files.delete(save.resolve("map_ver.bin"));rejected=false;try{ScenarioPersistence.open(resume,next,profile,profile.toString(),token);}catch(java.io.IOException e){rejected=true;}if(!rejected)throw new AssertionError("Missing native save admitted");
     }
+    static Path nextSibling(Path profile)throws Exception {return Files.createDirectory(profile.getParent().resolve("steam-package"));}
 }

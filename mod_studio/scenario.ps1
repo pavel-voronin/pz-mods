@@ -60,7 +60,7 @@ foreach($root in $roots){
         $hash=(Get-FileHash -LiteralPath $jar -Algorithm SHA256).Hash.ToLowerInvariant()
         $packages+=@{id=$fields.id;jar=$jar;sha256=$hash;commit=$commit;dirty=$dirty}
         $prefix="-Dmodstudio.scenario.$($fields.id)"
-        $arguments+=@("$prefix.commit=$commit","$prefix.dirty=$dirty","$prefix.jarSha256=$hash")
+        $arguments+=@("$prefix.commit=$commit","$prefix.dirty=$dirty","$prefix.jarSha256=$hash","$prefix.jarPath=$jar")
     }
 }
 $packages | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $output 'packages.json') -Encoding utf8
@@ -97,7 +97,7 @@ if($Launcher -eq 'Native'){
     $start.FileName=Join-Path $Game 'ProjectZomboid64.exe'
     foreach($arg in ($arguments+@('--','-debug'))){$start.ArgumentList.Add($arg)}
 }else{
-    $nativeArguments=@('-debug');if($persistentProfile){$nativeArguments+=@('-windowed',"-cachedir=$($persistentProfile.path)")}
+    $nativeArguments=@('-debug');if($persistentProfile){$nativeArguments+=@('-nosteam','-windowed',"-cachedir=$($persistentProfile.path)")}
     foreach($arg in ($arguments+@('-cp',($config.classpath -join ';'),'zombie.gameStates.MainScreenState')+$nativeArguments)){$start.ArgumentList.Add($arg)}
 }
 . (Join-Path $PSScriptRoot 'process.ps1')
