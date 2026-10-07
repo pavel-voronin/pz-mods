@@ -3,6 +3,8 @@
 -- optional validate(step). start without tick completes immediately.
 -- provider: begin(context) -> ready, update(context), boundary(context),
 -- nativeAction(context, action, step) synchronizes a mod after a native command,
+-- except saveBegin/saveEnd, paired around synchronous native persistence;
+-- saveEnd is delivered on native failure too, before propagating the error.
 -- phase(context, name), finish(context, status, reason) -> flushed.
 -- begin/finish may be polled and must be idempotent. Cleanup runs in reverse order.
 ModStudio=ModStudio or {}

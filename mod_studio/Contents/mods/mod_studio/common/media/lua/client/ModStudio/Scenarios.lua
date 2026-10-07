@@ -95,7 +95,13 @@ API.register("native",{
             assert(c.nativeDriving,"Create a native scenario vehicle first")
             ModStudioDriving.drive(s.x,s.y,s.kmh);c.phase("MEASURE",s.timeout or 30)
         end,tick=function() return ModStudioDriving.poll() end},
-    save={start=function(c) assert(c.definition.persistence,"Native save requires persistent acceptance");ModStudioScenario.saveNativeWorld() end},
+    save={start=function(c,s)
+        assert(c.definition.persistence,"Native save requires persistent acceptance")
+        c.nativeAction("saveBegin",s)
+        local ok,err=pcall(ModStudioScenario.saveNativeWorld)
+        c.nativeAction("saveEnd",s)
+        if not ok then error(err) end
+    end},
     playerFlags={validate=function(s)
             assert(type(s.invisible)=="boolean","Invalid invisible")
             assert(s.ghost==nil,"Use invisible: GhostMode is the same native flag")
