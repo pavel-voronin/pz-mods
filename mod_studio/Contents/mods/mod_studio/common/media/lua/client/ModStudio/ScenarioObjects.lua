@@ -6,12 +6,13 @@ end
 Objects.cell={
     validate=function(s)
         integer(s,"x",0,100000);integer(s,"y",0,100000);integer(s,"z",-32,31,true)
-        assert(s.action=="inspect" or s.action=="remove" or s.action=="expect","Invalid cell action")
+        assert(s.action=="inspect" or s.action=="remove" or s.action=="expect" or s.action=="renderOffset","Invalid cell action")
         integer(s,"radius",0,4,true)
         assert(s.radius==nil or s.action=="inspect","Radius applies only to inspect")
         assert(s.sprite==nil or type(s.sprite)=="string" and #s.sprite>0 and #s.sprite<=256 and string.match(s.sprite,"^[A-Za-z0-9_]+$"),"Invalid sprite")
         if s.action~="inspect" then assert(s.sprite,"Mutation/expect requires exact sprite") end
         if s.action=="expect" then integer(s,"count",0,1024) else assert(s.count==nil,"Count applies only to expect") end
+        if s.action=="renderOffset" then assert(type(s.renderYOffset)=="number" and s.renderYOffset==s.renderYOffset and s.renderYOffset>=-96 and s.renderYOffset<=96,"Invalid renderYOffset") else assert(s.renderYOffset==nil,"renderYOffset applies only to renderOffset") end
     end,
     start=function(c,s)
         assert(ModStudioScenario.disposable(),"Cell acceptance requires an owned disposable world")
@@ -29,6 +30,11 @@ Objects.cell={
                 square:transmitRemoveItemFromSquare(matches[1])
                 local remaining=0;for i=0,list:size()-1 do if list:get(i)==matches[1] then remaining=remaining+1 end end
                 assert(remaining==0,"Native removal did not remove object")
+            elseif s.action=="renderOffset" then
+                assert(#matches==1,"Render offset requires one exact native object, found "..#matches)
+                matches[1]:setRenderYOffset(s.renderYOffset)
+                assert(math.abs(matches[1]:getRenderYOffset()-s.renderYOffset)<.0001,"Native render offset mismatch")
+                c.event("native-cell-transform","x="..x.." y="..y.." z="..(s.z or 0).." sprite="..s.sprite.." renderYOffset="..matches[1]:getRenderYOffset())
             elseif s.action=="expect" then assert(#matches==s.count,"Native saved cell count "..#matches..", expected "..s.count) end
             c.event("native-cell",s.action.." x="..x.." y="..y.." z="..(s.z or 0).." count="..#matches.." sprites="..table.concat(names,","))
             if s.action=="inspect" then

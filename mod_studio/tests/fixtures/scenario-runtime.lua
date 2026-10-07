@@ -1,5 +1,6 @@
 require=function() end
 getDebug=function() return true end
+getPlayerInfoPanel=function() return nil end
 isClient=function() return false end
 isServer=function() return false end
 Events={}
@@ -42,6 +43,7 @@ inventory={items={},AddItem=function(self,name)
     self.items[#self.items+1]=item;return item
 end,Remove=function(self,item) for i,v in ipairs(self.items) do if v==item then table.remove(self.items,i);return end end end}
 player={x=1,y=2,z=0,god=true,invisible=true,ghost=true,running=false,sprinting=false,sneaking=true,primary={original=true},secondary={original=true}}
+player.getPlayerNum=function() return 0 end
 local methods={GodMod="god",Invisible="invisible",GhostMode="ghost",Running="running",Sprinting="sprinting",Sneaking="sneaking"}
 for suffix,key in pairs(methods) do
     player["is"..suffix]=function(self) return self[key] end

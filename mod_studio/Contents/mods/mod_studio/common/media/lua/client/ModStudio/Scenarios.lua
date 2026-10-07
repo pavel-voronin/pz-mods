@@ -35,11 +35,11 @@ API.register("native",{
     begin=function(c)
         if c.definition.multiplayer then
             assert(isClient(),"MP client unavailable");getCore():setNoSave(true)
-            local info=getPlayerInfoPanel(c.player:getPlayerNum());if info then info:setVisible(false) end
-            if SurvivalGuide and SurvivalGuide.instance then SurvivalGuide.instance:setVisible(false) end
-            if ISChat and ISChat.instance then ISChat.instance:unfocus();ISChat.instance:setVisible(false) end
             c.event("network-local",c.player:getUsername().." id="..c.player:getOnlineID().." x="..c.player:getX().." y="..c.player:getY())
         end
+        local info=getPlayerInfoPanel(c.player:getPlayerNum());if info then info:setVisible(false) end
+        if SurvivalGuide and SurvivalGuide.instance then SurvivalGuide.instance:setVisible(false) end
+        if ISChat and ISChat.instance then ISChat.instance:unfocus();ISChat.instance:setVisible(false) end
         return true
     end,
     update=function(c) if c.nativeHuman then ModStudioScenario.updateHuman() end end,
