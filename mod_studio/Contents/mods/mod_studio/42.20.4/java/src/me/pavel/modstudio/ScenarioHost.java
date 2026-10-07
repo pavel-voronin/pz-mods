@@ -238,6 +238,7 @@ public final class ScenarioHost {
         if(root.containsKey("manual")&&!(root.get("manual") instanceof Boolean))throw new IllegalArgumentException("manual must be boolean");
         if(root.containsKey("loadingScreenshots")&&!(root.get("loadingScreenshots") instanceof Boolean))throw new IllegalArgumentException("loadingScreenshots must be boolean");
         number(root,"loadingTimeout",240,1,3600);
+        number(root,"prepareTimeout",120,1,3600);
         if(Boolean.TRUE.equals(root.get("manual"))&&number(root,"repeats",1,1,20)!=1)throw new IllegalArgumentException("Manual setup cannot repeat");
         if(root.containsKey("multiplayer")){
             var mp=ScenarioJson.object(root.get("multiplayer"));

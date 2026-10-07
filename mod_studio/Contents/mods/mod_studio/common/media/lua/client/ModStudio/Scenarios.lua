@@ -239,7 +239,7 @@ local function tick()
         ctx.player=p;ctx.items={}
         ctx.saved={primary=p:getPrimaryHandItem(),secondary=p:getSecondaryHandItem(),god=p:isGodMod(),invisible=p:isInvisible(),ghost=p:isGhostMode(),running=p:isRunning(),sprinting=p:isSprinting(),sneaking=p:isSneaking(),hour=getGameTime():getTimeOfDay()}
         if not cfg.multiplayer then p:setGodMod(true) end;p:setInvisible(false);p:setGhostMode(false);p:setRunning(false);p:setSprinting(false);p:setSneaking(false)
-        ISTimedActionQueue.clear(p);phase("PREPARE",120)
+        ISTimedActionQueue.clear(p);phase("PREPARE",cfg.prepareTimeout or 120)
     end
     if state=="PREPARE" then
         for _,p in ipairs(providers) do

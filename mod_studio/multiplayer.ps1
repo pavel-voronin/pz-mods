@@ -20,6 +20,10 @@ if($null -ne $suite.loadingTimeout){
     $loadingDeadline=$suite.loadingTimeout
     if($loadingDeadline -isnot [ValueType] -or ![double]::IsFinite([double]$loadingDeadline) -or $loadingDeadline -lt 1 -or $loadingDeadline -gt 3600){throw 'Invalid native loading timeout'}
 }
+if($null -ne $suite.prepareTimeout){
+    $preparationDeadline=$suite.prepareTimeout
+    if($preparationDeadline -isnot [ValueType] -or $preparationDeadline -is [bool] -or ![double]::IsFinite([double]$preparationDeadline) -or $preparationDeadline -lt 1 -or $preparationDeadline -gt 3600){throw 'Invalid provider preparation timeout'}
+}
 foreach($coordinate in @('x','y','z')){
     $value=$suite.spawn.$coordinate
     $min=if($coordinate -eq 'z'){-32}else{0};$max=if($coordinate -eq 'z'){31}else{100000}
@@ -174,6 +178,7 @@ try {
         $cache=Prepare-Profile "client-$name" $mods
         $definition=[ordered]@{schema=1;id=("$($suite.id)-$name").ToLowerInvariant();spawn=$suite.spawn;steps=$client.steps;multiplayer=@{host='127.0.0.1';port=$port;username=$name;password='modstudio-test';peer=$peer}}
         if($null -ne $suite.loadingTimeout){$definition.loadingTimeout=$suite.loadingTimeout}
+        if($null -ne $suite.prepareTimeout){$definition.prepareTimeout=$suite.prepareTimeout}
         $scenarioPath=Join-Path $cache 'scenario.json';$definition | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $scenarioPath -Encoding utf8
         $clientVm=@($config.vmArgs | Where-Object {$_ -notmatch '^-Xmx|^-Dzomboid.steam|^-agentlib:pz3dLoader|^-agentpath:.*pz3dLoader\.dll|^-javaagent:.*(pz3dLoader|ZombieBuddy)|^-XX:[+-]Use(?:Z|G1|Parallel|Serial|Shenandoah)GC'})+@('-Xmx4096m',$gcArgument,'-Dzomboid.steam=0',"-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')=config_dir=$cache/ZombieBuddy",'-Ddebug=true','-Dmodstudio.scenario.multiplayer=true',"-Dmodstudio.scenario=$scenarioPath","-Dmodstudio.scenario.output=$cache")
         if($loader -eq 'pz3d'){$clientVm+="-javaagent:$Pz3dLoaderJar"}
