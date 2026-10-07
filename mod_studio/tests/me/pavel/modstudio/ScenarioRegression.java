@@ -24,6 +24,11 @@ public final class ScenarioRegression {
         guarded=false;try{ScenarioHost.screenshot("test");}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Screenshot outside disposable scenario");
         guarded=false;try{ScenarioDriving.spawnConfigured("Base.CarNormal",0,false,true);}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Parked car spawned outside a disposable scenario");
         ScenarioDriving.stop();ScenarioDriving.close();ScenarioDriving.close();
+        var unsafeField=sun.misc.Unsafe.class.getDeclaredField("theUnsafe");unsafeField.setAccessible(true);var unsafe=(sun.misc.Unsafe)unsafeField.get(null);
+        var unloaded=(zombie.vehicles.BaseVehicle)unsafe.allocateInstance(zombie.vehicles.BaseVehicle.class);
+        var vehicleField=ScenarioDriving.class.getDeclaredField("vehicle");vehicleField.setAccessible(true);vehicleField.set(null,unloaded);
+        try {ScenarioDriving.stop();ScenarioDriving.stop();if(vehicleField.get(null)!=unloaded)throw new AssertionError("Unloading a scenario car changes native ownership");}
+        finally {vehicleField.set(null,null);}
         var frames=new ScenarioDriving.Intervals();for(int i=0;i<99;i++)frames.add(16_000_000);frames.add(2_000_000_000L);
         if(frames.count!=100||frames.percentile(.95)!=16.1||frames.percentile(1)!=2000)throw new AssertionError("Bounded frame histogram and overflow");
         String mp="{\"schema\":1,\"id\":\"mp-test\",\"spawn\":{\"x\":10,\"y\":20},\"steps\":[{\"command\":\"native.networkPeer\"}],\"multiplayer\":{\"host\":\"127.0.0.1\",\"port\":16371,\"username\":\"TestA\",\"peer\":\"TestB\"}}";

@@ -114,7 +114,7 @@ public final class ScenarioDriving {
         }
         ScenarioHost.event("native-drive-sample","x="+v.getX()+" y="+v.getY()+" kmh="+v.getCurrentSpeedKmHour()+" remaining="+c.remaining+" lateral="+c.lateral+" nativeAhead="+lead);
     }
-    public static void stop(){route=null;var frames=presents;presents=null;if(frames!=null)ScenarioHost.event("native-drive-frames",frames.report());if(vehicle!=null){vehicle.getController().getClientControls().reset();vehicle.getController().getClientControls().brake=true;}}
+    public static void stop(){route=null;var frames=presents;presents=null;if(frames!=null)ScenarioHost.event("native-drive-frames",frames.report());var controller=vehicle==null?null:vehicle.getController();if(controller!=null){var controls=controller.getClientControls();controls.reset();controls.brake=true;}}
     public static void close(){stop();var v=vehicle;vehicle=null;if(v!=null){var p=IsoPlayer.getInstance();if(p!=null&&p.getVehicle()==v)v.exit(p);v.permanentlyRemove();}}
     public static void controls(CarController controller){
         if(vehicle==null||controller.vehicleObject!=vehicle||!ScenarioHost.suppressInput())return;
