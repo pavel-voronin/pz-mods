@@ -171,6 +171,14 @@ public final class ScenarioRegression {
             "scenario={steps={{command='pz3d.diagnostics',enabled=true},{command='pz3d.measure',seconds=10}}};Events.OnMainMenuEnter.fire();pump(3);interruption='focus lost';pump(40);assert(quit and ended=='failed' and not diag and not ownedControl)")) {
             var platform=J2SEPlatform.getInstance();var env=platform.newEnvironment();var thread=new KahluaThread(platform,env);thread.debugOwnerThread=Thread.currentThread();
             for(String code:List.of(fixture,api,"local animals=(function()\n"+Files.readString(lua.resolve("ScenarioAnimals.lua"))+"\nend)()",Files.readString(lua.resolve("ScenarioLights.lua")),Files.readString(lua.resolve("ScenarioObjects.lua")),Files.readString(lua.resolve("ScenarioMultiplayer.lua")),runtime,adapter,check))run(thread,env,code);
+            if(check.startsWith("local cmd=ModStudioScenarioObjects.cell;")){
+                var convert=ScenarioHost.class.getDeclaredMethod("lua",Object.class);convert.setAccessible(true);
+                for(String name:List.of("prepared-persistence-new.json","prepared-persistence-remove.json","prepared-persistence-restart.json")){
+                    var definition=ScenarioJson.parse(Files.readString(pz.resolve("scenarios").resolve(name)));ScenarioHost.validate(definition);
+                    env.rawset("validatedScenario",convert.invoke(null,definition));
+                    run(thread,env,"for _,s in ipairs(validatedScenario.steps) do local h=ModStudio.Scenarios.commands[s.command];assert(h,'Unregistered preset command '..s.command);if h.validate then h.validate(s) end end");
+                }
+            }
         }
         System.out.println("PASS: bounded schema, native-only launch, item cleanup, teleport, timeout, unknown commands, independent diagnostics, PZ3D route failure, interruption and automatic exit.");
     }
