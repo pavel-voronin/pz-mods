@@ -37,6 +37,17 @@ public final class ScenarioHost {
     public static String persistentMode(){return persistent()?persistentProfile.mode():"";}
     public static String savedWorld(){return persistent()?persistentProfile.world():"";}
     public static boolean disposable(){return zombie.core.Core.getInstance().isNoSave()||persistent()&&ScenarioPersistence.current(persistentProfile,Path.of(zombie.ZomboidFileSystem.instance.getCacheDir()),Path.of(zombie.ZomboidFileSystem.instance.getCurrentSaveDir()));}
+    public static int frameLimit(){return zombie.core.PerformanceSettings.getLockFPS();}
+    public static boolean frameSync(){return zombie.core.Core.getInstance().getOptionVSync();}
+    public static void setFrameSync(boolean value){
+        if(!requested()||!claimed||!disposable())throw new IllegalStateException("VSync requires an owned scenario world");
+        zombie.core.Core.getInstance().setOptionVSync(value);
+    }
+    public static void setFrameLimit(int value){
+        if(!requested()||!claimed||!disposable())throw new IllegalStateException("Frame rate requires an owned scenario world");
+        if(value<24||value>244)throw new IllegalArgumentException("Frame rate must be 24..244");
+        zombie.core.PerformanceSettings.setLockFPS(value);
+    }
     public static void saveNativeWorld()throws java.io.IOException {
         if(!requested()||!claimed||!persistent()||zombie.core.Core.getInstance().isNoSave()||!disposable()||zombie.network.GameClient.client||zombie.network.GameServer.server)throw new IllegalStateException("Save requires the owned persistent single-player scenario");
         zombie.GameWindow.save(false);if(zombie.savefile.PlayerDB.isAllow())zombie.savefile.PlayerDB.getInstance().saveLocalPlayersForce();zombie.iso.ChunkSaveWorker.instance.SaveNow();

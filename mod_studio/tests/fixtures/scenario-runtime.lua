@@ -13,6 +13,9 @@ end
 UIManager={isShowLuaDebuggerOnError=function() return true end,setShowLuaDebuggerOnError=function() end}
 core={isNoSave=function() return true end,setNoSave=function() end,quitToDesktop=function() quit=true end}
 getCore=function() return core end
+core.vsync=true
+core.getOptionVSync=function(self) return self.vsync end
+core.setOptionVSync=function(self,value) self.vsync=value end
 world={getWorld=function() return "test" end,getMap=function() return "fixture" end}
 getWorld=function() return world end
 getActivatedMods=function() return {size=function() return 0 end} end
@@ -182,3 +185,8 @@ PZ3D.scenarioDynamicProbe=function(enabled) dynamicProbed=enabled end
 ModStudioScenario.savedWorld=function() return 'owned_test_world' end
 ModStudioScenario.saveNativeWorld=function() assert(not core:isNoSave());nativeSaved=(nativeSaved or 0)+1 end
 MainScreen={continueLatestSave=function(mode,name) resumedMode=mode;resumedWorld=name end}
+nativeFrameRate=30
+ModStudioScenario.frameLimit=function() return nativeFrameRate end
+ModStudioScenario.setFrameLimit=function(value) nativeFrameRate=value end
+ModStudioScenario.frameSync=function() return core.vsync end
+ModStudioScenario.setFrameSync=function(value) core.vsync=value end

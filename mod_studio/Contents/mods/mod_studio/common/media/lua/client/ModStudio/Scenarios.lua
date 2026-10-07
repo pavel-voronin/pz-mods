@@ -44,8 +44,18 @@ API.register("native",{
     end,
     update=function(c) if c.nativeHuman then ModStudioScenario.updateHuman() end end,
     boundary=function(c) if c.nativeDriving then ModStudioDriving.stop() end end,
-    finish=function(c) ScenarioLights.clear(c);ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;return true end
+    finish=function(c) ScenarioLights.clear(c);ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;if c.nativeFrameRate then ModStudioScenario.setFrameLimit(c.nativeFrameRate);ModStudioScenario.setFrameSync(c.nativeVSync);c.nativeFrameRate=nil end;return true end
 }, {
+    frameRate={validate=function(s)
+            assert(ModStudioScenario.frameLimit and ModStudioScenario.setFrameLimit and ModStudioScenario.frameSync and ModStudioScenario.setFrameSync,"Native frame cap API unavailable")
+            number(s,"fps",24,244);assert(s.fps==math.floor(s.fps),"Frame rate requires integer fps")
+            assert(s.vsync==nil or type(s.vsync)=="boolean","Invalid vsync")
+        end,start=function(c,s)
+            if not c.nativeFrameRate then c.nativeFrameRate=ModStudioScenario.frameLimit();c.nativeVSync=ModStudioScenario.frameSync() end
+            ModStudioScenario.setFrameLimit(s.fps);if s.vsync~=nil then ModStudioScenario.setFrameSync(s.vsync) end
+            assert(ModStudioScenario.frameLimit()==s.fps,"Native frame rate did not change")
+            c.event("native-frame-rate","fps="..s.fps.." vsync="..tostring(ModStudioScenario.frameSync()))
+        end},
     cell=ModStudioScenarioObjects.cell,
     networkWindow=ModStudio.Network.commands.window,
     networkClimb=ModStudio.Network.commands.climb,
