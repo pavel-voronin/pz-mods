@@ -58,6 +58,8 @@ API.register("native",{
         end},
     cell=ModStudioScenarioObjects.cell,
     networkWindow=ModStudio.Network.commands.window,
+    networkDoor=ModStudio.Network.commands.door,
+    networkCell=ModStudio.Network.commands.cell,
     networkClimb=ModStudio.Network.commands.climb,
     networkDrop=ModStudio.Network.commands.drop,
     networkItem=ModStudio.Network.commands.item,
