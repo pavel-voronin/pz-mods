@@ -16,6 +16,7 @@ Objects.cell={
     end,
     start=function(c,s)
         assert(ModStudioScenario.disposable(),"Cell acceptance requires an owned disposable world")
+        c.nativeCellRemoval=nil
         local r=s.radius or 0
         for y=s.y-r,s.y+r do for x=s.x-r,s.x+r do
             local square=getCell():getGridSquare(x,y,s.z or 0)
@@ -27,6 +28,13 @@ Objects.cell={
             end
             if s.action=="remove" then
                 assert(#matches==1,"Removal requires one exact native object, found "..#matches)
+                if isClient() then
+                    -- The vanilla debug destruction menu uses its authoritative MP packet.
+                    c.nativeCellRemoval={square=square,object=matches[1],sprite=s.sprite}
+                    sledgeDestroy(matches[1])
+                    c.event("native-cell-remove-request","x="..x.." y="..y.." z="..(s.z or 0).." sprite="..s.sprite)
+                    return
+                end
                 square:transmitRemoveItemFromSquare(matches[1])
                 local remaining=0;for i=0,list:size()-1 do if list:get(i)==matches[1] then remaining=remaining+1 end end
                 assert(remaining==0,"Native removal did not remove object")
@@ -44,6 +52,12 @@ Objects.cell={
                 c.event("native-cell-state","x="..x.." y="..y.." z="..(s.z or 0).." floor="..(sprite and sprite:getName() or "none").." room="..tostring(square:getRoom()~=nil).." outside="..tostring(square:isOutside()).." covered="..(square.haveRoof==nil and "unavailable" or tostring(square.haveRoof)).." stairs="..tostring(square:HasStairs()).." types="..table.concat(types,","))
             end
         end end
+    end,
+    tick=function(c,s,t)
+        local pending=c.nativeCellRemoval;if not pending then return true end
+        local objects=pending.square:getObjects()
+        for i=0,objects:size()-1 do local sprite=objects:get(i):getSprite();if sprite and sprite:getName()==pending.sprite then return false end end
+        c.nativeCellRemoval=nil;c.event("native-cell","remove x="..s.x.." y="..s.y.." z="..(s.z or 0).." count=0 sprites="..s.sprite);return true
     end
 }
 ModStudioScenarioObjects=Objects
