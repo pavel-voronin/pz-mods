@@ -1,5 +1,9 @@
 -- Bounded native-cell evidence and vanilla removal in an owned acceptance world.
 local Objects={}
+local function matches(object,s)
+    if s.kind=="tree" then return instanceof(object,"IsoTree") end
+    local sprite=object:getSprite();return sprite and sprite:getName()==s.sprite
+end
 local function integer(s,key,min,max,optional)
     local v=s[key];assert(optional and v==nil or type(v)=="number" and v==v and v%1==0 and v>=min and v<=max,"Invalid "..key)
 end
@@ -10,7 +14,8 @@ Objects.cell={
         integer(s,"radius",0,4,true)
         assert(s.radius==nil or s.action=="inspect","Radius applies only to inspect")
         assert(s.sprite==nil or type(s.sprite)=="string" and #s.sprite>0 and #s.sprite<=256 and string.match(s.sprite,"^[A-Za-z0-9_]+$"),"Invalid sprite")
-        if s.action~="inspect" then assert(s.sprite,"Mutation/expect requires exact sprite") end
+        assert(s.kind==nil or s.kind=="tree" and s.sprite==nil and s.action~="renderOffset","Invalid native cell kind")
+        if s.action~="inspect" then assert(s.sprite or s.kind=="tree","Mutation/expect requires exact sprite or native tree") end
         if s.action=="expect" then integer(s,"count",0,1024) else assert(s.count==nil,"Count applies only to expect") end
         if s.action=="renderOffset" then assert(type(s.renderYOffset)=="number" and s.renderYOffset==s.renderYOffset and s.renderYOffset>=-96 and s.renderYOffset<=96,"Invalid renderYOffset") else assert(s.renderYOffset==nil,"renderYOffset applies only to renderOffset") end
     end,
@@ -24,15 +29,15 @@ Objects.cell={
             local list=square:getObjects();local matches={};local names={}
             for i=0,list:size()-1 do
                 local object=list:get(i);local sprite=object:getSprite();local name=sprite and sprite:getName() or ""
-                if not s.sprite or name==s.sprite then matches[#matches+1]=object;names[#names+1]=name end
+                if not s.sprite and not s.kind or Objects.matches(object,s) then matches[#matches+1]=object;names[#names+1]=name end
             end
             if s.action=="remove" then
                 assert(#matches==1,"Removal requires one exact native object, found "..#matches)
                 if isClient() then
                     -- The vanilla debug destruction menu uses its authoritative MP packet.
-                    c.nativeCellRemoval={square=square,object=matches[1],sprite=s.sprite}
+                    c.nativeCellRemoval={square=square,object=matches[1],sprite=s.sprite,kind=s.kind}
                     sledgeDestroy(matches[1])
-                    c.event("native-cell-remove-request","x="..x.." y="..y.." z="..(s.z or 0).." sprite="..s.sprite)
+                    c.event("native-cell-remove-request","x="..x.." y="..y.." z="..(s.z or 0).." sprite="..names[1].." kind="..tostring(s.kind))
                     return
                 end
                 square:transmitRemoveItemFromSquare(matches[1])
@@ -56,9 +61,10 @@ Objects.cell={
     tick=function(c,s,t)
         local pending=c.nativeCellRemoval;if not pending then return true end
         local objects=pending.square:getObjects()
-        for i=0,objects:size()-1 do local sprite=objects:get(i):getSprite();if sprite and sprite:getName()==pending.sprite then return false end end
-        c.nativeCellRemoval=nil;c.event("native-cell","remove x="..s.x.." y="..s.y.." z="..(s.z or 0).." count=0 sprites="..s.sprite);return true
+        for i=0,objects:size()-1 do if Objects.matches(objects:get(i),pending) then return false end end
+        c.nativeCellRemoval=nil;c.event("native-cell","remove x="..s.x.." y="..s.y.." z="..(s.z or 0).." count=0 selector="..tostring(s.sprite or s.kind));return true
     end
 }
+Objects.matches=matches
 ModStudioScenarioObjects=Objects
 return Objects

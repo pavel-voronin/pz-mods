@@ -81,14 +81,14 @@ N.commands={
             if object:IsOpen()~=s.open then return false end
             c.event("network-door","x="..s.x.." y="..s.y.." open="..tostring(object:IsOpen()).." changed="..tostring(s.change==true));return true
         end},
-    cell={validate=function(s) coordinates(s);assert(type(s.sprite)=="string" and #s.sprite>0 and #s.sprite<=256 and string.match(s.sprite,"^[A-Za-z0-9_]+$"),"Invalid network sprite");number(s,"count",0,1024);assert(s.count%1==0,"Invalid network cell count") end,
+    cell={validate=function(s) coordinates(s);assert(s.kind==nil or s.kind=="tree" and s.sprite==nil,"Invalid network cell kind");assert(s.kind=="tree" or type(s.sprite)=="string" and #s.sprite>0 and #s.sprite<=256 and string.match(s.sprite,"^[A-Za-z0-9_]+$"),"Invalid network sprite");number(s,"count",0,1024);assert(s.count%1==0,"Invalid network cell count") end,
         start=function(c,s) end,
         tick=function(c,s,t)
             local square=getCell():getGridSquare(s.x,s.y,s.z or 0);if not square then return false end
             local objects=square:getObjects();local count=0
-            for i=0,objects:size()-1 do local sprite=objects:get(i):getSprite();if sprite and sprite:getName()==s.sprite then count=count+1 end end
+            for i=0,objects:size()-1 do if ModStudioScenarioObjects.matches(objects:get(i),s) then count=count+1 end end
             if count~=s.count then return false end
-            c.event("network-cell","x="..s.x.." y="..s.y.." z="..(s.z or 0).." sprite="..s.sprite.." count="..count);return true
+            c.event("network-cell","x="..s.x.." y="..s.y.." z="..(s.z or 0).." selector="..tostring(s.sprite or s.kind).." count="..count);return true
         end},
     window={validate=function(s) coordinates(s);assert(type(s.open)=="boolean" and (s.change==nil or type(s.change)=="boolean"),"Invalid window check") end,
         start=function(c,s) c.networkAttempted=false;c.networkPoll=0 end,
