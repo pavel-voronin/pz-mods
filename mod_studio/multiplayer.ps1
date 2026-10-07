@@ -136,6 +136,37 @@ try {
         }
     }
     $packages | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $output 'packages.json') -Encoding utf8
+    # Declared native entrypoints, rather than every historical JAR in a mod folder,
+    # identify the exact client build in the same diagnostics contract as SP.
+    $clientProvenance=@{}
+    $activePackages=@()
+    foreach($mod in $sources.GetEnumerator()){
+        $arguments=@();$declaredJar=$null
+        $infos=@(Get-ChildItem -LiteralPath $mod.Value -Recurse -Filter mod.info)
+        foreach($info in $infos){
+            $fields=@{};foreach($line in Get-Content -LiteralPath $info.FullName){if($line -match '^([^=]+)=(.*)$'){$fields[$Matches[1]]=$Matches[2]}}
+            if(!$fields.javaJarFile){continue}
+            $jar=[IO.Path]::GetFullPath((Join-Path $info.DirectoryName $fields.javaJarFile))
+            $hash=(Get-FileHash -LiteralPath $jar -Algorithm SHA256).Hash.ToLowerInvariant()
+            $commit='unknown';$dirty=$null
+            $gitRoot=git -C $mod.Value rev-parse --show-toplevel 2>$null
+            if($LASTEXITCODE -eq 0){
+                $commit=git -C $gitRoot rev-parse HEAD
+                $dirty=@(git -C $gitRoot status --porcelain -- .).Count -gt 0
+            }
+            if($arguments.Count){
+                if($declaredJar -eq $jar){continue}
+                throw "Ambiguous native Java entrypoints for mod $($mod.Key): record the selected native version before launch"
+            }
+            $declaredJar=$jar
+            $prefix="-Dmodstudio.scenario.$($fields.id)"
+            $arguments=@("$prefix.commit=$commit","$prefix.dirty=$dirty","$prefix.jarSha256=$hash","$prefix.jarPath=$jar")
+            $activePackages+=@{id=$fields.id;jar=$jar;sha256=$hash;commit=$commit;dirty=$dirty}
+        }
+        $clientProvenance[$mod.Key]=$arguments
+    }
+    $activePackages | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $output 'active-packages.json') -Encoding utf8
+
     $luaSources=@()
     foreach($mod in $sources.GetEnumerator()){
         if($mod.Key -notin (@($suite.server.mods)+@($suite.clients | ForEach-Object {$_.mods})+@('ZombieBuddy','mod_studio'))){continue}
@@ -181,6 +212,7 @@ try {
         if($null -ne $suite.prepareTimeout){$definition.prepareTimeout=$suite.prepareTimeout}
         $scenarioPath=Join-Path $cache 'scenario.json';$definition | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $scenarioPath -Encoding utf8
         $clientVm=@($config.vmArgs | Where-Object {$_ -notmatch '^-Xmx|^-Dzomboid.steam|^-agentlib:pz3dLoader|^-agentpath:.*pz3dLoader\.dll|^-javaagent:.*(pz3dLoader|ZombieBuddy)|^-XX:[+-]Use(?:Z|G1|Parallel|Serial|Shenandoah)GC'})+@('-Xmx4096m',$gcArgument,'-Dzomboid.steam=0',"-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')=config_dir=$cache/ZombieBuddy",'-Ddebug=true','-Dmodstudio.scenario.multiplayer=true',"-Dmodstudio.scenario=$scenarioPath","-Dmodstudio.scenario.output=$cache")
+        foreach($id in $mods){$clientVm+=@($clientProvenance[$id])}
         if($loader -eq 'pz3d'){$clientVm+="-javaagent:$Pz3dLoaderJar"}
         $record=Start-Native $name $cache ($clientVm+@('-cp','.;projectzomboid.jar','zombie.gameStates.MainScreenState','-debug','-nosteam','-windowed',"-cachedir=$cache"))
         $owned.Add($record);$launch.clients+=@{loader=$loader;name=$name;mods=$mods;pid=$record.process.Id;cache=$cache}
