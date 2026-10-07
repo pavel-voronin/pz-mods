@@ -32,9 +32,10 @@ Objects.cell={
                 assert(remaining==0,"Native removal did not remove object")
             elseif s.action=="renderOffset" then
                 assert(#matches==1,"Render offset requires one exact native object, found "..#matches)
+                local previous=matches[1]:getRenderYOffset()
                 matches[1]:setRenderYOffset(s.renderYOffset)
                 assert(math.abs(matches[1]:getRenderYOffset()-s.renderYOffset)<.0001,"Native render offset mismatch")
-                c.event("native-cell-transform","x="..x.." y="..y.." z="..(s.z or 0).." sprite="..s.sprite.." renderYOffset="..matches[1]:getRenderYOffset())
+                c.event("native-cell-transform","x="..x.." y="..y.." z="..(s.z or 0).." sprite="..s.sprite.." previousRenderYOffset="..previous.." renderYOffset="..matches[1]:getRenderYOffset())
             elseif s.action=="expect" then assert(#matches==s.count,"Native saved cell count "..#matches..", expected "..s.count) end
             c.event("native-cell",s.action.." x="..x.." y="..y.." z="..(s.z or 0).." count="..#matches.." sprites="..table.concat(names,","))
             if s.action=="inspect" then
