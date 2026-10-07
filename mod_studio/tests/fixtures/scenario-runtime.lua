@@ -181,6 +181,7 @@ PZ3D.scenarioAnimalRendered=function() return animalRendered==true end
 ModStudioScenario.humanLight=function(on,heading) assert(humanSpawned);humanLightOn=on;humanHeading=heading end
 
 PZ3D.scenarioStaticHold=function(enabled) staticHeld=enabled end
+PZ3D.scenarioWorldParity=function(action) return action=='compare' and 'compared=1 regions=1 differences=0 {}' or action end
 PZ3D.scenarioDynamicProbe=function(enabled) dynamicProbed=enabled end
 ModStudioScenario.savedWorld=function() return 'owned_test_world' end
 ModStudioScenario.saveNativeWorld=function() assert(not core:isNoSave());nativeSaved=(nativeSaved or 0)+1 end
