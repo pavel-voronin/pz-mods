@@ -58,6 +58,7 @@ API.register("native",{
             c.event("native-frame-rate","fps="..s.fps.." vsync="..tostring(ModStudioScenario.frameSync()))
         end},
     cell=ModStudioScenarioObjects.cell,
+    pairedDoor=ModStudioScenarioObjects.pairedDoor,
     networkWindow=ModStudio.Network.commands.window,
     networkDoor=ModStudio.Network.commands.door,
     networkCell=ModStudio.Network.commands.cell,

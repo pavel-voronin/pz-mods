@@ -66,5 +66,70 @@ Objects.cell={
     end
 }
 Objects.matches=matches
+-- Native four-part fixture. Sprite selection requires actual paired metadata;
+-- ToggleDoorActual retains native obstruction, relocation and replacement.
+Objects.pairedDoor={
+    validate=function(s)
+        assert(s.action=="spawn" or s.action=="open" or s.action=="close" or s.action=="inspect","Invalid paired door action")
+        if s.action=="spawn" then
+            integer(s,"x",4,99996);integer(s,"y",4,99996);integer(s,"z",-32,31,true)
+            assert(type(s.north)=="boolean","Paired door orientation required")
+        end
+    end,
+    start=function(c,s)
+        assert(ModStudioScenario.disposable() and not isClient(),"Paired door fixture requires an owned single-player world")
+        if s.action=="spawn" then
+            assert(not c.pairedDoor,"Paired door already installed")
+            local names
+            for _,prefix in ipairs({"fixtures_doors_01_","carpentry_02_"}) do
+                for begin=0,255 do
+                    local selected={}
+                    for index=begin,math.min(255,begin+15) do
+                        local name=prefix..index;local sprite=getSprite(name)
+                        if sprite then
+                            local p=sprite:getProperties();local part=tonumber(p:get("DoubleDoor"))
+                            if part and part>=1 and part<=4 and not p:has(IsoFlagType.open) and tostring(sprite:getType())==(s.north and "doorN" or "doorW") and not selected[part] then selected[part]=name end
+                        end
+                    end
+                    if selected[1] and selected[2] and selected[3] and selected[4] then names=selected;break end
+                end
+                if names then break end
+            end
+            assert(names,"No complete native paired sprite family")
+            local cell=getCell();local z=s.z or 0
+            for dy=-4,4 do for dx=-4,4 do assert(cell:getGridSquare(s.x+dx,s.y+dy,z),"Paired fixture neighbourhood not loaded") end end
+            local fixture={x=s.x,y=s.y,z=z,north=s.north,names=names}
+            for part=1,4 do
+                local square=cell:getGridSquare(s.x+(s.north and part-1 or 0),s.y-(s.north and 0 or part-1),z)
+                local list=square:getObjects();for i=0,list:size()-1 do local object=list:get(i);assert(not instanceof(object,"IsoDoor") and not instanceof(object,"IsoThumpable"),"Paired fixture cell already has a native boundary object") end
+            end
+            c.pairedDoor=fixture
+            for part=1,4 do
+                local square=cell:getGridSquare(s.x+(s.north and part-1 or 0),s.y-(s.north and 0 or part-1),z)
+                local door=IsoDoor.new(cell,square,getSprite(names[part]),s.north);square:AddSpecialObject(door)
+                if part==1 then fixture.master=door end
+            end
+            c.event("native-paired-door","spawn north="..tostring(s.north).." x="..s.x.." y="..s.y.." sprites="..table.concat(names,","))
+        else
+            local fixture=assert(c.pairedDoor,"Paired fixture not installed")
+            local anchor=assert(getCell():getGridSquare(fixture.x,fixture.y,fixture.z),"Paired master cell not loaded")
+            local objects=anchor:getObjects();local master
+            for i=0,objects:size()-1 do local object=objects:get(i);if instanceof(object,"IsoDoor") and object:getNorth()==fixture.north and IsoDoor.getDoubleDoorIndex(object)==1 then assert(not master,"Ambiguous paired master");master=object end end
+            fixture.master=assert(master,"Native paired master missing")
+            if s.action=="open" or s.action=="close" then
+                local wanted=s.action=="open"
+                if fixture.master:IsOpen()~=wanted then fixture.master:ToggleDoorActual(c.player) end
+                assert(fixture.master:IsOpen()==wanted,"Native paired door rejected toggle")
+            end
+            local open=fixture.master:IsOpen();local positions={}
+            for part=1,4 do
+                local object=IsoDoor.getDoubleDoorObject(fixture.master,part)
+                assert(object and object:IsOpen()==open,"Native paired part state mismatch")
+                local square=object:getSquare();positions[#positions+1]=part..":"..square:getX()..","..square:getY()..":"..object:getSprite():getName()
+            end
+            c.event("native-paired-door",s.action.." open="..tostring(open).." parts="..table.concat(positions,"|"))
+        end
+    end
+}
 ModStudioScenarioObjects=Objects
 return Objects
