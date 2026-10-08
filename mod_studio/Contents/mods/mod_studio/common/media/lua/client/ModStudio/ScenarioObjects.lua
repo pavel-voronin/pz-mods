@@ -135,5 +135,45 @@ Objects.pairedDoor={
         end
     end
 }
+
+-- Existing ordinary map door only: no synthetic paired fixture or door creation.
+Objects.doorSheet={
+    validate=function(s)
+        assert(s.action=="inspect" or s.action=="open" or s.action=="close" or s.action=="sheetAdd" or s.action=="sheetOpen" or s.action=="sheetClose" or s.action=="sheetRemove","Invalid door sheet action")
+        integer(s,"x",0,99999);integer(s,"y",0,99999);integer(s,"z",-32,31,true)
+        if s.action=="sheetAdd" then assert(type(s.inside)=="boolean","Native sheet side required") else assert(s.inside==nil,"Sheet side applies only to sheetAdd") end
+    end,
+    start=function(c,s)
+        assert(ModStudioScenario.disposable() and not isClient(),"Door sheet check requires an owned single-player world")
+        local square=assert(getCell():getGridSquare(s.x,s.y,s.z or 0),"Ordinary door cell not loaded")
+        local objects=square:getObjects();local door
+        for i=0,objects:size()-1 do local object=objects:get(i)
+            if instanceof(object,"IsoDoor") then
+                local p=object:getSprite():getProperties()
+                assert(not p:has("DoubleDoor") and not p:has("GarageDoor"),"Door sheet check requires an ordinary map door")
+                assert(not door,"Ambiguous ordinary map door");door=object
+            end
+        end
+        assert(door,"Ordinary map door missing")
+        if s.action=="open" or s.action=="close" then local wanted=s.action=="open";if door:IsOpen()~=wanted then door:ToggleDoorActual(c.player) end;assert(door:IsOpen()==wanted,"Native ordinary door rejected toggle") end
+            if s.action=="sheetAdd" then
+                assert(not door:HasCurtains(),"Native sheet already installed")
+                assert(c.player:getInventory():AddItem("Base.Sheet"),"Native sheet item unavailable")
+                door:addSheet(s.inside,c.player);assert(door:HasCurtains(),"Native sheet installation rejected")
+            elseif s.action=="sheetRemove" then
+                door:removeSheet(c.player);assert(not door:HasCurtains(),"Native sheet removal rejected")
+            elseif s.action=="sheetOpen" or s.action=="sheetClose" then
+                assert(door:HasCurtains(),"Native sheet missing");local wanted=s.action=="sheetOpen"
+                if door:isCurtainOpen()~=wanted then door:toggleCurtain() end
+                assert(door:isCurtainOpen()==wanted,"Native sheet toggle rejected")
+            end
+            if string.sub(s.action,1,5)=="sheet" then
+                local square=door:getSheetSquare()
+                c.event("native-door-sheet",s.action.." present="..tostring(door:HasCurtains()~=nil).." open="..tostring(door:isCurtainOpen()).." square="..(square and square:getX()..","..square:getY() or "none"))
+            end
+
+        c.event("native-ordinary-door",s.action.." x="..s.x.." y="..s.y.." sprite="..door:getSprite():getName().." open="..tostring(door:IsOpen()))
+    end
+}
 ModStudioScenarioObjects=Objects
 return Objects
