@@ -23,6 +23,16 @@ public final class ScenarioHost {
     private static final ArrayBlockingQueue<Map<String,Object>> events=new ArrayBlockingQueue<>(4096);
     private static volatile String status="running",reason="";
     public static double clock(){return System.nanoTime()*1e-9;}
+    /** A missing upper square is absence only after the owning vanilla chunk loaded. */
+    public static boolean loadedEmptyCell(double x,double y,double z){
+        if(!Double.isFinite(x+y+z)||x!=Math.rint(x)||y!=Math.rint(y)||z!=Math.rint(z)||x<0||y<0||x>100000||y>100000||z< -32||z>31)return false;
+        var cell=zombie.iso.IsoWorld.instance.currentCell;if(cell==null)return false;
+        int gx=(int)x,gy=(int)y,gz=(int)z;return loadedEmptyCell(cell.getChunkForGridSquare(gx,gy,gz),cell.getGridSquare(gx,gy,gz),gx,gy,gz);
+    }
+    static boolean loadedEmptyCell(zombie.iso.IsoChunk chunk,zombie.iso.IsoGridSquare square,int x,int y,int z){
+        if(chunk==null||!chunk.loaded||square!=null||chunk.wx!=Math.floorDiv(x,8)||chunk.wy!=Math.floorDiv(y,8))return false;
+        return z<chunk.getMinLevel()||z>chunk.getMaxLevel()||chunk.getGridSquare(Math.floorMod(x,8),Math.floorMod(y,8),z)==null;
+    }
     private static long abortPoll;
     public static String error(){
         long now=System.nanoTime();

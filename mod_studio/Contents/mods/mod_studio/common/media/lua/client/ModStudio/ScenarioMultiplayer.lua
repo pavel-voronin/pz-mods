@@ -84,7 +84,10 @@ N.commands={
     cell={validate=function(s) coordinates(s);assert(s.kind==nil or s.kind=="tree" and s.sprite==nil,"Invalid network cell kind");assert(s.kind=="tree" or type(s.sprite)=="string" and #s.sprite>0 and #s.sprite<=256 and string.match(s.sprite,"^[A-Za-z0-9_]+$"),"Invalid network sprite");number(s,"count",0,1024);assert(s.count%1==0,"Invalid network cell count") end,
         start=function(c,s) end,
         tick=function(c,s,t)
-            local square=getCell():getGridSquare(s.x,s.y,s.z or 0);if not square then return false end
+            local square=getCell():getGridSquare(s.x,s.y,s.z or 0);if not square then
+                if s.count==0 and ModStudioScenario.loadedEmptyCell(s.x,s.y,s.z or 0) then c.event("network-cell","x="..s.x.." y="..s.y.." z="..(s.z or 0).." selector="..tostring(s.sprite or s.kind).." count=0 authority=loaded-empty-cell");return true end
+                return false
+            end
             local objects=square:getObjects();local count=0
             for i=0,objects:size()-1 do if ModStudioScenarioObjects.matches(objects:get(i),s) then count=count+1 end end
             if count~=s.count then return false end

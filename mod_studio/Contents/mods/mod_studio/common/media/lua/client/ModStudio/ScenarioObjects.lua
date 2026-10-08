@@ -25,6 +25,10 @@ Objects.cell={
         local r=s.radius or 0
         for y=s.y-r,s.y+r do for x=s.x-r,s.x+r do
             local square=getCell():getGridSquare(x,y,s.z or 0)
+            if not square and s.action=="expect" and s.count==0 and ModStudioScenario.loadedEmptyCell(x,y,s.z or 0) then
+                c.event("native-cell","expect x="..x.." y="..y.." z="..(s.z or 0).." count=0 sprites= authority=loaded-empty-cell")
+                return
+            end
             assert(square,"Cell is not loaded: "..x..","..y)
             local list=square:getObjects();local matches={};local names={}
             for i=0,list:size()-1 do
