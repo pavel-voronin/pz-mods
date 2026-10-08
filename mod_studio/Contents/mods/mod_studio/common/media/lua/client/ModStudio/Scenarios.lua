@@ -3,6 +3,7 @@ require "ModStudio/ScenarioAPI"
 require "ModStudio/ScenarioMultiplayer"
 require "DebugUIs/DebugScenarios"
 require "TimedActions/ISTimedActionQueue"
+require "Vehicles/TimedActions/ISExitVehicle"
 require "ModStudio/ScenarioAnimals"
 require "ModStudio/ScenarioLights"
 require "ModStudio/ScenarioObjects"
@@ -107,6 +108,16 @@ API.register("native",{
             assert(c.nativeDriving,"Create a native scenario vehicle first")
             ModStudioDriving.drive(s.x,s.y,s.kmh);c.phase("MEASURE",s.timeout or 30)
         end,tick=function() return ModStudioDriving.poll() end},
+    exitVehicle={start=function(c,s)
+            local vehicle=c.player:getVehicle()
+            if not vehicle then return end
+            assert(vehicle:isStopped(),"Stop the native vehicle before exiting")
+            ISTimedActionQueue.add(ISExitVehicle:new(c.player))
+        end,tick=function(c,s)
+            if c.player:getVehicle() then return false end
+            event("native-exit-vehicle","onFoot=true")
+            return true
+        end},
     save={start=function(c,s)
         assert(c.definition.persistence,"Native save requires persistent acceptance")
         c.nativeAction("saveBegin",s)

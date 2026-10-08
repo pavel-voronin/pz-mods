@@ -61,7 +61,7 @@ function player:setPrimaryHandItem(v) self.primary=v end
 function player:setSecondaryHandItem(v) self.secondary=v end
 function player:getInventory() return inventory end
 function player:resetEquippedHandsModels() modelResets=(modelResets or 0)+1 end
-function player:getVehicle() return nil end
+function player:getVehicle() return self.vehicle end
 function player:getSquare() return square end
 function player:isDead() return false end
 function player:getX() return self.x end
@@ -191,3 +191,6 @@ ModStudioScenario.frameLimit=function() return nativeFrameRate end
 ModStudioScenario.setFrameLimit=function(value) nativeFrameRate=value end
 ModStudioScenario.frameSync=function() return core.vsync end
 ModStudioScenario.setFrameSync=function(value) core.vsync=value end
+
+ISExitVehicle={new=function(self,character) return {character=character,nativeExit=true} end}
+ISTimedActionQueue.add=function(action) exitQueued=action;exitCount=(exitCount or 0)+1 end
