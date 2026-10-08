@@ -60,6 +60,7 @@ API.register("native",{
     cell=ModStudioScenarioObjects.cell,
     pairedDoor=ModStudioScenarioObjects.pairedDoor,
     doorSheet=ModStudioScenarioObjects.doorSheet,
+    barricade=ModStudioScenarioObjects.barricade,
     networkWindow=ModStudio.Network.commands.window,
     networkDoor=ModStudio.Network.commands.door,
     networkCell=ModStudio.Network.commands.cell,

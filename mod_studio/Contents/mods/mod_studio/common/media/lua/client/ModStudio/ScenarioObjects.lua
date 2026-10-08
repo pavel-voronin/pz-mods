@@ -175,5 +175,49 @@ Objects.doorSheet={
         c.event("native-ordinary-door",s.action.." x="..s.x.." y="..s.y.." sprite="..door:getSprite():getName().." open="..tostring(door:IsOpen()))
     end
 }
+-- Native construction/destruction on an existing ordinary opening.
+Objects.barricade={
+    validate=function(s)
+        integer(s,"x",0,99999);integer(s,"y",0,99999);integer(s,"z",-32,31,true)
+        assert(type(s.opposite)=="boolean","Native barricade side required")
+        assert(s.action=="planks" or s.action=="inspect" or s.action=="destroy","Invalid barricade action")
+        if s.action=="destroy" then assert(s.count==nil,"Destruction has no plank count") else integer(s,"count",0,4) end
+    end,
+    start=function(c,s)
+        assert(ModStudioScenario.disposable() and not isClient(),"Barricade check requires an owned single-player world")
+        local square=assert(getCell():getGridSquare(s.x,s.y,s.z or 0),"Opening cell not loaded")
+        local objects=square:getObjects();local opening
+        for i=0,objects:size()-1 do local object=objects:get(i)
+            if instanceof(object,"IsoDoor") or instanceof(object,"IsoWindow") then
+                local p=object:getSprite():getProperties()
+                assert(not p:has("DoubleDoor") and not p:has("GarageDoor"),"Ordinary opening required")
+                assert(not opening,"Ambiguous native opening");opening=object
+            end
+        end
+        assert(opening,"Native opening missing")
+        local side=s.opposite and opening:getOppositeSquare() or opening:getSquare()
+        assert(side,"Barricade side not loaded")
+        local dir=opening:getNorth() and (s.opposite and IsoDirections.S or IsoDirections.N) or (s.opposite and IsoDirections.E or IsoDirections.W)
+        local barricade=IsoBarricade.GetBarricadeOnSquare(side,dir)
+        if s.action=="planks" then
+            if not barricade and s.count>0 then barricade=assert(IsoBarricade.AddBarricadeToObject(opening,s.opposite),"Native barricade installation rejected") end
+            if barricade then
+                assert(not barricade:isMetal() and not barricade:isMetalBar(),"Wooden barricade required")
+                while barricade:getNumPlanks()<s.count do local before=barricade:getNumPlanks();barricade:addPlank(c.player);assert(barricade:getNumPlanks()==before+1,"Native plank installation rejected") end
+                while barricade:getNumPlanks()>s.count do local before=barricade:getNumPlanks();barricade:removePlank(c.player);assert(barricade:getNumPlanks()==before-1,"Native plank removal rejected") end
+            end
+        elseif s.action=="destroy" then
+            assert(barricade,"Native barricade missing")
+            local strikes=0
+            while not barricade:isDestroyed() and strikes<200 do barricade:WeaponHit(c.player,nil);strikes=strikes+1 end
+            assert(barricade:isDestroyed(),"Native barricade destruction rejected")
+        end
+        barricade=IsoBarricade.GetBarricadeOnSquare(side,dir)
+        local count=barricade and barricade:getNumPlanks() or 0
+        assert(count==(s.action=="destroy" and 0 or s.count),"Native barricade count mismatch")
+        if count==0 then assert(not barricade,"Native empty barricade membership survived") end
+        c.event("native-barricade",s.action.." count="..count.." opening="..s.x..","..s.y.." square="..side:getX()..","..side:getY().." direction="..tostring(dir).." sprite="..(barricade and barricade:getSprite():getName() or "none"))
+    end
+}
 ModStudioScenarioObjects=Objects
 return Objects
