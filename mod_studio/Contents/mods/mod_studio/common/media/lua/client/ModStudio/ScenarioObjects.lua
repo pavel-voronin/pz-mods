@@ -70,18 +70,22 @@ Objects.matches=matches
 -- ToggleDoorActual retains native obstruction, relocation and replacement.
 Objects.pairedDoor={
     validate=function(s)
-        assert(s.action=="spawn" or s.action=="open" or s.action=="close" or s.action=="inspect","Invalid paired door action")
-        if s.action=="spawn" then
+        assert(s.action=="spawn" or s.action=="adopt" or s.action=="open" or s.action=="close" or s.action=="inspect","Invalid paired door action")
+        if s.action=="spawn" or s.action=="adopt" then
             integer(s,"x",4,99996);integer(s,"y",4,99996);integer(s,"z",-32,31,true)
             assert(type(s.north)=="boolean","Paired door orientation required")
         end
     end,
     start=function(c,s)
         assert(ModStudioScenario.disposable() and not isClient(),"Paired door fixture requires an owned single-player world")
+        if s.action=="adopt" then
+            assert(not c.pairedDoor,"Paired door already installed")
+            c.pairedDoor={x=s.x,y=s.y,z=s.z or 0,north=s.north}
+        end
         if s.action=="spawn" then
             assert(not c.pairedDoor,"Paired door already installed")
             local names
-            for _,prefix in ipairs({"fixtures_doors_01_","carpentry_02_"}) do
+            for _,prefix in ipairs({"fixtures_doors_fences_01_","walls_logs_"}) do
                 for begin=0,255 do
                     local selected={}
                     for index=begin,math.min(255,begin+15) do
