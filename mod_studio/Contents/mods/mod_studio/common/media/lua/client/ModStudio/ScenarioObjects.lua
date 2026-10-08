@@ -10,13 +10,16 @@ end
 Objects.cell={
     validate=function(s)
         integer(s,"x",0,100000);integer(s,"y",0,100000);integer(s,"z",-32,31,true)
-        assert(s.action=="inspect" or s.action=="remove" or s.action=="expect" or s.action=="renderOffset" or s.action=="overlay" or s.action=="expectOverlay","Invalid cell action")
+        assert(s.action=="inspect" or s.action=="remove" or s.action=="expect" or s.action=="renderOffset" or s.action=="overlay" or s.action=="expectOverlay" or s.action=="sprite" or s.action=="add","Invalid cell action")
         integer(s,"radius",0,4,true)
         assert(s.radius==nil or s.action=="inspect","Radius applies only to inspect")
         assert(s.sprite==nil or type(s.sprite)=="string" and #s.sprite>0 and #s.sprite<=256 and string.match(s.sprite,"^[A-Za-z0-9_]+$"),"Invalid sprite")
-        assert(s.kind==nil or s.kind=="tree" and s.sprite==nil and s.action~="renderOffset" and s.action~="overlay" and s.action~="expectOverlay","Invalid native cell kind")
+        assert(s.kind==nil or s.kind=="tree" and s.sprite==nil and s.action~="renderOffset" and s.action~="overlay" and s.action~="expectOverlay" and s.action~="sprite" and s.action~="add","Invalid native cell kind")
         if s.action~="inspect" then assert(s.sprite or s.kind=="tree","Mutation/expect requires exact sprite or native tree") end
         if s.action=="expect" then integer(s,"count",0,1024) else assert(s.count==nil,"Count applies only to expect") end
+        if s.action=="sprite" then
+            assert(s.sprite and type(s.replacementSprite)=="string" and #s.replacementSprite>0 and #s.replacementSprite<=256 and string.match(s.replacementSprite,"^[A-Za-z0-9_]+$"),"Exact root and replacement sprite required")
+        else assert(s.replacementSprite==nil,"replacementSprite applies only to sprite") end
         if s.action=="renderOffset" then assert(type(s.renderYOffset)=="number" and s.renderYOffset==s.renderYOffset and s.renderYOffset>=-96 and s.renderYOffset<=96,"Invalid renderYOffset") else assert(s.renderYOffset==nil,"renderYOffset applies only to renderOffset") end
         if s.action=="overlay" or s.action=="expectOverlay" then
             assert(s.sprite and type(s.overlaySprite)=="string" and #s.overlaySprite<=256 and (s.overlaySprite=="" or string.match(s.overlaySprite,"^[A-Za-z0-9_]+$")),"Exact root and overlay sprite required")
@@ -50,6 +53,22 @@ Objects.cell={
                 square:transmitRemoveItemFromSquare(matches[1])
                 local remaining=0;for i=0,list:size()-1 do if list:get(i)==matches[1] then remaining=remaining+1 end end
                 assert(remaining==0,"Native removal did not remove object")
+            elseif s.action=="sprite" or s.action=="add" then
+                assert(not isClient(),"Object fixture mutation requires an owned single-player world")
+                local name=s.action=="sprite" and s.replacementSprite or s.sprite
+                local image=assert(getSprite(name),"Native fixture sprite missing")
+                assert(image:getTextureForCurrentFrame(IsoDirections.N),"Native fixture image missing")
+                local object
+                if s.action=="sprite" then
+                    assert(#matches==1,"Sprite mutation requires one exact native object, found "..#matches)
+                    object=matches[1];object:setSprite(image)
+                else
+                    assert(#matches==0,"Native fixture already exists")
+                    object=IsoObject.new(getCell(),square,name);square:AddTileObject(object)
+                end
+                assert(object:getSprite() and object:getSprite():getName()==name,"Native fixture sprite mismatch")
+                square:RecalcAllWithNeighbours(true)
+                c.event("native-cell-object",s.action.." x="..x.." y="..y.." z="..(s.z or 0).." previous="..(s.action=="sprite" and s.sprite or "none").." sprite="..name)
             elseif s.action=="renderOffset" then
                 assert(#matches==1,"Render offset requires one exact native object, found "..#matches)
                 local previous=matches[1]:getRenderYOffset()
