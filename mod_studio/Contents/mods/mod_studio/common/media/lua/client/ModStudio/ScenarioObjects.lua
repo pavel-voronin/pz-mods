@@ -10,14 +10,17 @@ end
 Objects.cell={
     validate=function(s)
         integer(s,"x",0,100000);integer(s,"y",0,100000);integer(s,"z",-32,31,true)
-        assert(s.action=="inspect" or s.action=="remove" or s.action=="expect" or s.action=="renderOffset","Invalid cell action")
+        assert(s.action=="inspect" or s.action=="remove" or s.action=="expect" or s.action=="renderOffset" or s.action=="overlay" or s.action=="expectOverlay","Invalid cell action")
         integer(s,"radius",0,4,true)
         assert(s.radius==nil or s.action=="inspect","Radius applies only to inspect")
         assert(s.sprite==nil or type(s.sprite)=="string" and #s.sprite>0 and #s.sprite<=256 and string.match(s.sprite,"^[A-Za-z0-9_]+$"),"Invalid sprite")
-        assert(s.kind==nil or s.kind=="tree" and s.sprite==nil and s.action~="renderOffset","Invalid native cell kind")
+        assert(s.kind==nil or s.kind=="tree" and s.sprite==nil and s.action~="renderOffset" and s.action~="overlay" and s.action~="expectOverlay","Invalid native cell kind")
         if s.action~="inspect" then assert(s.sprite or s.kind=="tree","Mutation/expect requires exact sprite or native tree") end
         if s.action=="expect" then integer(s,"count",0,1024) else assert(s.count==nil,"Count applies only to expect") end
         if s.action=="renderOffset" then assert(type(s.renderYOffset)=="number" and s.renderYOffset==s.renderYOffset and s.renderYOffset>=-96 and s.renderYOffset<=96,"Invalid renderYOffset") else assert(s.renderYOffset==nil,"renderYOffset applies only to renderOffset") end
+        if s.action=="overlay" or s.action=="expectOverlay" then
+            assert(s.sprite and type(s.overlaySprite)=="string" and #s.overlaySprite<=256 and (s.overlaySprite=="" or string.match(s.overlaySprite,"^[A-Za-z0-9_]+$")),"Exact root and overlay sprite required")
+        else assert(s.overlaySprite==nil,"overlaySprite applies only to overlay actions") end
     end,
     start=function(c,s)
         assert(ModStudioScenario.disposable(),"Cell acceptance requires an owned disposable world")
@@ -53,6 +56,12 @@ Objects.cell={
                 matches[1]:setRenderYOffset(s.renderYOffset)
                 assert(math.abs(matches[1]:getRenderYOffset()-s.renderYOffset)<.0001,"Native render offset mismatch")
                 c.event("native-cell-transform","x="..x.." y="..y.." z="..(s.z or 0).." sprite="..s.sprite.." previousRenderYOffset="..previous.." renderYOffset="..matches[1]:getRenderYOffset())
+            elseif s.action=="overlay" or s.action=="expectOverlay" then
+                assert(#matches==1,"Overlay requires one exact native object, found "..#matches)
+                if s.action=="overlay" then matches[1]:setOverlaySprite(s.overlaySprite,false) end
+                local overlay=matches[1]:getOverlaySprite();local actual=overlay and overlay:getName() or ""
+                assert(actual==s.overlaySprite,"Native overlay mismatch: "..actual..", expected "..s.overlaySprite)
+                c.event("native-cell-overlay",s.action.." x="..x.." y="..y.." z="..(s.z or 0).." sprite="..s.sprite.." overlay="..actual)
             elseif s.action=="expect" then assert(#matches==s.count,"Native saved cell count "..#matches..", expected "..s.count) end
             c.event("native-cell",s.action.." x="..x.." y="..y.." z="..(s.z or 0).." count="..#matches.." sprites="..table.concat(names,","))
             if s.action=="inspect" then
