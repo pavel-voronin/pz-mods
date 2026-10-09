@@ -9,6 +9,8 @@ require "ModStudio/ScenarioLights"
 require "ModStudio/ScenarioObjects"
 local ScenarioLights=ModStudioScenarioLights
 local ScenarioAnimals=ModStudioScenarioAnimals
+require "ModStudio/ScenarioRoute"
+local ScenarioRoute=ModStudioScenarioRoute
 local API=ModStudio.Scenarios
 if API.installed then return end
 API.installed=true
@@ -43,10 +45,11 @@ API.register("native",{
         if ISChat and ISChat.instance then ISChat.instance:unfocus();ISChat.instance:setVisible(false) end
         return true
     end,
-    update=function(c) if c.nativeHuman then ModStudioScenario.updateHuman() end end,
+    update=function(c) ScenarioRoute.update(c);if c.nativeHuman then ModStudioScenario.updateHuman() end end,
     boundary=function(c) if c.nativeDriving then ModStudioDriving.stop() end end,
-    finish=function(c) ScenarioLights.clear(c);ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;if c.nativeFrameRate then ModStudioScenario.setFrameLimit(c.nativeFrameRate);ModStudioScenario.setFrameSync(c.nativeVSync);c.nativeFrameRate=nil end;return true end
+    finish=function(c) ScenarioRoute.clear(c);ScenarioLights.clear(c);ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;if c.nativeFrameRate then ModStudioScenario.setFrameLimit(c.nativeFrameRate);ModStudioScenario.setFrameSync(c.nativeVSync);c.nativeFrameRate=nil end;return true end
 }, {
+    routeLane=ScenarioRoute.command,
     frameRate={validate=function(s)
             assert(ModStudioScenario.frameLimit and ModStudioScenario.setFrameLimit and ModStudioScenario.frameSync and ModStudioScenario.setFrameSync,"Native frame cap API unavailable")
             number(s,"fps",24,244);assert(s.fps==math.floor(s.fps),"Frame rate requires integer fps")
