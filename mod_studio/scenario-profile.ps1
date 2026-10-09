@@ -13,7 +13,7 @@ function Connect-ModStudioCommonCache {
 }
 
 function Get-ModStudioPersistentProfile {
-    param([string]$Output,[string]$Game,[string[]]$Roots,[string]$Mode,[string]$ResumeArtifact='')
+    param([string]$Output,[string]$Game,[string[]]$Roots,[string]$Mode,[string]$ResumeArtifact='',[switch]$ReadOnly)
     $artifactRoot=Split-Path $Output
     if($Mode -eq 'resume'){
         if($ResumeArtifact -notmatch '^[0-9]{8}-T[0-9]{6}Z-[a-f0-9]{32}$'){throw 'ResumeArtifact must be an owned scenario artifact id'}
@@ -26,6 +26,26 @@ function Get-ModStudioPersistentProfile {
         if($owner.schema -ne 1 -or $owner.profile -ne $profile -or $owner.token -ne $oldLaunch.profileToken){throw 'Resume profile ownership mismatch'}
         $saved=Get-Content -LiteralPath (Join-Path $profile 'native-save.json') -Raw | ConvertFrom-Json
         if(!$saved.nativeSave -or $saved.profile -ne $profile -or $saved.gameMode -ne 'Sandbox' -or $saved.world -notmatch '^[A-Za-z0-9_-]{1,128}$'){throw 'No accepted native Sandbox save to resume'}
+        if($ReadOnly){
+            # Copy only native world state. Packages and common resources stay linked.
+            $sourceWorld=Join-Path $profile "Saves/Sandbox/$($saved.world)"
+            if(!(Test-Path -LiteralPath (Join-Path $sourceWorld 'map_ver.bin') -PathType Leaf)){throw 'Native checkpoint world is missing'}
+            $copy=Get-ModStudioPersistentProfile -Output $Output -Game $Game -Roots $Roots -Mode new
+            $worldDestination=Join-Path $copy.path "Saves/Sandbox/$($saved.world)"
+            if(Test-Path -LiteralPath $worldDestination){throw 'Replay destination already exists'}
+            New-Item -ItemType Directory -Path (Split-Path $worldDestination) -Force | Out-Null
+            Copy-Item -LiteralPath $sourceWorld -Destination $worldDestination -Recurse
+            foreach($file in @('options.ini','mods/default.txt','Lua/PZ3D.properties')){
+                $originalSetting=Join-Path $profile $file
+                if(Test-Path -LiteralPath $originalSetting){New-Item -ItemType Directory -Path (Split-Path (Join-Path $copy.path $file)) -Force | Out-Null;Copy-Item -LiteralPath $originalSetting -Destination (Join-Path $copy.path $file) -Force}
+            }
+            $saved.profile=$copy.path
+            $saved | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $copy.path 'native-save.json') -Encoding utf8
+            $sourceCache=Join-Path $profile 'PZ3D/fast-track'
+            if(Test-Path -LiteralPath $sourceCache -PathType Container){Connect-ModStudioCommonCache -Profile $copy -Source $sourceCache | Out-Null}
+            $copy.previous=$ResumeArtifact
+            return $copy
+        }
         return @{path=$profile;token=$owner.token;previous=$ResumeArtifact}
     }
     if($Mode -ne 'new' -or $ResumeArtifact){throw 'Persistent mode new cannot resume an artifact'}

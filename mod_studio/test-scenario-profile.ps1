@@ -68,3 +68,20 @@ $rejected=$false
 try {Connect-ModStudioCommonCache -Profile $isolated -Source $commonFixture | Out-Null}catch{$rejected=$true}
 if(!$rejected){throw 'Existing common cache was replaced'}
 Write-Output 'PASS: prepared common cache reuse, owner validation and existing-target preservation.'
+
+$launch | ConvertTo-Json | Set-Content (Join-Path $output 'launch.json')
+$fixtureWorld=Join-Path $profile 'Saves/Sandbox/native_world'
+New-Item -ItemType Directory -Path $fixtureWorld -Force | Out-Null
+[IO.File]::WriteAllText((Join-Path $fixtureWorld 'map_ver.bin'),'world version')
+[IO.File]::WriteAllText((Join-Path $fixtureWorld 'state.bin'),'original state')
+Connect-ModStudioCommonCache -Profile @{path=$profile;token='owner'} -Source $commonFixture | Out-Null
+$replayOutput=Join-Path $root '20261007-T000003Z-00000000000000000000000000000003'
+New-Item -ItemType Directory -Path $replayOutput | Out-Null
+$replay=Get-ModStudioPersistentProfile -Output $replayOutput -Game $game -Roots @($PSScriptRoot,$modRoot) -Mode resume -ResumeArtifact $id -ReadOnly
+$replayWorld=Join-Path $replay.path 'Saves/Sandbox/native_world'
+if($replay.path -eq $profile -or $replay.previous -ne $id -or [IO.File]::ReadAllText((Join-Path $replayWorld 'state.bin')) -ne 'original state'){throw 'Replay did not copy the original native checkpoint'}
+[IO.File]::WriteAllText((Join-Path $replayWorld 'state.bin'),'changed replay')
+if([IO.File]::ReadAllText((Join-Path $fixtureWorld 'state.bin')) -ne 'original state'){throw 'Replay changed the original checkpoint'}
+$replaySaved=Get-Content (Join-Path $replay.path 'native-save.json') -Raw | ConvertFrom-Json
+if($replaySaved.profile -ne $replay.path -or (Get-Item (Join-Path $replay.path 'mods/pz3d')).LinkType -ne 'Junction' -or (Get-Item (Join-Path $replay.path 'PZ3D/fast-track')).LinkType -ne 'Junction'){throw 'Replay copied packages or lost native ownership/common cache'}
+Write-Output 'PASS: immutable checkpoint replay, native world copy, linked packages and shared prepared common cache.'

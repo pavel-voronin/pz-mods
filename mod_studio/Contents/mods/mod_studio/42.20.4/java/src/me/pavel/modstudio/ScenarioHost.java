@@ -351,7 +351,8 @@ public final class ScenarioHost {
             else {error="Loading screenshot failed: "+screenshotError;loadingScreenshots=16;}
         }
         if(!loading && !shortcut)return;
-        if(loading)zombie.core.Core.getInstance().setNoSave(!persistent()||readOnlyReplay());
+        // Saved players need ordinary native loading before OnGameStart enables NoSave.
+        if(loading)zombie.core.Core.getInstance().setNoSave(!persistent());
         try{var field=zombie.gameStates.GameLoadingState.class.getDeclaredField("forceDone");field.setAccessible(true);field.setBoolean(state,true);}
         catch(Exception e){error="Native loading gate: "+e;}
     }

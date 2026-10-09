@@ -82,7 +82,7 @@ $launch=[ordered]@{schema=1;status='prepared';source=$scenarioPath;output=$outpu
 $persistentProfile=$null
 if($persistenceMode){
     . (Join-Path $PSScriptRoot 'scenario-profile.ps1')
-    $persistentProfile=Get-ModStudioPersistentProfile -Output $output -Game $Game -Roots $roots -Mode $persistenceMode -ResumeArtifact $ResumeArtifact
+    $persistentProfile=Get-ModStudioPersistentProfile -Output $output -Game $Game -Roots $roots -Mode $persistenceMode -ResumeArtifact $ResumeArtifact -ReadOnly:($data.persistence.readOnly -eq $true)
     $launch.nativeProfile=$persistentProfile.path;$launch.profileToken=$persistentProfile.token;$launch.persistence=$persistenceMode;$launch.resumeArtifact=$persistentProfile.previous
     if($ReuseCommonCache -and $persistenceMode -eq 'new'){$launch.commonCache=Connect-ModStudioCommonCache -Profile $persistentProfile}
     $arguments+=@("-Dmodstudio.scenario.profile=$($persistentProfile.path)","-Dmodstudio.scenario.profile.token=$($persistentProfile.token)")

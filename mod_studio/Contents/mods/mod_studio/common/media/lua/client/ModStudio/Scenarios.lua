@@ -50,6 +50,7 @@ API.register("native",{
     finish=function(c) ScenarioRoute.clear(c);ScenarioLights.clear(c);ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;if c.nativeFrameRate then ModStudioScenario.setFrameLimit(c.nativeFrameRate);ModStudioScenario.setFrameSync(c.nativeVSync);c.nativeFrameRate=nil end;return true end
 }, {
     routeLane=ScenarioRoute.command,
+    expectPosition=ScenarioRoute.position,
     frameRate={validate=function(s)
             assert(ModStudioScenario.frameLimit and ModStudioScenario.setFrameLimit and ModStudioScenario.frameSync and ModStudioScenario.setFrameSync,"Native frame cap API unavailable")
             number(s,"fps",24,244);assert(s.fps==math.floor(s.fps),"Frame rate requires integer fps")

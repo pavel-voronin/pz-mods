@@ -34,4 +34,12 @@ end,start=function(c,s)
     Route.update(c)
 end}
 ModStudioScenarioRoute=Route
+Route.position={validate=function(s)
+    for _,k in ipairs({"x","y"}) do local v=s[k];assert(type(v)=="number" and v==v and v>=0 and v<=100000,"Invalid expected "..k) end
+    assert(s.z==nil or type(s.z)=="number" and s.z>=-32 and s.z<=31 and s.z==math.floor(s.z),"Invalid expected floor")
+end,start=function(c,s)
+    local p=c.player
+    c.event("native-position-check","x="..p:getX().." y="..p:getY().." z="..p:getZ())
+    assert(math.abs(p:getX()-s.x)<=0.75 and math.abs(p:getY()-s.y)<=0.75 and math.abs(p:getZ()-(s.z or 0))<0.1,"Player is outside the expected route start")
+end}
 return Route
