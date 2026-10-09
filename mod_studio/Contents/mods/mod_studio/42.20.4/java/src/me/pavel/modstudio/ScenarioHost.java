@@ -7,7 +7,7 @@ import me.zed_0xff.zombie_buddy.Exposer;
 import me.zed_0xff.zombie_buddy.Patch;
 import se.krka.kahlua.vm.KahluaTable;
 
-/** External debug sessions only. No UI, network listener or dependency on a tested mod. */
+/** External debug sessions with compact progress; no dependency on a tested mod. */
 @Exposer.LuaClass(name="ModStudioScenario")
 public final class ScenarioHost {
     private static Map<String,Object> definition;
@@ -302,6 +302,9 @@ public final class ScenarioHost {
         manual=true;finish("interactive","World prepared; control handed to player");
     }
     public static void worldReady(){loading=false;}
+    public static void progress(String phase,int step,int total,String command,String next,double elapsed,double left,boolean exact,double future,double limits){
+        if(claimed&&definition!=null)ScenarioStatus.update(String.valueOf(definition.get("id")),phase,step,total,command,next,elapsed,left,exact,future,limits);
+    }
     public static void event(String kind,String detail){
         if(!claimed||finishing)return;
         if(!events.offer(Map.of("monotonic_ns",System.nanoTime(),"kind",kind,"detail",detail)))error="Scenario event queue overflow";
@@ -311,8 +314,10 @@ public final class ScenarioHost {
         try {
             Files.createDirectories(output);
             result("running","");
+            long progressAt=0;
             try(var writer=Files.newBufferedWriter(output.resolve("events.jsonl"))){
                 while(!finishing||!events.isEmpty()){
+                    long now=System.nanoTime();if(now>=progressAt){progressAt=now+500_000_000L;var progress=ScenarioStatus.progress();if(!progress.isEmpty()){var temporary=output.resolve("progress.tmp");Files.writeString(temporary,ScenarioJson.write(progress));Files.move(temporary,output.resolve("progress.json"),StandardCopyOption.REPLACE_EXISTING);}}
                     var event=events.poll(100,TimeUnit.MILLISECONDS);if(event!=null){writer.write(ScenarioJson.write(event));writer.flush();}
                 }
             }
@@ -327,6 +332,7 @@ public final class ScenarioHost {
         Files.move(temp,output.resolve("scenario-result.json"),StandardCopyOption.REPLACE_EXISTING);
     }
     public static void autoContinue(zombie.gameStates.GameLoadingState state){
+        ScenarioStatus.loadingHeartbeat();
         var env=zombie.Lua.LuaManager.env;
         boolean shortcut=env!=null && env.rawget("ModStudio") instanceof KahluaTable studio
             && studio.rawget("Launch") instanceof KahluaTable launch

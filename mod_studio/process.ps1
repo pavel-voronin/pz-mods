@@ -6,7 +6,7 @@ function Invoke-ModStudioProcess {
         $process=[Diagnostics.Process]::Start($Start)
         $Launch.pid=$process.Id;$Launch.status='launched'
         $Launch | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $launchPath -Encoding utf8
-        $watch=[Diagnostics.Stopwatch]::StartNew();$finishedAt=$null;$detached=$false
+        $watch=[Diagnostics.Stopwatch]::StartNew();$finishedAt=$null;$detached=$false;$progressAt=0;$progressPhase=''
         while(!$process.HasExited -and $watch.Elapsed.TotalSeconds -lt $TimeoutSeconds){
             if(Test-Path -LiteralPath $resultPath){
                 # Native result writes briefly hold an exclusive file handle.
@@ -18,6 +18,16 @@ function Invoke-ModStudioProcess {
                 if($result -and $result.status -ne 'running' -and $null -eq $finishedAt){$finishedAt=$watch.Elapsed.TotalSeconds}
             }
             if($null -ne $finishedAt -and $watch.Elapsed.TotalSeconds-$finishedAt -gt 20){break}
+            if($watch.Elapsed.TotalSeconds -ge $progressAt){
+                $progressAt=$watch.Elapsed.TotalSeconds+15
+                $progressPath=Join-Path $Output 'progress.json'
+                if(Test-Path -LiteralPath $progressPath){
+                    try{$progress=Get-Content -LiteralPath $progressPath -Raw | ConvertFrom-Json
+                        $timer=if($progress.exact_timer){'left'}else{'limit'}
+                        Write-Output ("Scenario {0}/{1}: {2} | {3} {4:N0}s | next {5} | input blocked={6}" -f $progress.step,$progress.total,$progress.command,$timer,$progress.left_seconds,$progress.next,$progress.input_blocked)
+                    }catch [System.IO.IOException] {}
+                }
+            }
             Start-Sleep -Milliseconds 250
         }
         if(!$detached -and !$process.HasExited){throw 'Game exceeded launch or shutdown deadline'}

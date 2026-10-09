@@ -4,7 +4,7 @@ getPlayerInfoPanel=function() return nil end
 isClient=function() return false end
 isServer=function() return false end
 Events={}
-for _,name in ipairs({"OnTick","OnTickEvenPaused","OnMainMenuEnter","OnFETick","OnGameStart"}) do
+for _,name in ipairs({"OnTick","OnTickEvenPaused","OnMainMenuEnter","OnFETick","OnGameStart","OnPostUIDraw"}) do
     local e={handlers={}}
     e.Add=function(f) e.handlers[#e.handlers+1]=f end
     e.fire=function() for _,f in ipairs(e.handlers) do f() end end

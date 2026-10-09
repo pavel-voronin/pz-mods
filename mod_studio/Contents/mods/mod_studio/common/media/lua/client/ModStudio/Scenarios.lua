@@ -366,8 +366,26 @@ Events.OnMainMenuEnter.Add(function()
     if claimed then if cfg and cfg.multiplayer and not ctx.player then return end;stop("aborted","Returned to menu");return end
     local ok,err=pcall(start);if not ok then stop("failed",err) end
 end)
+local progressAt=0
+local function progress()
+    if not claimed or not cfg or not ModStudioScenario.progress then return end
+    local at=now();if at<progressAt then return end;progressAt=at+0.5
+    local current=step and step.command or state or "loading"
+    if step and step.name then current=current.." "..step.name end
+    local following=cfg.steps[(ctx.stepIndex or 0)+1]
+    local exact=step and step.seconds and state~="WARMUP"
+    local left=math.max(0,(exact and since+step.seconds or deadline or at)-at)
+    local future,limits=0,0
+    for i=(ctx.stepIndex or 0)+1,#cfg.steps do
+        local s=cfg.steps[i]
+        if s.seconds and s.command~="pz3d.warmup" then future=future+s.seconds
+        elseif s.seconds or s.timeout then limits=limits+(s.seconds or s.timeout) end
+    end
+    ModStudioScenario.progress(state or "loading",ctx.stepIndex or 0,#cfg.steps,current,following and following.command or "",math.max(0,at-(since or at)),left,not not exact,future,limits)
+end
+Events.OnPostUIDraw.Add(progress) -- Native loading and ordinary HUD both update progress.
 local function update()
-    local ok,err=pcall(tick);if not ok then
+    local ok,err=pcall(tick);progress();if not ok then
         if state=="FINISH" then ModStudioScenario.finish("failed",tostring(err));state="CLOSED";finishAt=now()
         else stop("failed",err) end
     end
