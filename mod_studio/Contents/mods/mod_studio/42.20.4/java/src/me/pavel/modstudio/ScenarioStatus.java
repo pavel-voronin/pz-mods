@@ -42,9 +42,9 @@ public final class ScenarioStatus {
         int x=8,y=165;zombie.core.SpriteRenderer.instance.renderi(null,x,y,w+12,h*text.length+8,0,0,0,.75f,null);
         for(int i=0;i<text.length;i++)TextManager.instance.DrawString(font,x+6,y+4+i*h,text[i],.85,.9,.85,1);
     }
-    @Patch(className="zombie.ui.UIManager",methodName="render",warmUp=true)
+    @Patch(className="zombie.core.Core",methodName="EndFrameUI",warmUp=true)
     public static class NativeUi {
-        @Patch.OnExit public static void exit(){ScenarioStatus.draw();}
+        @Patch.OnEnter public static void enter(){ScenarioStatus.draw();}
     }
     private ScenarioStatus(){}
 }
