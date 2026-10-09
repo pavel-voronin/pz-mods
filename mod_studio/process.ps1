@@ -15,7 +15,7 @@ function Invoke-ModStudioProcess {
         if(Get-Command Update-ModStudioSession -ErrorAction SilentlyContinue){Update-ModStudioSession -Session $modStudioSession -Phase loading -Artifact $Output -Process $process}
         $Launch.pid=$process.Id;$Launch.status='launched'
         $Launch | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $launchPath -Encoding utf8
-        $watch=[Diagnostics.Stopwatch]::StartNew();$finishedAt=$null;$detached=$false;$progressAt=0;$progressPhase=''
+        $watch=[Diagnostics.Stopwatch]::StartNew();$finishedAt=$null;$detached=$false;$progressAt=0;$progressPhase='';$progressSamples=0
         while(!$process.HasExited -and $watch.Elapsed.TotalSeconds -lt $TimeoutSeconds){
             if(Test-Path -LiteralPath $resultPath){
                 # Native result writes briefly hold an exclusive file handle.
@@ -29,6 +29,7 @@ function Invoke-ModStudioProcess {
             }
             if($null -ne $finishedAt -and $watch.Elapsed.TotalSeconds-$finishedAt -gt 20){break}
             if($watch.Elapsed.TotalSeconds -ge $progressAt){
+                $progressStarted=[Diagnostics.Stopwatch]::GetTimestamp()
                 $progressAt=$watch.Elapsed.TotalSeconds+15
                 $progressPath=Join-Path $Output 'progress.json'
                 if(Test-Path -LiteralPath $progressPath){
@@ -38,6 +39,11 @@ function Invoke-ModStudioProcess {
                         if(Get-Command Update-ModStudioSession -ErrorAction SilentlyContinue){Update-ModStudioSession -Session $modStudioSession -Phase ("scenario: "+$progress.command)}
                         Write-Output ("Scenario {0}/{1}: {2} | {3} {4:N0}s | next {5} | input blocked={6}" -f $progress.step,$progress.total,$progress.command,$timer,$progress.left_seconds,$progress.next,$progress.input_blocked)
                     }catch [System.IO.IOException] {}
+                }
+                if($progressSamples -lt 512){
+                    $progressEnded=[Diagnostics.Stopwatch]::GetTimestamp();$progressSamples++
+                    $progressRecord=@{kind='external-progress';start_ns=[long]($progressStarted*1e9/[Diagnostics.Stopwatch]::Frequency);end_ns=[long]($progressEnded*1e9/[Diagnostics.Stopwatch]::Frequency);elapsed_ms=($progressEnded-$progressStarted)*1000.0/[Diagnostics.Stopwatch]::Frequency}
+                    [IO.File]::AppendAllText((Join-Path $Output 'launcher-events.jsonl'),($progressRecord | ConvertTo-Json -Compress)+[Environment]::NewLine,[Text.UTF8Encoding]::new($false))
                 }
             }
             Start-Sleep -Milliseconds 250
