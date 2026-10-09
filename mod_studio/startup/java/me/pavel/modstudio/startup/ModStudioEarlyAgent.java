@@ -29,10 +29,6 @@ public final class ModStudioEarlyAgent {
             actual=HexFormat.of().formatHex(digest.digest());
         }
         if(!actual.equals(expected)){StartupTrace.note("version-fallback","Unrecognized game build");StartupTrace.finish();return;}
-        // Define the native exposer outside a filesystem transform. Otherwise a
-        // loader's first recursive class load can bypass its own exposure advice.
-        // No initialization, API substitution or third-party patch is performed.
-        Class.forName("zombie.Lua.LuaManager$Exposer",false,ClassLoader.getSystemClassLoader());
         StartupScanner.enabled=true;StartupWatch.enabled=true;StartupWatch.deferUntilStartupComplete=true;
         var builder=new AgentBuilder.Default().disableClassFormatChanges()
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
