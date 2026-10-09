@@ -16,4 +16,8 @@ try {
     if($LASTEXITCODE -ne 0){throw 'Scenario regression failed.'}
     & $java -cp "$classes;$cp" me.pavel.modstudio.ScenarioStatusRegression
     if($LASTEXITCODE -ne 0){throw 'Scenario status regression failed.'}
+    & $java -jar $compiler -25 -encoding UTF-8 -proc:none -nowarn -cp $cp -d $classes (Join-Path $PSScriptRoot 'tests/me/pavel/modstudio/ScenarioDisplayRegression.java')
+    if($LASTEXITCODE -ne 0){throw 'Display regression compilation failed.'}
+    & $java -cp "$classes;$cp" me.pavel.modstudio.ScenarioDisplayRegression $PSScriptRoot
+    if($LASTEXITCODE -ne 0){throw 'Scenario display regression failed.'}
 } finally {Pop-Location}

@@ -93,6 +93,14 @@ public final class ScenarioHost {
         });
     }
     public static boolean screenshotReady(){if(!screenshotError.isEmpty())throw new IllegalStateException(screenshotError);return screenshotDone;}
+    public static String expectDisplay(int width,int height){
+        if(!requested()||!claimed||!disposable())throw new IllegalStateException("Display assertion requires an owned disposable scenario");
+        int w=org.lwjglx.opengl.Display.getWidth(),h=org.lwjglx.opengl.Display.getHeight();
+        int fw=org.lwjglx.opengl.Display.getFramebufferWidth(),fh=org.lwjglx.opengl.Display.getFramebufferHeight();
+        if(w!=width||h!=height||fw!=width||fh!=height)return "Display mismatch: window="+w+"x"+h+" framebuffer="+fw+"x"+fh+" expected="+width+"x"+height;
+        event("display-verified",width+"x"+height+" window and framebuffer");
+        return "";
+    }
     public static int clearVehicles(double x0,double y0,double x1,double y1){
         if(!requested()||!claimed||!zombie.core.Core.getInstance().isNoSave())throw new IllegalStateException("Vehicle clearing requires a disposable scenario world");
         if(!(x0>=0&&y0>=0&&x1<=100000&&y1<=100000&&x1>x0&&y1>y0&&x1-x0<=128&&y1-y0<=128))throw new IllegalArgumentException("Invalid vehicle clearing bounds");

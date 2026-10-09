@@ -9,6 +9,9 @@ param(
     [switch]$PrepareOnly,
     [string]$ResumeArtifact='',
     [switch]$ReuseCommonCache,
+    [ValidateRange(0,7680)][int]$WindowWidth=0,
+    [ValidateRange(0,4320)][int]$WindowHeight=0,
+    [switch]$FullScreen,
     [switch]$Mcp,
     [ValidateRange(60,7200)][int]$McpSeconds=1800,
     [ValidateSet('Java','Native')][string]$Launcher='Java',
@@ -26,6 +29,9 @@ if($data.schema -ne 1 -or $data.id -notmatch '^[a-z0-9_-]{1,80}$' -or !$data.spa
 if($data.steps.Count -gt 512){throw 'At most 512 steps.'}
 $persistenceMode=''
 if($ReuseCommonCache -and !$data.persistence){throw 'Common cache reuse requires an owned persistent profile'}
+if(($WindowWidth -eq 0) -ne ($WindowHeight -eq 0) -or ($WindowWidth -ne 0 -and ($WindowWidth -lt 640 -or $WindowHeight -lt 480))){throw 'Display override requires both width >= 640 and height >= 480'}
+if($WindowWidth -and !$IsolatedProfile -and !$data.persistence){throw 'Display override requires an owned profile'}
+if($FullScreen -and !$WindowWidth){throw 'Fullscreen override requires explicit owned display dimensions'}
 if($data.persistence){
     $persistenceMode=[string]$data.persistence.mode
     $persistenceFields=@($data.persistence.PSObject.Properties.Name)
@@ -91,6 +97,12 @@ if($IsolatedProfile){
     . (Join-Path $PSScriptRoot 'scenario-profile.ps1')
     $persistentProfile=Get-ModStudioIsolatedProfile -Output $output -Game $Game -Roots $roots -ReuseArtifact $ReuseIsolatedArtifact
     $launch.nativeProfile=$persistentProfile.path;$launch.isolatedProfile=$true;$launch.reusedIsolatedArtifact=$ReuseIsolatedArtifact
+}
+if($WindowWidth){
+    Set-ModStudioProfileDisplay -Profile $persistentProfile -Width $WindowWidth -Height $WindowHeight -FullScreen:$FullScreen
+    $launch.requestedWidth=$WindowWidth;$launch.requestedHeight=$WindowHeight
+    $launch.requestedFullscreen=[bool]$FullScreen
+    Copy-Item -LiteralPath (Join-Path $persistentProfile.path 'options.ini') -Destination (Join-Path $output 'game-options.ini') -Force
 }
 $launchPath=Join-Path $output 'launch.json'
 $launch | ConvertTo-Json | Set-Content -LiteralPath $launchPath -Encoding utf8

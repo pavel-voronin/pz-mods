@@ -85,3 +85,19 @@ if([IO.File]::ReadAllText((Join-Path $fixtureWorld 'state.bin')) -ne 'original s
 $replaySaved=Get-Content (Join-Path $replay.path 'native-save.json') -Raw | ConvertFrom-Json
 if($replaySaved.profile -ne $replay.path -or (Get-Item (Join-Path $replay.path 'mods/pz3d')).LinkType -ne 'Junction' -or (Get-Item (Join-Path $replay.path 'PZ3D/fast-track')).LinkType -ne 'Junction'){throw 'Replay copied packages or lost native ownership/common cache'}
 Write-Output 'PASS: immutable checkpoint replay, native world copy, linked packages and shared prepared common cache.'
+
+$originalDisplayOptions=[IO.File]::ReadAllText((Join-Path $replay.path 'options.ini'))
+$nativeDisplayHash=(Get-FileHash -LiteralPath (Join-Path $native 'options.ini')).Hash
+Set-ModStudioProfileDisplay -Profile $replay -Width 1920 -Height 1200
+$displayOptions=[IO.File]::ReadAllText((Join-Path $replay.path 'options.ini'))
+if($displayOptions -notmatch '(?m)^width=1920\r?$' -or $displayOptions -notmatch '(?m)^height=1200\r?$'){throw 'Owned display override was not applied'}
+if(($displayOptions -replace '(?m)^(width|height)=[^\r\n]*','display=removed') -ne ($originalDisplayOptions -replace '(?m)^(width|height)=[^\r\n]*','display=removed')){throw 'Display override changed other settings'}
+if((Get-FileHash -LiteralPath (Join-Path $native 'options.ini')).Hash -ne $nativeDisplayHash){throw 'Owned display override changed user options'}
+$rejected=$false
+try{Set-ModStudioProfileDisplay -Profile @{path=$replay.path;token='wrong'} -Width 1920 -Height 1200}catch{$rejected=$true}
+if(!$rejected){throw 'Display override accepted an unowned profile'}
+Write-Output 'PASS: explicit owned display dimensions, unrelated preferences and user profile preservation, owner rejection.'
+Set-ModStudioProfileDisplay -Profile $replay -Width 1920 -Height 1200 -FullScreen
+$fullDisplayOptions=[IO.File]::ReadAllText((Join-Path $replay.path 'options.ini'))
+if($fullDisplayOptions -notmatch '(?m)^fullScreen=true\r?$' -or $fullDisplayOptions -notmatch '(?m)^borderless=false\r?$'){throw 'Native fullscreen display override was not applied'}
+Write-Output 'PASS: native fullscreen prevents decorated-window sizing from reducing benchmark dimensions.'

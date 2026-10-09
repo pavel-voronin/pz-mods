@@ -12,6 +12,24 @@ function Connect-ModStudioCommonCache {
     return $target
 }
 
+function Set-ModStudioProfileDisplay {
+    param([hashtable]$Profile,[ValidateRange(640,7680)][int]$Width,[ValidateRange(480,4320)][int]$Height,[switch]$FullScreen)
+    $root=(Resolve-Path -LiteralPath $Profile.path).Path
+    $owner=Get-Content -LiteralPath (Join-Path $root 'profile-owner.json') -Raw | ConvertFrom-Json
+    if($owner.schema -ne 1 -or $owner.profile -ne $root -or $owner.token -ne $Profile.token){throw 'Display profile ownership mismatch'}
+    $path=Join-Path $root 'options.ini';$options=[IO.File]::ReadAllText($path)
+    foreach($entry in @(@('width',$Width),@('height',$Height))){
+        $pattern='(?m)^'+$entry[0]+'=[^\r\n]*'
+        if(![regex]::IsMatch($options,$pattern)){throw 'Display option missing'}
+        $options=[regex]::Replace($options,$pattern,($entry[0]+'='+$entry[1]))
+    }
+    if($FullScreen){
+        $options=[regex]::Replace($options,'(?m)^fullScreen=[^\r\n]*','fullScreen=true')
+        $options=[regex]::Replace($options,'(?m)^borderless=[^\r\n]*','borderless=false')
+    }
+    [IO.File]::WriteAllText($path,$options,[Text.UTF8Encoding]::new($false))
+}
+
 function Get-ModStudioPersistentProfile {
     param([string]$Output,[string]$Game,[string[]]$Roots,[string]$Mode,[string]$ResumeArtifact='',[switch]$ReadOnly)
     $artifactRoot=Split-Path $Output

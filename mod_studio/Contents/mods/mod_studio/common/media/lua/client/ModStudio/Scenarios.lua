@@ -132,6 +132,14 @@ API.register("native",{
         c.nativeAction("saveEnd",s)
         if not ok then error(err) end
     end},
+    expectDisplay={validate=function(s)
+        number(s,"width",640,7680);number(s,"height",480,4320)
+        assert(s.width==math.floor(s.width) and s.height==math.floor(s.height),"Display dimensions must be integers")
+    end,start=function(c,s)
+        local error=ModStudioScenario.expectDisplay(s.width,s.height)
+        assert(error=="",error or "Display assertion unavailable")
+        c.event("native-display-verified",s.width.."x"..s.height)
+    end},
     playerFlags={validate=function(s)
             assert(type(s.invisible)=="boolean","Invalid invisible")
             assert(s.ghost==nil,"Use invisible: GhostMode is the same native flag")
