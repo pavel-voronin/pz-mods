@@ -5,6 +5,7 @@ param(
     [string[]]$ModRoots=@(),
     [switch]$SkipBuild,
     [switch]$IsolatedProfile,
+    [string]$ReuseIsolatedArtifact='',
     [switch]$PrepareOnly,
     [string]$ResumeArtifact='',
     [switch]$Mcp,
@@ -26,6 +27,7 @@ if($data.persistence){
     if($data.multiplayer -or $data.manual -or ($data.repeats -and $data.repeats -ne 1) -or $Mcp -or $Launcher -ne 'Java'){throw 'Persistent acceptance requires one owned Java single-player run'}
     if(($persistenceMode -eq 'resume') -ne [bool]$ResumeArtifact){throw 'ResumeArtifact is required only for persistence mode resume'}
 }elseif($ResumeArtifact){throw 'ResumeArtifact requires persistence mode resume'}
+if($ReuseIsolatedArtifact -and !$IsolatedProfile){throw 'ReuseIsolatedArtifact requires IsolatedProfile'}
 if($IsolatedProfile -and ($persistenceMode -or $Launcher -ne 'Java')){throw 'IsolatedProfile requires a nonpersistent Java scenario'}
 if($Mcp -and $data.multiplayer){throw 'Use the single-player scenario launcher for MCP continuation.'}
 if(@($data.steps | Where-Object {$_.command -like 'mcp.*'}).Count){throw 'Enable MCP with -Mcp, not a scenario command.'}
@@ -80,8 +82,8 @@ if($persistenceMode){
 }
 if($IsolatedProfile){
     . (Join-Path $PSScriptRoot 'scenario-profile.ps1')
-    $persistentProfile=Get-ModStudioIsolatedProfile -Output $output -Game $Game -Roots $roots
-    $launch.nativeProfile=$persistentProfile.path;$launch.isolatedProfile=$true
+    $persistentProfile=Get-ModStudioIsolatedProfile -Output $output -Game $Game -Roots $roots -ReuseArtifact $ReuseIsolatedArtifact
+    $launch.nativeProfile=$persistentProfile.path;$launch.isolatedProfile=$true;$launch.reusedIsolatedArtifact=$ReuseIsolatedArtifact
 }
 $launchPath=Join-Path $output 'launch.json'
 $launch | ConvertTo-Json | Set-Content -LiteralPath $launchPath -Encoding utf8

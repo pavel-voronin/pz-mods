@@ -50,7 +50,32 @@ function Get-ModStudioPersistentProfile {
 
 # NoSave uses the same native package links as persistent/MP runs, preserving user quality.
 function Get-ModStudioIsolatedProfile {
-    param([string]$Output,[string]$Game,[string[]]$Roots)
+    param([string]$Output,[string]$Game,[string[]]$Roots,[string]$ReuseArtifact='')
+    if($ReuseArtifact){
+        if($ReuseArtifact -notmatch '^[0-9]{8}-T[0-9]{6}Z-[a-f0-9]{32}$'){throw 'ReuseArtifact must identify an owned isolated artifact'}
+        $previous=Join-Path (Split-Path $Output) $ReuseArtifact
+        $launch=Get-Content -LiteralPath (Join-Path $previous 'launch.json') -Raw | ConvertFrom-Json
+        if(!$launch.isolatedProfile -or !$launch.exited -or $launch.exitCode -ne 0 -or $launch.forcedExit -or $launch.manualControl){throw 'Reuse requires a normally exited isolated NoSave process'}
+        $profile=(Resolve-Path -LiteralPath $launch.nativeProfile).Path
+        $expected=[IO.Path]::GetFullPath((Join-Path $previous 'native-profile'))
+        if($profile -ne $expected){throw 'Reused profile must belong to this artifact'}
+        $owner=Get-Content -LiteralPath (Join-Path $profile 'profile-owner.json') -Raw | ConvertFrom-Json
+        if($owner.schema -ne 1 -or $owner.profile -ne $profile -or !$owner.token){throw 'Isolated profile ownership mismatch'}
+        foreach($root in $Roots){foreach($package in Get-ChildItem -LiteralPath (Join-Path $root 'Contents/mods') -Directory){
+            $link=Get-Item -LiteralPath (Join-Path $profile "mods/$($package.Name)")
+            if($link.LinkType -ne 'Junction' -or $link.Target -ne $package.FullName){throw 'Reused package checkout mismatch'}
+        }}
+        # Keep old console evidence before the native logger replaces it.
+        if(!(Test-Path -LiteralPath (Join-Path $previous 'console.txt'))){throw 'Previous console evidence is missing'}
+        $approvalPath=Join-Path $profile 'ZombieBuddy/mod_approvals.json'
+        $approvals=Get-Content -LiteralPath $approvalPath -Raw | ConvertFrom-Json
+        foreach($root in $Roots){foreach($info in Get-ChildItem -LiteralPath (Join-Path $root 'Contents/mods') -Recurse -Filter mod.info){
+            $fields=@{};foreach($line in Get-Content -LiteralPath $info.FullName){if($line -match '^([^=]+)=(.*)$'){$fields[$Matches[1]]=$Matches[2]}}
+            if($fields.javaJarFile){$jar=Join-Path $info.DirectoryName $fields.javaJarFile;$approvals.mods=@($approvals.mods)+@(@{id=$fields.id;jar_hash=(Get-FileHash -LiteralPath $jar -Algorithm SHA256).Hash.ToLowerInvariant();decision=$true;time=[DateTime]::UtcNow.ToString('o')})}
+        }}
+        $approvals | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $approvalPath -Encoding utf8
+        return @{path=$profile;token=$owner.token;previous=$ReuseArtifact}
+    }
     $result=Get-ModStudioPersistentProfile -Output $Output -Game $Game -Roots $Roots -Mode new
     $profile=$result.path
     $native=Join-Path $env:USERPROFILE 'Zomboid'

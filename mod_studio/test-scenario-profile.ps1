@@ -28,7 +28,8 @@ foreach($invalid in @('../user','native-profile','')){
 }
 Write-Output 'PASS: owned profile resume, failed process rejection and artifact identity bounds.'
 
-$isolatedOutput=Join-Path $root 'isolated-nosave'
+$isolatedId='20261007-T000002Z-00000000000000000000000000000002'
+$isolatedOutput=Join-Path $root $isolatedId
 New-Item -ItemType Directory -Path $isolatedOutput | Out-Null
 $game='C:/Program Files (x86)/Steam/steamapps/common/ProjectZomboid'
 $modRoot=Join-Path (Split-Path $PSScriptRoot) 'pz3d'
@@ -41,3 +42,14 @@ foreach($file in @('options.ini','mods/default.txt','Lua/PZ3D.properties')){
 $link=Get-Item -LiteralPath (Join-Path $isolated.path 'mods/pz3d')
 if($link.LinkType -ne 'Junction' -or $link.Target -ne (Join-Path $modRoot 'Contents/mods/pz3d')){throw 'Isolated native package is not linked to the requested checkout'}
 Write-Output 'PASS: isolated NoSave package links, active mod preset, exact resolution and client preferences.'
+
+$isolatedLaunch=@{isolatedProfile=$true;nativeProfile=$isolated.path;exited=$true;exitCode=0;manualControl=$false;forcedExit=$false}
+$isolatedLaunch | ConvertTo-Json | Set-Content (Join-Path $isolatedOutput 'launch.json')
+[IO.File]::WriteAllText((Join-Path $isolatedOutput 'console.txt'),'previous evidence')
+$reused=Get-ModStudioIsolatedProfile -Output $next -Game $game -Roots @($PSScriptRoot,$modRoot) -ReuseArtifact $isolatedId
+if($reused.path -ne $isolated.path){throw 'Isolated cache/profile was not reused'}
+$isolatedLaunch.manualControl=$true
+$isolatedLaunch | ConvertTo-Json | Set-Content (Join-Path $isolatedOutput 'launch.json')
+$rejected=$false;try{Get-ModStudioIsolatedProfile -Output $next -Game $game -Roots @($PSScriptRoot,$modRoot) -ReuseArtifact $isolatedId | Out-Null}catch{$rejected=$true}
+if(!$rejected){throw 'Live/manual isolated profile was accepted'}
+Write-Output 'PASS: owned NoSave profile reuse, preserved console evidence and manual-session rejection.'
