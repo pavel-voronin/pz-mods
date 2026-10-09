@@ -65,7 +65,8 @@ try {
     Copy-Item -LiteralPath $active -Destination (Join-Path $output 'active-mods.txt')
     [IO.File]::WriteAllText($request,"$token`n$Seconds`n$([int][bool]$ReloadLua)`n$EnableModOnReload`n",[Text.UTF8Encoding]::new($false))
     $config=Get-Content -LiteralPath (Join-Path $Game 'ProjectZomboid64.json') -Raw | ConvertFrom-Json
-    $arguments=@($config.vmArgs)
+    # The native UI.DisableLogoState option is active in debug mode.
+    $arguments=@($config.vmArgs)+@('-Ddebug=true')
     if($Loaders -ne 'Configured'){$arguments=@($arguments | Where-Object {$_ -notmatch '^-((javaagent|agentlib|agentpath):)'})}
     if($Loaders -eq 'Buddy'){$arguments+="-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')"}
     if($Loaders -eq 'Pz3dLoaderJava'){$arguments+="-javaagent:$(Join-Path $Game 'pz3dLoader.jar')"}
@@ -80,6 +81,7 @@ try {
     }
     if($Launcher -eq 'Native'){
         $start.FileName=Join-Path $Game 'ProjectZomboid64.exe'
+        $start.ArgumentList.Add('-Ddebug=true')
         if($WithBuddy){$start.ArgumentList.Add('-agentlib:zbNative=policy=allow-all')}
         $start.ArgumentList.Add('--')
     }else{
