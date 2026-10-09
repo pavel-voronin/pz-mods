@@ -1,3 +1,11 @@
+function Read-ModStudioJson {
+    param([string]$Path)
+    $stream=[IO.FileStream]::new($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete)
+    try {
+        $reader=[IO.StreamReader]::new($stream)
+        try {return ($reader.ReadToEnd() | ConvertFrom-Json -ErrorAction Stop)}finally{$reader.Dispose()}
+    }finally{$stream.Dispose()}
+}
 function Invoke-ModStudioProcess {
     param([Diagnostics.ProcessStartInfo]$Start, $Launch, [string]$Output, [int]$TimeoutSeconds, [string]$ResultPath=(Join-Path $Output 'scenario-result.json'),[string]$ConsolePath='')
     $process=$null
@@ -13,7 +21,7 @@ function Invoke-ModStudioProcess {
                 # Native result writes briefly hold an exclusive file handle.
                 # Retry that IO race as well as incomplete JSON within the deadline.
                 $result=$null
-                try {$result=Get-Content -LiteralPath $resultPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction SilentlyContinue}
+                try {$result=Read-ModStudioJson -Path $resultPath}
                 catch [System.IO.IOException] {}
                 if($result -and $result.status -eq 'interactive'){$detached=$true;break}
                 if($result -and $result.status -ne 'running' -and $null -eq $finishedAt){$finishedAt=$watch.Elapsed.TotalSeconds}
@@ -24,7 +32,8 @@ function Invoke-ModStudioProcess {
                 $progressAt=$watch.Elapsed.TotalSeconds+15
                 $progressPath=Join-Path $Output 'progress.json'
                 if(Test-Path -LiteralPath $progressPath){
-                    try{$progress=Get-Content -LiteralPath $progressPath -Raw | ConvertFrom-Json
+                    try{
+                        $progress=Read-ModStudioJson -Path $progressPath
                         $timer=if($progress.exact_timer){'left'}else{'limit'}
                         if(Get-Command Update-ModStudioSession -ErrorAction SilentlyContinue){Update-ModStudioSession -Session $modStudioSession -Phase ("scenario: "+$progress.command)}
                         Write-Output ("Scenario {0}/{1}: {2} | {3} {4:N0}s | next {5} | input blocked={6}" -f $progress.step,$progress.total,$progress.command,$timer,$progress.left_seconds,$progress.next,$progress.input_blocked)

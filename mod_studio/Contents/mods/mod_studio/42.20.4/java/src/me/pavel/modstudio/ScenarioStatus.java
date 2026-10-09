@@ -30,6 +30,15 @@ public final class ScenarioStatus {
         var s=snapshot;if(s==null)return Map.of();
         var out=new LinkedHashMap<String,Object>();out.put("schema",1);out.put("scenario",s.id);out.put("phase",s.phase);out.put("step",s.step);out.put("total",s.total);out.put("command",s.command);out.put("next",s.next);out.put("elapsed_seconds",s.elapsed);out.put("left_seconds",s.left);out.put("exact_timer",s.exact);out.put("future_timed_seconds",s.future);out.put("future_limit_seconds",s.limits);out.put("input_blocked",ScenarioHost.suppressInput());out.put("monotonic_ns",s.at);return out;
     }
+    /** A transient reader lock may defer progress, never fail the scenario artifact writer. */
+    static boolean saveProgress(java.nio.file.Path directory,Map<String,Object> progress){
+        if(progress.isEmpty())return true;
+        try{
+            var temporary=directory.resolve("progress.tmp");java.nio.file.Files.writeString(temporary,ScenarioJson.write(progress));
+            java.nio.file.Files.move(temporary,directory.resolve("progress.json"),java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            return true;
+        }catch(java.io.IOException transientFailure){return false;}
+    }
     static void loadingHeartbeat(){
         var s=snapshot;long now=System.nanoTime();if(s==null||!s.phase.equals("loading")||now-s.at<500_000_000L)return;
         double age=(now-s.at)/1e9;snapshot=new Snapshot(now,s.id,s.phase,s.step,s.total,s.command,s.next,s.elapsed+age,Math.max(0,s.left-age),false,s.future,s.limits);

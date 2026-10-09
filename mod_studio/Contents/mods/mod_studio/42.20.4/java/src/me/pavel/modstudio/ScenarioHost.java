@@ -317,7 +317,7 @@ public final class ScenarioHost {
             long progressAt=0;
             try(var writer=Files.newBufferedWriter(output.resolve("events.jsonl"))){
                 while(!finishing||!events.isEmpty()){
-                    long now=System.nanoTime();if(now>=progressAt){progressAt=now+500_000_000L;var progress=ScenarioStatus.progress();if(!progress.isEmpty()){var temporary=output.resolve("progress.tmp");Files.writeString(temporary,ScenarioJson.write(progress));Files.move(temporary,output.resolve("progress.json"),StandardCopyOption.REPLACE_EXISTING);}}
+                    long now=System.nanoTime();if(now>=progressAt){progressAt=now+500_000_000L;ScenarioStatus.saveProgress(output,ScenarioStatus.progress());}
                     var event=events.poll(100,TimeUnit.MILLISECONDS);if(event!=null){writer.write(ScenarioJson.write(event));writer.flush();}
                 }
             }
