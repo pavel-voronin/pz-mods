@@ -11,7 +11,7 @@ final class ScenarioPersistence {
     static String mode(Map<String,Object> definition)throws IOException {
         if(!definition.containsKey("persistence"))return "";
         var values=ScenarioJson.object(definition.get("persistence"));String mode=ScenarioJson.string(values,"mode");
-        if(!Set.of("new","resume").contains(mode)||!values.keySet().equals(Set.of("mode")))throw new IllegalArgumentException("Persistence requires mode new or resume");
+        if(!Set.of("new","resume").contains(mode)||!Set.of("mode","readOnly").containsAll(values.keySet())||values.containsKey("readOnly")&&(!(values.get("readOnly") instanceof Boolean)||!mode.equals("resume")))throw new IllegalArgumentException("Persistence requires mode new or resume; readOnly is a resume boolean");
         if(definition.containsKey("multiplayer")||Boolean.TRUE.equals(definition.get("manual"))||definition.get("repeats") instanceof Number n&&n.doubleValue()!=1)throw new IllegalArgumentException("Persistent acceptance requires one owned single-player run");
         return mode;
     }

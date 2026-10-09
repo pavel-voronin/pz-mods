@@ -44,6 +44,7 @@ public final class ScenarioHost {
     }
     public static boolean closed(){return closed;}
     public static boolean persistent(){return persistentProfile!=null;}
+    public static boolean readOnlyReplay(){return persistent()&&definition!=null&&definition.get("persistence") instanceof Map<?,?> p&&Boolean.TRUE.equals(p.get("readOnly"));}
     public static String persistentMode(){return persistent()?persistentProfile.mode():"";}
     public static String savedWorld(){return persistent()?persistentProfile.world():"";}
     public static boolean disposable(){return zombie.core.Core.getInstance().isNoSave()||persistent()&&ScenarioPersistence.current(persistentProfile,Path.of(zombie.ZomboidFileSystem.instance.getCacheDir()),Path.of(zombie.ZomboidFileSystem.instance.getCurrentSaveDir()));}
@@ -350,7 +351,7 @@ public final class ScenarioHost {
             else {error="Loading screenshot failed: "+screenshotError;loadingScreenshots=16;}
         }
         if(!loading && !shortcut)return;
-        if(loading)zombie.core.Core.getInstance().setNoSave(!persistent());
+        if(loading)zombie.core.Core.getInstance().setNoSave(!persistent()||readOnlyReplay());
         try{var field=zombie.gameStates.GameLoadingState.class.getDeclaredField("forceDone");field.setAccessible(true);field.setBoolean(state,true);}
         catch(Exception e){error="Native loading gate: "+e;}
     }

@@ -53,3 +53,18 @@ $isolatedLaunch | ConvertTo-Json | Set-Content (Join-Path $isolatedOutput 'launc
 $rejected=$false;try{Get-ModStudioIsolatedProfile -Output $next -Game $game -Roots @($PSScriptRoot,$modRoot) -ReuseArtifact $isolatedId | Out-Null}catch{$rejected=$true}
 if(!$rejected){throw 'Live/manual isolated profile was accepted'}
 Write-Output 'PASS: owned NoSave profile reuse, preserved console evidence and manual-session rejection.'
+
+$commonFixture=Join-Path $root 'prepared-common'
+New-Item -ItemType Directory -Path $commonFixture | Out-Null
+[IO.File]::WriteAllText((Join-Path $commonFixture 'marker'),'prepared resource cache')
+$badProfile=@{path=$isolated.path;token='incorrect'}
+$rejected=$false
+try {Connect-ModStudioCommonCache -Profile $badProfile -Source $commonFixture | Out-Null}catch{$rejected=$true}
+if(!$rejected){throw 'Wrong common cache owner accepted'}
+$connected=Connect-ModStudioCommonCache -Profile $isolated -Source $commonFixture
+$commonLink=Get-Item -LiteralPath (Join-Path $isolated.path 'PZ3D/fast-track')
+if($commonLink.LinkType -ne 'Junction' -or $commonLink.Target -ne $connected -or [IO.File]::ReadAllText((Join-Path $connected 'marker')) -ne 'prepared resource cache'){throw 'Common cache was copied, changed or linked incorrectly'}
+$rejected=$false
+try {Connect-ModStudioCommonCache -Profile $isolated -Source $commonFixture | Out-Null}catch{$rejected=$true}
+if(!$rejected){throw 'Existing common cache was replaced'}
+Write-Output 'PASS: prepared common cache reuse, owner validation and existing-target preservation.'

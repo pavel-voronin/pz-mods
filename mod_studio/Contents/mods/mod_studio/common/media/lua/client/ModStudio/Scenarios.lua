@@ -348,7 +348,7 @@ local function start()
     if cfg.persistence and cfg.persistence.mode=="resume" then
         local saveName=ModStudioScenario.savedWorld();assert(saveName and #saveName>0,"Owned native saved world unavailable")
         getCore():setNoSave(false)
-        Events.OnGameStart.Add(function() getCore():setNoSave(false);ModStudioScenario.worldReady();event("world-ready","native saved world; NoSave=false") end)
+        Events.OnGameStart.Add(function() local readOnly=cfg.persistence.readOnly==true;getCore():setNoSave(readOnly);ModStudioScenario.worldReady();event("world-ready","native saved world; NoSave="..tostring(readOnly)) end)
         MainScreen.continueLatestSave("Sandbox",saveName)
         event("world-resume","native Sandbox load: "..saveName);return
     end

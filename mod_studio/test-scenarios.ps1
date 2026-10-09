@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$Game='C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid',[string]$PZ3D=(Join-Path $PSScriptRoot '../pz3d'))
+param([string]$Game='C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid',[string]$PZ3D=(Join-Path $PSScriptRoot '../pz3d'),[switch]$RouteOnly)
 $ErrorActionPreference='Stop'
 $classes=Join-Path $PSScriptRoot ('.build/scenario-test-'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $classes | Out-Null
@@ -11,7 +11,8 @@ $cp=(Join-Path $Game 'projectzomboid.jar')+';'+(Join-Path $Game 'ZombieBuddy.jar
 if($LASTEXITCODE -ne 0){throw 'Scenario regression compilation failed.'}
 Push-Location -LiteralPath $Game
 try {
-    & $java -cp "$classes;$cp" me.pavel.modstudio.ScenarioRegression $PSScriptRoot $PZ3D
+    if($RouteOnly){& $java -cp "$classes;$cp" me.pavel.modstudio.ScenarioRegression $PSScriptRoot $PZ3D 'route-only'}
+    else {& $java -cp "$classes;$cp" me.pavel.modstudio.ScenarioRegression $PSScriptRoot $PZ3D}
     if($LASTEXITCODE -ne 0){throw 'Scenario regression failed.'}
     & $java -cp "$classes;$cp" me.pavel.modstudio.ScenarioStatusRegression
     if($LASTEXITCODE -ne 0){throw 'Scenario status regression failed.'}

@@ -8,6 +8,7 @@ param(
     [string]$ReuseIsolatedArtifact='',
     [switch]$PrepareOnly,
     [string]$ResumeArtifact='',
+    [switch]$ReuseCommonCache,
     [switch]$Mcp,
     [ValidateRange(60,7200)][int]$McpSeconds=1800,
     [ValidateSet('Java','Native')][string]$Launcher='Java',
@@ -24,9 +25,11 @@ $data=$text | ConvertFrom-Json
 if($data.schema -ne 1 -or $data.id -notmatch '^[a-z0-9_-]{1,80}$' -or !$data.spawn -or !$data.steps){throw 'Expected schema=1, id, spawn and steps.'}
 if($data.steps.Count -gt 512){throw 'At most 512 steps.'}
 $persistenceMode=''
+if($ReuseCommonCache -and !$data.persistence){throw 'Common cache reuse requires an owned persistent profile'}
 if($data.persistence){
     $persistenceMode=[string]$data.persistence.mode
-    if($persistenceMode -notin @('new','resume') -or @($data.persistence.PSObject.Properties).Count -ne 1){throw 'Persistence requires only mode new or resume'}
+    $persistenceFields=@($data.persistence.PSObject.Properties.Name)
+    if($persistenceMode -notin @('new','resume') -or @($persistenceFields | Where-Object {$_ -notin @('mode','readOnly')}).Count -gt 0 -or ($persistenceFields -contains 'readOnly') -and ($persistenceMode -ne 'resume' -or $data.persistence.readOnly -isnot [bool])){throw 'Persistence requires mode new or resume; readOnly is a resume boolean'}
     if($data.multiplayer -or $data.manual -or ($data.repeats -and $data.repeats -ne 1) -or $Mcp -or $Launcher -ne 'Java'){throw 'Persistent acceptance requires one owned Java single-player run'}
     if(($persistenceMode -eq 'resume') -ne [bool]$ResumeArtifact){throw 'ResumeArtifact is required only for persistence mode resume'}
 }elseif($ResumeArtifact){throw 'ResumeArtifact requires persistence mode resume'}
@@ -81,6 +84,7 @@ if($persistenceMode){
     . (Join-Path $PSScriptRoot 'scenario-profile.ps1')
     $persistentProfile=Get-ModStudioPersistentProfile -Output $output -Game $Game -Roots $roots -Mode $persistenceMode -ResumeArtifact $ResumeArtifact
     $launch.nativeProfile=$persistentProfile.path;$launch.profileToken=$persistentProfile.token;$launch.persistence=$persistenceMode;$launch.resumeArtifact=$persistentProfile.previous
+    if($ReuseCommonCache -and $persistenceMode -eq 'new'){$launch.commonCache=Connect-ModStudioCommonCache -Profile $persistentProfile}
     $arguments+=@("-Dmodstudio.scenario.profile=$($persistentProfile.path)","-Dmodstudio.scenario.profile.token=$($persistentProfile.token)")
 }
 if($IsolatedProfile){

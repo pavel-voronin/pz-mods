@@ -1,3 +1,17 @@
+function Connect-ModStudioCommonCache {
+    param([hashtable]$Profile,[string]$Source=(Join-Path $env:USERPROFILE 'Zomboid/PZ3D/fast-track'))
+    $root=(Resolve-Path -LiteralPath $Profile.path).Path
+    $owner=Get-Content -LiteralPath (Join-Path $root 'profile-owner.json') -Raw | ConvertFrom-Json
+    if($owner.schema -ne 1 -or $owner.profile -ne $root -or $owner.token -ne $Profile.token){throw 'Common cache profile ownership mismatch'}
+    if(!(Test-Path -LiteralPath $Source -PathType Container)){throw 'Prepared common fast track cache is missing'}
+    $target=(Resolve-Path -LiteralPath $Source).Path
+    $destination=Join-Path $root 'PZ3D/fast-track'
+    if(Test-Path -LiteralPath $destination){throw 'Owned common cache destination already exists'}
+    New-Item -ItemType Directory -Path (Split-Path $destination) -Force | Out-Null
+    New-Item -ItemType Junction -Path $destination -Target $target | Out-Null
+    return $target
+}
+
 function Get-ModStudioPersistentProfile {
     param([string]$Output,[string]$Game,[string[]]$Roots,[string]$Mode,[string]$ResumeArtifact='')
     $artifactRoot=Split-Path $Output
