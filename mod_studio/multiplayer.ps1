@@ -12,6 +12,9 @@ param(
     [switch]$ValidateOnly
 )
 $ErrorActionPreference='Stop'
+. (Join-Path $PSScriptRoot 'game-session.ps1')
+$modStudioSession=if(!$ValidateOnly){Start-ModStudioSession -Mode multiplayer -Source $Scenario -Checkout $PSScriptRoot}else{$null}
+try {
 $gcArgument=if($GarbageCollector -eq 'G1'){'-XX:+UseG1GC'}else{'-XX:+UseZGC'}
 $suite=Get-Content -LiteralPath $Scenario -Raw | ConvertFrom-Json
 if($suite.schema -ne 1 -or $suite.clients.Count -ne 2){throw 'Expected schema 1 and exactly two clients'}
@@ -123,6 +126,7 @@ function Start-Native([string]$role,[string]$cache,[string[]]$Arguments){
     $start.ArgumentList.Add("-XX:ReplayDataFile=$cache/replay_pid%p.log")
     foreach($a in $Arguments){if($a -notmatch '^-XX:(ErrorFile|ReplayDataFile)='){$start.ArgumentList.Add($a)}}
     $process=[Diagnostics.Process]::Start($start)
+    Update-ModStudioSession -Session $modStudioSession -Phase ("multiplayer: "+$role) -Artifact $output -Process $process -Role $role
     return @{role=$role;cache=$cache;process=$process;stdout=$process.StandardOutput.ReadToEndAsync();stderr=$process.StandardError.ReadToEndAsync()}
 }
 $owned=[Collections.Generic.List[object]]::new()
@@ -270,3 +274,4 @@ try {
 }
 Write-Output "MP status: $($launch.status)"
 if($launch.status -ne 'complete'){throw $launch.reason}
+} finally {Stop-ModStudioSession $modStudioSession}

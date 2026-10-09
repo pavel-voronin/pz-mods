@@ -15,6 +15,9 @@ param(
     [int]$TimeoutSeconds=600
 )
 $ErrorActionPreference='Stop'
+. (Join-Path $PSScriptRoot 'game-session.ps1')
+$modStudioSession=if(!$PrepareOnly){Start-ModStudioSession -Mode scenario -Source $Scenario -Checkout $PSScriptRoot}else{$null}
+try {
 $scenarioPath=(Resolve-Path -LiteralPath $Scenario).Path
 $text=[IO.File]::ReadAllText($scenarioPath)
 $data=$text | ConvertFrom-Json
@@ -111,3 +114,4 @@ if($Launcher -eq 'Native'){
 }
 . (Join-Path $PSScriptRoot 'process.ps1')
 if($persistentProfile){Invoke-ModStudioProcess -Start $start -Launch $launch -Output $output -TimeoutSeconds $TimeoutSeconds -ConsolePath (Join-Path $persistentProfile.path 'console.txt')}else{Invoke-ModStudioProcess -Start $start -Launch $launch -Output $output -TimeoutSeconds $TimeoutSeconds}
+} finally {Stop-ModStudioSession $modStudioSession}

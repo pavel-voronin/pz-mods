@@ -11,6 +11,9 @@ param(
     [string[]]$Mods
 )
 $ErrorActionPreference='Stop'
+. (Join-Path $PSScriptRoot 'game-session.ps1')
+$modStudioSession=Start-ModStudioSession -Mode menu -Checkout $PSScriptRoot
+try {
 if($EnableModOnReload){
     if($EnableModOnReload -notmatch '^[a-zA-Z0-9_-]+$'){throw 'Invalid mod id for Lua reload.'}
     $ReloadLua=$true
@@ -100,3 +103,4 @@ try {
     if(Test-Path -LiteralPath $result){Remove-Item -LiteralPath $result}
     if(Test-Path -LiteralPath $reloadMarker){Remove-Item -LiteralPath $reloadMarker}
 }
+} finally {Stop-ModStudioSession $modStudioSession}

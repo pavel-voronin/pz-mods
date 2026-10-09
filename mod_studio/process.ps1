@@ -4,6 +4,7 @@ function Invoke-ModStudioProcess {
     $launchPath=Join-Path $Output 'launch.json'
     try {
         $process=[Diagnostics.Process]::Start($Start)
+        if(Get-Command Update-ModStudioSession -ErrorAction SilentlyContinue){Update-ModStudioSession -Session $modStudioSession -Phase loading -Artifact $Output -Process $process}
         $Launch.pid=$process.Id;$Launch.status='launched'
         $Launch | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $launchPath -Encoding utf8
         $watch=[Diagnostics.Stopwatch]::StartNew();$finishedAt=$null;$detached=$false;$progressAt=0;$progressPhase=''
@@ -16,6 +17,7 @@ function Invoke-ModStudioProcess {
                 catch [System.IO.IOException] {}
                 if($result -and $result.status -eq 'interactive'){$detached=$true;break}
                 if($result -and $result.status -ne 'running' -and $null -eq $finishedAt){$finishedAt=$watch.Elapsed.TotalSeconds}
+                if($result -and (Get-Command Update-ModStudioSession -ErrorAction SilentlyContinue)){Update-ModStudioSession -Session $modStudioSession -Phase $result.status}
             }
             if($null -ne $finishedAt -and $watch.Elapsed.TotalSeconds-$finishedAt -gt 20){break}
             if($watch.Elapsed.TotalSeconds -ge $progressAt){
@@ -24,6 +26,7 @@ function Invoke-ModStudioProcess {
                 if(Test-Path -LiteralPath $progressPath){
                     try{$progress=Get-Content -LiteralPath $progressPath -Raw | ConvertFrom-Json
                         $timer=if($progress.exact_timer){'left'}else{'limit'}
+                        if(Get-Command Update-ModStudioSession -ErrorAction SilentlyContinue){Update-ModStudioSession -Session $modStudioSession -Phase ("scenario: "+$progress.command)}
                         Write-Output ("Scenario {0}/{1}: {2} | {3} {4:N0}s | next {5} | input blocked={6}" -f $progress.step,$progress.total,$progress.command,$timer,$progress.left_seconds,$progress.next,$progress.input_blocked)
                     }catch [System.IO.IOException] {}
                 }
