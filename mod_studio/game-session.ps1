@@ -16,6 +16,25 @@ function Write-ModStudioSession {
     $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($Session.data | ConvertTo-Json -Depth 8))
     $Session.handle.Position=0;$Session.handle.SetLength(0);$Session.handle.Write($bytes,0,$bytes.Length);$Session.handle.Flush($true)
 }
+function Restore-ModStudioMenuSession {
+    param($Metadata,[string]$Cache=(Join-Path ([Environment]::GetFolderPath('UserProfile')) 'Zomboid'))
+    if(!$Metadata -or $Metadata.mode -notin @('menu','startup-benchmark') -or !$Metadata.artifact){return}
+    $base=[IO.Path]::GetFullPath((Join-Path $Cache 'ModStudio/scenarios'))
+    $artifact=[IO.Path]::GetFullPath([string]$Metadata.artifact)
+    if([IO.Path]::GetDirectoryName($artifact) -ne $base){return}
+    $name=[IO.Path]::GetFileName($artifact)
+    if($name -notmatch '^\d{8}-T\d{6}Z-([a-f0-9]{32})$'){return}
+    $token=$Matches[1]
+    $active=Join-Path $Cache 'mods/default.txt'
+    $provided=Join-Path $artifact 'active-mods.txt'
+    $before=Join-Path $artifact 'active-mods-before.txt'
+    if((Test-Path -LiteralPath $active) -and (Test-Path -LiteralPath $provided) -and (Get-FileHash -LiteralPath $active).Hash -eq (Get-FileHash -LiteralPath $provided).Hash){
+        if(Test-Path -LiteralPath $before){[IO.File]::WriteAllBytes($active,[IO.File]::ReadAllBytes($before))}
+        else{Remove-Item -LiteralPath $active}
+    }
+    $request=Join-Path $Cache 'Lua/ModStudio/menu-request.txt'
+    if((Test-Path -LiteralPath $request) -and (Get-Content -LiteralPath $request -TotalCount 1) -eq $token){Remove-Item -LiteralPath $request}
+}
 function Start-ModStudioSession {
     param([Parameter(Mandatory)][string]$Mode,[string]$Source='',[string]$Checkout=$PSScriptRoot,
         [string]$Path=(Join-Path ([Environment]::GetFolderPath('UserProfile')) 'Zomboid/ModStudio/game-session.lock'))
@@ -38,6 +57,7 @@ function Start-ModStudioSession {
                 throw "Mod Studio owned game remains active: $Path | $($old | ConvertTo-Json -Depth 8 -Compress)"
             }
         }
+        Restore-ModStudioMenuSession $old
         $session=@{path=$Path;handle=$handle;data=[ordered]@{
             schema=1;token=[guid]::NewGuid().ToString('N');mode=$Mode;source=$Source;checkout=$Checkout
             launcherPid=$PID;launcherStartedUtc=(Get-Process -Id $PID).StartTime.ToUniversalTime().ToString('o')

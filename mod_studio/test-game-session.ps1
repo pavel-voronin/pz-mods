@@ -50,4 +50,19 @@ if((Compete) -notmatch 'owned game remains active'){throw 'Live handoff was not 
 $stale=Read-ModStudioSession -Path $path;$stale.processes[0].startedUtc='2000-01-01T00:00:00.0000000Z'
 [IO.File]::WriteAllText($path,($stale | ConvertTo-Json -Depth 8))
 if((Compete) -ne 'acquired'){throw 'PID reuse was not recovered'}
+$cache=Join-Path $root 'profile'
+$artifact=Join-Path $cache 'ModStudio/scenarios/20261009-T000000Z-00000000000000000000000000000000'
+New-Item -ItemType Directory -Path $artifact,(Join-Path $cache 'mods'),(Join-Path $cache 'Lua/ModStudio') -Force | Out-Null
+$active=Join-Path $cache 'mods/default.txt';$request=Join-Path $cache 'Lua/ModStudio/menu-request.txt'
+[IO.File]::WriteAllText((Join-Path $artifact 'active-mods-before.txt'),'original')
+[IO.File]::WriteAllText((Join-Path $artifact 'active-mods.txt'),'temporary')
+[IO.File]::WriteAllText($active,'temporary')
+[IO.File]::WriteAllText($request,'00000000000000000000000000000000')
+$metadata=@{mode='menu';artifact=$artifact}
+Restore-ModStudioMenuSession $metadata -Cache $cache
+if([IO.File]::ReadAllText($active) -ne 'original' -or (Test-Path -LiteralPath $request)){throw 'Interrupted menu state was not restored'}
+[IO.File]::WriteAllText($active,'later user changes');[IO.File]::WriteAllText($request,'different session')
+Restore-ModStudioMenuSession $metadata -Cache $cache
+if([IO.File]::ReadAllText($active) -ne 'later user changes' -or [IO.File]::ReadAllText($request) -ne 'different session'){throw 'Recovery overwrote newer state'}
 Write-Output 'PASS: readable metadata, concurrent exclusion, release, crash recovery, live handoff and PID reuse'
+Write-Output 'PASS: interrupted menu recovery and preservation of newer settings and requests'
