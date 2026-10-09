@@ -4,6 +4,7 @@ param(
     [string]$Game='C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid',
     [string[]]$ModRoots=@(),
     [switch]$SkipBuild,
+    [switch]$IsolatedProfile,
     [switch]$PrepareOnly,
     [string]$ResumeArtifact='',
     [switch]$Mcp,
@@ -25,6 +26,7 @@ if($data.persistence){
     if($data.multiplayer -or $data.manual -or ($data.repeats -and $data.repeats -ne 1) -or $Mcp -or $Launcher -ne 'Java'){throw 'Persistent acceptance requires one owned Java single-player run'}
     if(($persistenceMode -eq 'resume') -ne [bool]$ResumeArtifact){throw 'ResumeArtifact is required only for persistence mode resume'}
 }elseif($ResumeArtifact){throw 'ResumeArtifact requires persistence mode resume'}
+if($IsolatedProfile -and ($persistenceMode -or $Launcher -ne 'Java')){throw 'IsolatedProfile requires a nonpersistent Java scenario'}
 if($Mcp -and $data.multiplayer){throw 'Use the single-player scenario launcher for MCP continuation.'}
 if(@($data.steps | Where-Object {$_.command -like 'mcp.*'}).Count){throw 'Enable MCP with -Mcp, not a scenario command.'}
 $running=Get-Process -ErrorAction SilentlyContinue | Where-Object {$_.ProcessName -like 'ProjectZomboid*'}
@@ -75,6 +77,11 @@ if($persistenceMode){
     $persistentProfile=Get-ModStudioPersistentProfile -Output $output -Game $Game -Roots $roots -Mode $persistenceMode -ResumeArtifact $ResumeArtifact
     $launch.nativeProfile=$persistentProfile.path;$launch.profileToken=$persistentProfile.token;$launch.persistence=$persistenceMode;$launch.resumeArtifact=$persistentProfile.previous
     $arguments+=@("-Dmodstudio.scenario.profile=$($persistentProfile.path)","-Dmodstudio.scenario.profile.token=$($persistentProfile.token)")
+}
+if($IsolatedProfile){
+    . (Join-Path $PSScriptRoot 'scenario-profile.ps1')
+    $persistentProfile=Get-ModStudioIsolatedProfile -Output $output -Game $Game -Roots $roots
+    $launch.nativeProfile=$persistentProfile.path;$launch.isolatedProfile=$true
 }
 $launchPath=Join-Path $output 'launch.json'
 $launch | ConvertTo-Json | Set-Content -LiteralPath $launchPath -Encoding utf8

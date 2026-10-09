@@ -27,3 +27,17 @@ foreach($invalid in @('../user','native-profile','')){
     if(!$rejected){throw 'Unowned artifact path accepted'}
 }
 Write-Output 'PASS: owned profile resume, failed process rejection and artifact identity bounds.'
+
+$isolatedOutput=Join-Path $root 'isolated-nosave'
+New-Item -ItemType Directory -Path $isolatedOutput | Out-Null
+$game='C:/Program Files (x86)/Steam/steamapps/common/ProjectZomboid'
+$modRoot=Join-Path (Split-Path $PSScriptRoot) 'pz3d'
+$isolated=Get-ModStudioIsolatedProfile -Output $isolatedOutput -Game $game -Roots @($PSScriptRoot,$modRoot)
+$native=Join-Path $env:USERPROFILE 'Zomboid'
+foreach($file in @('options.ini','mods/default.txt','Lua/PZ3D.properties')){
+    $original=Join-Path $native $file
+    if(Test-Path -LiteralPath $original){if((Get-FileHash -LiteralPath $original).Hash -ne (Get-FileHash -LiteralPath (Join-Path $isolated.path $file)).Hash){throw "Isolated profile changed native settings: $file"}}
+}
+$link=Get-Item -LiteralPath (Join-Path $isolated.path 'mods/pz3d')
+if($link.LinkType -ne 'Junction' -or $link.Target -ne (Join-Path $modRoot 'Contents/mods/pz3d')){throw 'Isolated native package is not linked to the requested checkout'}
+Write-Output 'PASS: isolated NoSave package links, active mod preset, exact resolution and client preferences.'

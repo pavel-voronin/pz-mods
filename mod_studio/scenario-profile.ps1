@@ -47,3 +47,41 @@ function Get-ModStudioPersistentProfile {
     @{schema=1;profile=$profile;token=$token} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $profile 'profile-owner.json') -Encoding utf8
     return @{path=$profile;token=$token;previous=''}
 }
+
+# NoSave uses the same native package links as persistent/MP runs, preserving user quality.
+function Get-ModStudioIsolatedProfile {
+    param([string]$Output,[string]$Game,[string[]]$Roots)
+    $result=Get-ModStudioPersistentProfile -Output $Output -Game $Game -Roots $Roots -Mode new
+    $profile=$result.path
+    $native=Join-Path $env:USERPROFILE 'Zomboid'
+    Copy-Item -LiteralPath (Join-Path $native 'options.ini') -Destination (Join-Path $profile 'options.ini') -Force
+    $preset=Join-Path $native 'mods/default.txt'
+    $workshop=[IO.Path]::GetFullPath((Join-Path (Split-Path $Game) '../workshop/content/108600'))
+    $ids=@(Get-Content -LiteralPath $preset | ForEach-Object {if($_ -match '^\s*mod\s*=\s*([A-Za-z0-9_-]+),'){$Matches[1]}})
+    foreach($id in $ids){
+        $target=Join-Path $profile "mods/$id"
+        if(Test-Path -LiteralPath $target){continue}
+        $source=Join-Path $native "mods/$id"
+        if(!(Test-Path -LiteralPath $source)){
+            $source=Get-ChildItem -LiteralPath (Split-Path $PSScriptRoot) -Directory | ForEach-Object {Join-Path $_.FullName "Contents/mods/$id"} | Where-Object {Test-Path -LiteralPath $_} | Select-Object -First 1
+        }
+        if(!$source -or !(Test-Path -LiteralPath $source)){
+            $source=Get-ChildItem -LiteralPath $workshop -Directory | ForEach-Object {Join-Path $_.FullName "mods/$id"} | Where-Object {Test-Path -LiteralPath $_} | Select-Object -First 1
+        }
+        if(!$source){throw "Enabled native package unavailable: $id"}
+        New-Item -ItemType Junction -Path $target -Target $source | Out-Null
+    }
+    Copy-Item -LiteralPath $preset -Destination (Join-Path $profile 'mods/default.txt') -Force
+    New-Item -ItemType Directory -Path (Join-Path $profile 'Lua') -Force | Out-Null
+    $settings=Join-Path $native 'Lua/PZ3D.properties'
+    if(Test-Path -LiteralPath $settings){Copy-Item -LiteralPath $settings -Destination (Join-Path $profile 'Lua/PZ3D.properties')}
+    # Approval remains restricted to the hashes already accepted by the native profile.
+    $approvals=Join-Path $native 'ZombieBuddy/mod_approvals.json'
+    if(Test-Path -LiteralPath $approvals){
+        $own=Get-Content -LiteralPath (Join-Path $profile 'ZombieBuddy/mod_approvals.json') -Raw | ConvertFrom-Json
+        $old=Get-Content -LiteralPath $approvals -Raw | ConvertFrom-Json
+        $own.mods=@($own.mods)+@($old.mods)
+        $own | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $profile 'ZombieBuddy/mod_approvals.json') -Encoding utf8
+    }
+    return $result
+}
