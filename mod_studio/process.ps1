@@ -25,7 +25,7 @@ function Invoke-ModStudioProcess {
                 catch [System.IO.IOException] {}
                 if($result -and $result.status -eq 'interactive'){$detached=$true;break}
                 if($result -and $result.status -ne 'running' -and $null -eq $finishedAt){$finishedAt=$watch.Elapsed.TotalSeconds}
-                if($result -and (Get-Command Update-ModStudioSession -ErrorAction SilentlyContinue)){Update-ModStudioSession -Session $modStudioSession -Phase $result.status}
+                if($result -and (Get-Command Update-ModStudioSession -ErrorAction SilentlyContinue) -and ($result.status -ne 'running' -or $modStudioSession.data.phase -eq 'loading')){Update-ModStudioSession -Session $modStudioSession -Phase $result.status}
             }
             if($null -ne $finishedAt -and $watch.Elapsed.TotalSeconds-$finishedAt -gt 20){break}
             if($watch.Elapsed.TotalSeconds -ge $progressAt){

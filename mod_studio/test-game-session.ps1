@@ -31,6 +31,9 @@ try{
     Update-ModStudioSession $session -Phase loading -Artifact fixture-artifact
     $metadata=Read-ModStudioSession -Path $path
     if($metadata.mode -ne 'owner' -or $metadata.launcherPid -ne $PID -or $metadata.artifact -ne 'fixture-artifact'){throw 'Unreadable owner metadata'}
+    $before=$session.data.updatedUtc
+    Update-ModStudioSession $session -Phase loading -Artifact fixture-artifact
+    if($session.data.updatedUtc -ne $before){throw 'Unchanged state rewrote the lease'}
     $message=Compete
     if($message -notmatch 'locked:' -or $message -notmatch 'fixture-artifact'){throw "Concurrent writer was not rejected with owner metadata: $message"}
 }finally{Stop-ModStudioSession $session}

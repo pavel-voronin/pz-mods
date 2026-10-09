@@ -50,10 +50,11 @@ function Start-ModStudioSession {
 function Update-ModStudioSession {
     param($Session,[string]$Phase,[string]$Artifact,[Diagnostics.Process]$Process,[string]$Role='game')
     if(!$Session){return}
-    if($Phase){$Session.data.phase=$Phase}
-    if($Artifact){$Session.data.artifact=$Artifact}
-    if($Process){$Session.data.processes+=@{pid=$Process.Id;role=$Role;startedUtc=$Process.StartTime.ToUniversalTime().ToString('o')}}
-    Write-ModStudioSession $Session
+    $changed=$false
+    if($Phase -and $Session.data.phase -ne $Phase){$Session.data.phase=$Phase;$changed=$true}
+    if($Artifact -and $Session.data.artifact -ne $Artifact){$Session.data.artifact=$Artifact;$changed=$true}
+    if($Process){$Session.data.processes+=@{pid=$Process.Id;role=$Role;startedUtc=$Process.StartTime.ToUniversalTime().ToString('o')};$changed=$true}
+    if($changed){Write-ModStudioSession $Session}
 }
 function Stop-ModStudioSession {
     param($Session)
