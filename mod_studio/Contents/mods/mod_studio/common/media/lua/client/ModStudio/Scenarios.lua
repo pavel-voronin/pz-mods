@@ -115,6 +115,30 @@ API.register("native",{
             assert(c.nativeDriving,"Create a native scenario vehicle first")
             ModStudioDriving.drive(s.x,s.y,s.kmh);c.phase("MEASURE",s.timeout or 30)
         end,tick=function() return ModStudioDriving.poll() end},
+    driveReview={validate=function(s)
+            assert(ModStudioDriving,"Native driving API unavailable")
+            number(s,"x",0,100000);number(s,"y",0,100000);number(s,"kmh",5,100)
+            number(s,"interval",2,10)
+            assert(type(s.prefix)=="string" and #s.prefix<=30 and s.prefix:match("^[a-z0-9_-]+$"),"Invalid driving image prefix")
+        end,start=function(c,s)
+            assert(c.nativeDriving,"Create a native scenario vehicle first")
+            ModStudioDriving.drive(s.x,s.y,s.kmh);c.phase("REVIEW",s.timeout or 30)
+            c.drivingReview={next=c.clock()+s.interval,count=0,pending=false}
+        end,tick=function(c,s)
+            local r=c.drivingReview
+            if r.pending then
+                if not ModStudioScenario.screenshotReady() then return false end
+                r.pending=false
+            end
+            if ModStudioDriving.poll() then c.event("native-drive-review","images="..r.count);c.drivingReview=nil;return true end
+            if c.clock()>=r.next and r.count<32 then
+                r.count=r.count+1;r.next=c.clock()+s.interval;r.pending=true
+                local name=s.prefix.."-"..r.count
+                ModStudioScenario.screenshot(name)
+                c.event("native-drive-image",name.." x="..c.player:getX().." y="..c.player:getY())
+            end
+            return false
+        end},
     exitVehicle={start=function(c,s)
             local vehicle=c.player:getVehicle()
             if not vehicle then return end
@@ -216,6 +240,8 @@ API.register("native",{
     inspect={start=function(c)
         local p=c.player;local room=p:getSquare():getRoom()
         event("native-position","x="..p:getX().." y="..p:getY().." z="..p:getZ().." room="..tostring(room and room:getName()))
+        local time=getGameTime();local climate=getClimateManager();local season=climate:getSeason()
+        event("native-climate","hour="..time:getTimeOfDay().." daylight="..climate:getDayLightStrength().." ambient="..climate:getAmbient().." dawn="..season:getDawn().." dusk="..season:getDusk().." endlessDay="..tostring(time:isEndlessDay()).." endlessNight="..tostring(time:isEndlessNight()))
     end}
 })
 local function advance()

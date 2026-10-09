@@ -28,6 +28,40 @@ public final class ScenarioDisplayRegression {
             ModStudioScenario.expectDisplay=function(w,h) assert(w==1920 and h==1200);return '' end
             assert(pcall(cmd.start,c,s) and verified==1)
             """);
+        run(vm,env,"""
+            local cmd=ModStudio.Scenarios.commands['native.driveReview']
+            local s={x=10,y=20,kmh=40,interval=2,prefix='drive'};cmd.validate(s)
+            assert(not pcall(cmd.validate,{x=10,y=20,kmh=40,interval=.1,prefix='drive'}))
+            assert(not pcall(cmd.validate,{x=10,y=20,kmh=40,interval=2,prefix='../drive'}))
+            local t=0;local captures={};local ready=false;local finished=false;local phase
+            ModStudioScenario.screenshot=function(name) captures[#captures+1]=name;ready=false end
+            ModStudioScenario.screenshotReady=function() return ready end
+            ModStudioDriving.poll=function() return finished end
+            local c={nativeDriving=true,player=player,clock=function() return t end,event=function() end,phase=function(name) phase=name end}
+            cmd.start(c,s);assert(phase=='REVIEW' and not cmd.tick(c,s) and #captures==0)
+            t=2;assert(not cmd.tick(c,s) and captures[1]=='drive-1')
+            t=4;assert(not cmd.tick(c,s) and #captures==1)
+            ready=true;assert(not cmd.tick(c,s) and captures[2]=='drive-2')
+            ready=true;finished=true;assert(cmd.tick(c,s) and c.drivingReview==nil)
+            finished=false;t=0;cmd.start(c,s)
+            for i=1,50 do ready=true;t=i*2;cmd.tick(c,s) end
+            assert(c.drivingReview.count==32)
+            """);
         System.out.println("PASS: display mismatch and missing Java results fail Lua; only exact verified display proceeds.");
+        System.out.println("PASS: native driving image review is bounded, awaits capture completion and stays outside measurement phases.");
+        run(vm,env,"""
+            local captured={}
+            ModStudioScenario.event=function(kind,detail) captured[kind]=detail end
+            tm.isEndlessDay=function() return false end;tm.isEndlessNight=function() return false end
+            local climate=getClimateManager()
+            climate.getSeason=function() return {getDawn=function() return 5 end,getDusk=function() return 21 end} end
+            getClimateManager=function() return climate end
+            local p={getX=function() return 10 end,getY=function() return 20 end,getZ=function() return 0 end,
+                getSquare=function() return {getRoom=function() return nil end} end}
+            tm.hour=22;ModStudio.Scenarios.commands['native.inspect'].start({player=p},{})
+            assert(captured['native-climate']:find('hour=22') and captured['native-climate']:find('dusk=21'))
+            assert(captured['native-climate']:find('endlessDay=false') and captured['native-climate']:find('daylight=0.5'))
+            """);
+        System.out.println("PASS: native inspection records actual clock, seasonal daylight and endless-day/night state.");
     }
 }
