@@ -49,6 +49,11 @@ public final class ScenarioHost {
     public static String savedWorld(){return persistent()?persistentProfile.world():"";}
     public static boolean disposable(){return zombie.core.Core.getInstance().isNoSave()||persistent()&&ScenarioPersistence.current(persistentProfile,Path.of(zombie.ZomboidFileSystem.instance.getCacheDir()),Path.of(zombie.ZomboidFileSystem.instance.getCurrentSaveDir()));}
     public static int frameLimit(){return zombie.core.PerformanceSettings.getLockFPS();}
+    public static boolean frameUncapped(){return zombie.core.PerformanceSettings.instance.isFramerateUncapped();}
+    public static void setFrameUncapped(boolean value){
+        if(!requested()||!claimed||!disposable())throw new IllegalStateException("Frame rate requires an owned scenario world");
+        zombie.core.PerformanceSettings.instance.setFramerateUncapped(value);
+    }
     public static boolean frameSync(){return zombie.core.Core.getInstance().getOptionVSync();}
     public static void setFrameSync(boolean value){
         if(!requested()||!claimed||!disposable())throw new IllegalStateException("VSync requires an owned scenario world");

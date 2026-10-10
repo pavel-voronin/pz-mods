@@ -187,6 +187,9 @@ ModStudioScenario.savedWorld=function() return 'owned_test_world' end
 ModStudioScenario.saveNativeWorld=function() assert(not core:isNoSave());nativeSaved=(nativeSaved or 0)+1 end
 MainScreen={continueLatestSave=function(mode,name) resumedMode=mode;resumedWorld=name end}
 nativeFrameRate=30
+nativeUncapped=true
+ModStudioScenario.frameUncapped=function() return nativeUncapped end
+ModStudioScenario.setFrameUncapped=function(value) nativeUncapped=value end
 ModStudioScenario.frameLimit=function() return nativeFrameRate end
 ModStudioScenario.setFrameLimit=function(value) nativeFrameRate=value end
 ModStudioScenario.frameSync=function() return core.vsync end

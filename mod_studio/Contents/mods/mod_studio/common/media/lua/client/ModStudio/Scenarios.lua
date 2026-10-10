@@ -47,19 +47,22 @@ API.register("native",{
     end,
     update=function(c) ScenarioRoute.update(c);if c.nativeHuman then ModStudioScenario.updateHuman() end end,
     boundary=function(c) if c.nativeDriving then ModStudioDriving.stop() end end,
-    finish=function(c) ScenarioRoute.clear(c);ScenarioLights.clear(c);ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;if c.nativeFrameRate then ModStudioScenario.setFrameLimit(c.nativeFrameRate);ModStudioScenario.setFrameSync(c.nativeVSync);c.nativeFrameRate=nil end;return true end
+    finish=function(c) ScenarioRoute.clear(c);ScenarioLights.clear(c);ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;if c.nativeFrameRate then ModStudioScenario.setFrameLimit(c.nativeFrameRate);ModStudioScenario.setFrameUncapped(c.nativeUncapped);ModStudioScenario.setFrameSync(c.nativeVSync);c.nativeFrameRate=nil end;return true end
 }, {
     routeLane=ScenarioRoute.command,
     expectPosition=ScenarioRoute.position,
     frameRate={validate=function(s)
             assert(ModStudioScenario.frameLimit and ModStudioScenario.setFrameLimit and ModStudioScenario.frameSync and ModStudioScenario.setFrameSync,"Native frame cap API unavailable")
-            number(s,"fps",24,244);assert(s.fps==math.floor(s.fps),"Frame rate requires integer fps")
+            assert(s.uncapped==nil or type(s.uncapped)=="boolean","Invalid uncapped")
+            assert(s.fps~=nil or s.uncapped==true,"Frame rate requires fps or uncapped")
+            if s.fps~=nil then number(s,"fps",24,244);assert(s.fps==math.floor(s.fps),"Frame rate requires integer fps") end
+            assert(ModStudioScenario.frameUncapped and ModStudioScenario.setFrameUncapped,"Native uncapped frame API unavailable")
             assert(s.vsync==nil or type(s.vsync)=="boolean","Invalid vsync")
         end,start=function(c,s)
-            if not c.nativeFrameRate then c.nativeFrameRate=ModStudioScenario.frameLimit();c.nativeVSync=ModStudioScenario.frameSync() end
-            ModStudioScenario.setFrameLimit(s.fps);if s.vsync~=nil then ModStudioScenario.setFrameSync(s.vsync) end
-            assert(ModStudioScenario.frameLimit()==s.fps,"Native frame rate did not change")
-            c.event("native-frame-rate","fps="..s.fps.." vsync="..tostring(ModStudioScenario.frameSync()))
+            if not c.nativeFrameRate then c.nativeFrameRate=ModStudioScenario.frameLimit();c.nativeVSync=ModStudioScenario.frameSync();c.nativeUncapped=ModStudioScenario.frameUncapped() end
+            if s.fps~=nil then ModStudioScenario.setFrameLimit(s.fps) end;ModStudioScenario.setFrameUncapped(s.uncapped==true);if s.vsync~=nil then ModStudioScenario.setFrameSync(s.vsync) end
+            assert((s.fps==nil or ModStudioScenario.frameLimit()==s.fps) and ModStudioScenario.frameUncapped()==(s.uncapped==true),"Native frame rate did not change")
+            c.event("native-frame-rate","fps="..ModStudioScenario.frameLimit().." uncapped="..tostring(ModStudioScenario.frameUncapped()).." vsync="..tostring(ModStudioScenario.frameSync()))
         end},
     cell=ModStudioScenarioObjects.cell,
     pairedDoor=ModStudioScenarioObjects.pairedDoor,
