@@ -34,7 +34,7 @@ public final class NativeBaseline {
     public static String[] hud=new String[0];
     public static volatile byte[] gridHud=new byte[0];
     public static volatile byte[] captureHud=new byte[0];
-    static java.lang.reflect.Method captureState,captureStart,captureEnd,captureText,captureEnabled;
+    static java.lang.reflect.Method captureState,captureStart,captureEnd,captureText,captureEnabled,captureDetail;
     static final Map<Long,Integer> captureProbe=new HashMap<>();
     static Object captureCall(java.lang.reflect.Method method,Object...args){try{return method.invoke(null,args);}catch(Exception e){throw new IllegalStateException("Capture bridge",e);}}
     static int captureState(int x,int y){long key=((long)x<<32)^(y&0xffffffffL);return captureProbe.computeIfAbsent(key,k->(int)captureCall(captureState,x,y));}
@@ -49,7 +49,7 @@ public final class NativeBaseline {
     public static final class Window {
         public final String name;final double x,y,dx,dy,seconds;double targetKmh=80;public final boolean detailed,showHud;
         final long start=System.nanoTime();final Histogram updateIntervals=new Histogram(),updateCost=new Histogram(),present=new Histogram(),probeCost=new Histogram();
-        long previousUpdate,previousPresent,updateStart,nextSample,lateSince,lateCount,maxLate;double minLead=Double.POSITIVE_INFINITY,maxDeficit,distance,lastX,lastY,maxJump;long maxHeap;int maxQueue,minReadyAhead=Integer.MAX_VALUE,maxMissingAhead;double maxAge;
+        boolean captureDone,updateDone,probeDone;long previousUpdate,previousPresent,updateStart,nextSample,lateSince,lateCount,maxLate;double minLead=Double.POSITIVE_INFINITY,maxDeficit,distance,lastX,lastY,maxJump;long maxHeap;int maxQueue,minReadyAhead=Integer.MAX_VALUE,maxMissingAhead;double maxAge;
         double minCaptureLead=Double.POSITIVE_INFINITY;int minCaptureAhead=Integer.MAX_VALUE,maxCaptureMissing,maxCapturePending;long captureLowCount,captureLowSince,captureLowMax;
         Window(String name,double x,double y,double dx,double dy,double seconds,boolean detailed,boolean showHud){this.name=name;this.x=x;this.y=y;this.dx=dx;this.dy=dy;this.seconds=seconds;this.detailed=detailed;this.showHud=showHud;lastX=x;lastY=y;}
     }
@@ -57,7 +57,7 @@ public final class NativeBaseline {
     public static boolean requested(){return enabled;}
     public static boolean open(){
         guard();if(writer!=null)return true;
-        if(Boolean.getBoolean("pz3d.captureOnlyExperiment"))try{var type=Class.forName("com.pavelvoronin.pz3d.CaptureExperiment");captureState=type.getMethod("state",int.class,int.class);captureStart=type.getMethod("windowBegin",String.class,double.class,double.class);captureEnd=type.getMethod("windowEnd");captureText=type.getMethod("hud");captureEnabled=type.getMethod("enabled");}catch(Exception e){throw new IllegalStateException("Capture fixture unavailable",e);}
+        if(Boolean.getBoolean("pz3d.captureOnlyExperiment"))try{var type=Class.forName("com.pavelvoronin.pz3d.CaptureExperiment");captureState=type.getMethod("state",int.class,int.class);captureStart=type.getMethod("windowBegin",String.class,double.class,double.class);captureEnd=type.getMethod("windowEnd");captureText=type.getMethod("hud");captureEnabled=type.getMethod("enabled");captureDetail=type.getMethod("detail",int.class,int.class);}catch(Exception e){throw new IllegalStateException("Capture fixture unavailable",e);}
         worldMap=zombie.core.textures.Texture.getSharedTexture("media/textures/modstudio-native-baseline-world.png");cityMap=zombie.core.textures.Texture.getSharedTexture("media/textures/modstudio-native-baseline-city.png");ruralMap=zombie.core.textures.Texture.getSharedTexture("media/textures/modstudio-native-baseline-rural.png");
         if(worldMap==null||cityMap==null||ruralMap==null)throw new IllegalStateException("Prepared native maps missing from mod media");
         if(!worldMap.isReady()||!cityMap.isReady()||!ruralMap.isReady())return false;
@@ -93,16 +93,20 @@ public final class NativeBaseline {
         // Let native postupdate apply its one-tile cap, noclip, square ownership and fallback.
         p.setNextX((float)tx);p.setNextY((float)ty);
     }
-    public static void beginUpdate(){var w=window;if(w==null)return;long now=System.nanoTime();w.updateStart=now;if(w.previousUpdate!=0)w.updateIntervals.add(now-w.previousUpdate);w.previousUpdate=now;}
+    public static void beginUpdate(){var w=window;if(w==null)return;long now=System.nanoTime();w.updateStart=now;w.captureDone=w.updateDone=w.probeDone=false;if(w.previousUpdate!=0)w.updateIntervals.add(now-w.previousUpdate);w.previousUpdate=now;}
     static boolean ready(int x,int y){var cell=IsoWorld.instance.currentCell;var square=cell.getGridSquare(x,y,0);if(square==null)return false;var chunk=square.getChunk();var stage=chunk==null?null:stages.get(chunk);return chunk!=null&&chunk.loaded&&cell.getChunk(Math.floorDiv(x,8),Math.floorDiv(y,8))==chunk&&stage!=null&&stage.attach!=0&&stage.objects!=0&&square.getObjects()!=null&&square.getFloor()!=null;}
     public static void endUpdate(){
-        var w=window;if(w==null||w.updateStart==0)return;long now=System.nanoTime();long cost=now-w.updateStart;w.updateCost.add(cost);if(w.detailed&&cost>33_333_333)emit("slow-update,"+now+","+w.name+","+IsoPlayer.getInstance().getX()+","+IsoPlayer.getInstance().getY()+","+cost/1e6);long probe=now;var p=IsoPlayer.getInstance();double elapsed=(now-w.start)/1e9,along=(p.getX()-w.x)*w.dx+(p.getY()-w.y)*w.dy;
+        var w=window;if(w==null||w.updateStart==0)return;long now=System.nanoTime();long cost=now-w.updateStart;w.updateCost.add(cost);if(w.detailed&&cost>33_333_333)emit("slow-update,"+now+","+w.name+","+IsoPlayer.getInstance().getX()+","+IsoPlayer.getInstance().getY()+","+cost/1e6);w.updateDone=true;if(captureState!=null&&!w.captureDone)return;probeUpdate(w);
+    }
+    public static void captureFinished(){var w=window;if(w==null)return;w.captureDone=true;if(w.updateDone)probeUpdate(w);}
+    static void probeUpdate(Window w){
+        if(w.probeDone)return;w.probeDone=true;long now=System.nanoTime(),probe=now;var p=IsoPlayer.getInstance();double elapsed=(now-w.start)/1e9,along=(p.getX()-w.x)*w.dx+(p.getY()-w.y)*w.dy;
         w.maxDeficit=Math.max(w.maxDeficit,elapsed*w.targetKmh/3.6-along);w.maxJump=Math.max(w.maxJump,Math.hypot(p.getX()-w.lastX,p.getY()-w.lastY));w.lastX=p.getX();w.lastY=p.getY();
         double lead=-1,captureLead=-1;int queue=0;double age=0;captureProbe.clear();boolean stageEnabled=captureState!=null&&(boolean)captureCall(captureEnabled);
         if(w.detailed){
             lead=IsoChunkMap.chunkGridWidth*8;for(int side=-1;side<=1;side++)for(int d=0;d<=IsoChunkMap.chunkGridWidth*8;d++){int x=(int)Math.floor(p.getX()+w.dx*d-w.dy*side*4),y=(int)Math.floor(p.getY()+w.dy*d+w.dx*side*4);if(!ready(x,y)){lead=Math.min(lead,d);break;}}
             w.minLead=Math.min(w.minLead,lead);if(lead<8){if(w.lateSince==0){w.lateSince=now;w.lateCount++;}}else if(w.lateSince!=0){w.maxLate=Math.max(w.maxLate,now-w.lateSince);w.lateSince=0;}
-            if(stageEnabled){captureLead=IsoChunkMap.chunkGridWidth*8;for(int side=-1;side<=1;side++)for(int d=0;d<=IsoChunkMap.chunkGridWidth*8;d++){int x=(int)Math.floor(p.getX()+w.dx*d-w.dy*side*4),y=(int)Math.floor(p.getY()+w.dy*d+w.dx*side*4);if(!ready(x,y)||captureState(Math.floorDiv(x,8),Math.floorDiv(y,8))!=4){captureLead=Math.min(captureLead,d);break;}}w.minCaptureLead=Math.min(w.minCaptureLead,captureLead);if(captureLead<8){if(w.captureLowSince==0){w.captureLowSince=now;w.captureLowCount++;}}else if(w.captureLowSince!=0){w.captureLowMax=Math.max(w.captureLowMax,now-w.captureLowSince);w.captureLowSince=0;}}
+            if(stageEnabled){int blockX=0,blockY=0,blockSide=0,blockState=-1;captureLead=IsoChunkMap.chunkGridWidth*8;for(int side=-1;side<=1;side++)for(int d=0;d<=IsoChunkMap.chunkGridWidth*8;d++){int x=(int)Math.floor(p.getX()+w.dx*d-w.dy*side*4),y=(int)Math.floor(p.getY()+w.dy*d+w.dx*side*4);if(!ready(x,y)||captureState(Math.floorDiv(x,8),Math.floorDiv(y,8))!=4){if(d<captureLead){captureLead=d;blockX=Math.floorDiv(x,8);blockY=Math.floorDiv(y,8);blockSide=side;blockState=captureState(blockX,blockY);}break;}}if(captureLead<w.minCaptureLead)emit("capture-min,"+now+","+w.name+","+p.getX()+","+p.getY()+","+elapsed+","+captureLead+","+lead+","+blockX+","+blockY+","+blockSide+","+blockState+","+nativeReadyAt(blockX,blockY)+","+captureCall(captureDetail,blockX,blockY));w.minCaptureLead=Math.min(w.minCaptureLead,captureLead);if(captureLead<8){if(w.captureLowSince==0){w.captureLowSince=now;w.captureLowCount++;}}else if(w.captureLowSince!=0){w.captureLowMax=Math.max(w.captureLowMax,now-w.captureLowSince);w.captureLowSince=0;}}
         }
         if(now>=w.nextSample){w.nextSample=now+200_000_000L;for(var entry:stages.entrySet()){var s=entry.getValue();if(s.objects==0&&!entry.getKey().refs.isEmpty()){queue++;age=Math.max(age,(now-s.request)/1e6);}}w.maxQueue=Math.max(w.maxQueue,queue);w.maxAge=Math.max(w.maxAge,age);long heap=Runtime.getRuntime().totalMemory()-Runtime.getRuntime().freeMemory();w.maxHeap=Math.max(w.maxHeap,heap);
             int aheadRequired=0,aheadReady=0;var map=IsoWorld.instance.currentCell.chunkMap[0];
