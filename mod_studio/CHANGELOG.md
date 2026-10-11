@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Maintenance
+- Scenarios: verify stationary command routing and reject malformed stationary flags in the native baseline regression.
 
 - Scenarios: audit complete capture planning, work limits, repeat causes and unfinished requests; compare explicit motion inputs and capture step limits with synchronized native readiness.
 - Add an explicit isolated capture cohort profile and owned borderless display override; show vanilla readiness as cell fill and the participating mod's complete capture state as a frame, with separate forward lead measurements.
