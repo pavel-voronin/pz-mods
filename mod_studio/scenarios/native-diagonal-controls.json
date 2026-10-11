@@ -1,10 +1,10 @@
 {
   "schema": 1,
   "id": "native-diagonal-city-controls",
-  "description": "Native-only NoSave diagonal city; prepared static native world-map textures. First and repeat are separate, 90 seconds each at 80 km/h. Ordinary native simulation/population/scripts. Not OS-cold. HUD snapshots 5 Hz, 31 x 31 cells of 8 tiles with loaded/unloaded history. Content counts measured at object attachment, including upper-floor squares.",
+  "description": "Native-only NoSave diagonal city; prepared static native world-map textures. First and repeat are separate, 90 seconds each at 80 km/h. Ordinary native simulation/population/scripts. Not OS-cold. HUD snapshots 5 Hz, 31 x 31 cells of 8 tiles with loaded/unloaded history. Content counts measured at object attachment, including upper-floor squares. City route selected against native LOTHEADER room rectangles; each quarter contains building interiors. Native world-map cells retain their own 300-tile coordinate partition, independent of 256-tile gameplay metadata cells.",
   "spawn": {
     "x": 12200,
-    "y": 3000,
+    "y": 3300,
     "z": 0
   },
   "sandbox": {
@@ -47,7 +47,7 @@
     {
       "command": "native.baseline",
       "name": "city-first",
-      "dx": -0.7071067811865475,
+      "dx": 0.7071067811865475,
       "dy": -0.7071067811865475,
       "seconds": 90,
       "timeout": 120
@@ -59,7 +59,7 @@
     {
       "command": "native.baseline",
       "name": "city-repeat",
-      "dx": 0.7071067811865475,
+      "dx": -0.7071067811865475,
       "dy": 0.7071067811865475,
       "seconds": 90,
       "timeout": 120
@@ -71,7 +71,7 @@
     {
       "command": "native.baseline",
       "name": "full-a",
-      "dx": -0.7071067811865475,
+      "dx": 0.7071067811865475,
       "dy": -0.7071067811865475,
       "seconds": 30,
       "timeout": 60,
@@ -85,7 +85,7 @@
     {
       "command": "native.baseline",
       "name": "no-hud-a",
-      "dx": 0.7071067811865475,
+      "dx": -0.7071067811865475,
       "dy": 0.7071067811865475,
       "seconds": 30,
       "timeout": 60,
@@ -99,7 +99,7 @@
     {
       "command": "native.baseline",
       "name": "timing-a",
-      "dx": -0.7071067811865475,
+      "dx": 0.7071067811865475,
       "dy": -0.7071067811865475,
       "seconds": 30,
       "timeout": 60,
@@ -113,7 +113,7 @@
     {
       "command": "native.baseline",
       "name": "timing-b",
-      "dx": 0.7071067811865475,
+      "dx": -0.7071067811865475,
       "dy": 0.7071067811865475,
       "seconds": 30,
       "timeout": 60,
@@ -127,7 +127,7 @@
     {
       "command": "native.baseline",
       "name": "no-hud-b",
-      "dx": -0.7071067811865475,
+      "dx": 0.7071067811865475,
       "dy": -0.7071067811865475,
       "seconds": 30,
       "timeout": 60,
@@ -141,7 +141,7 @@
     {
       "command": "native.baseline",
       "name": "full-b",
-      "dx": 0.7071067811865475,
+      "dx": -0.7071067811865475,
       "dy": 0.7071067811865475,
       "seconds": 30,
       "timeout": 60,

@@ -1,4 +1,4 @@
-"""Prepare static native-map textures before measurements (300 -> 256 cell conversion)."""
+"""Prepare static native-map textures before measurements (native world-map coordinates)."""
 from pathlib import Path
 import argparse, re, xml.etree.ElementTree as ET, json, hashlib
 from PIL import Image, ImageDraw
@@ -22,7 +22,7 @@ for name in ('worldmap-forest.xml','worldmap.xml'):
             props={q.attrib['name']:q.attrib['value'] for q in feature.findall('./properties/property')}
             found=[(i,c) for i,((k,v),c) in enumerate(layers) if k in props and (props[k]==v or v=='*')]
             if not found:continue
-            rings=[[( (cx*300+float(q.attrib['x']))*256/300,(cy*300+float(q.attrib['y']))*256/300) for q in coords.findall('point')] for coords in feature.findall('./geometry[@type="Polygon"]/coordinates')]
+            rings=[[( (cx*300+float(q.attrib['x'])),(cy*300+float(q.attrib['y']))) for q in coords.findall('point')] for coords in feature.findall('./geometry[@type="Polygon"]/coordinates')]
             for ring in rings:
                 if len(ring)>2:features.append((*found[-1],ring))
         cell.clear()
@@ -34,5 +34,5 @@ for name,(x,y,span,pixels) in regions.items():
         if max(q[0] for q in ring)<x or min(q[0] for q in ring)>x+span or max(q[1] for q in ring)<y or min(q[1] for q in ring)>y+span:continue
         draw.polygon([((px-x)*pixels/span,(py-y)*pixels/span) for px,py in ring],fill=color)
     im.save(a.output/(name+'.png'))
-(a.output/'map.json').write_text(json.dumps({'regions':regions,'coordinateScale':256/300,'features':len(features)},indent=2))
+(a.output/'map.json').write_text(json.dumps({'regions':regions,'coordinateScale':1,'features':len(features)},indent=2))
 print(a.output.resolve())
