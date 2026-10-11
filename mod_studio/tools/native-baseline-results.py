@@ -84,9 +84,9 @@ if __name__ == "__main__":
     windows = [w for directory in args.artifacts for w in summarize(directory)]
     if args.json:
         args.json.write_text(json.dumps(windows, indent=2))
-    print("grid | window | km/h | lead tiles | late count/max ms | update cost p95/p99/max | update interval p99/max | present p99/max | heap MiB")
+    print("grid | window | km/h | minimum ready lead tiles / seconds | minimum ready ahead | maximum missing ahead | object attachments/s | low-reserve episodes")
     for w in windows:
-        u, i, p = w["updateCost"], w["updateIntervals"], w["presents"]
-        print(f'{w["grid"]} | {w["name"]} | {w["kmh"]:.2f} | {w["minLead"]:.1f} | {w["lateCount"]}/{w["maxLateMs"]:.1f} | '
-              f'{u["p95"]:.1f}/{u["p99"]:.1f}/{u["max"]:.1f} | {i["p99"]:.1f}/{i["max"]:.1f} | '
-              f'{p["p99"]:.1f}/{p["max"]:.1f} | {w["maxHeap"] / 1048576:.0f}')
+        lead_seconds = w["minLead"] / (w["kmh"] / 3.6) if w["minLead"] >= 0 and w["kmh"] > 0 else -1
+        flow = w.get("attachedChunksPerSecond", w["contentChunks"] / w["seconds"])
+        print(f'{w["grid"]} | {w["name"]} | {w["kmh"]:.2f} | {w["minLead"]:.1f} / {lead_seconds:.2f} | '
+              f'{w.get("minReadyAhead", "N/A")} | {w.get("maxMissingAhead", "N/A")} | {flow:.1f} | {w["lateCount"]}')

@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Maintenance
+- Lead the native artifact summary with forward readiness, missing chunk counts and observed data flow; retain frame diagnostics only in raw records.
 - Record actual window/framebuffer size without requiring a graphics benchmark resolution for data-loading experiments; await nonzero framebuffer dimensions during preparation.
 - Sample ready/missing chunk counts in the forward half of native demand and report attachment throughput alongside continuous route lead. Add short visible city comparisons and default the experiment runner to a window so other tasks can use the desktop.
 - Keep a visible stage/countdown line during native measurement controls and preparation. HUD-off controls now retain this common minimal status line, whose drawing cost is included in HUD timing.
