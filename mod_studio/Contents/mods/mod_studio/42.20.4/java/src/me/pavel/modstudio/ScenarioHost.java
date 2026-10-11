@@ -272,6 +272,7 @@ public final class ScenarioHost {
         var spawn=ScenarioJson.object(root.get("spawn"));number(spawn,"x",-1,0,100000);number(spawn,"y",-1,0,100000);number(spawn,"z",0,-32,31);
         if(root.containsKey("manual")&&!(root.get("manual") instanceof Boolean))throw new IllegalArgumentException("manual must be boolean");
         if(root.containsKey("loadingScreenshots")&&!(root.get("loadingScreenshots") instanceof Boolean))throw new IllegalArgumentException("loadingScreenshots must be boolean");
+        number(root,"menuSeconds",0,0,120);
         number(root,"loadingTimeout",240,1,3600);
         number(root,"prepareTimeout",120,1,3600);
         if(Boolean.TRUE.equals(root.get("manual"))&&number(root,"repeats",1,1,20)!=1)throw new IllegalArgumentException("Manual setup cannot repeat");

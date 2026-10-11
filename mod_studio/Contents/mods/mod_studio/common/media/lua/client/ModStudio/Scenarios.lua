@@ -305,6 +305,40 @@ local function finish()
     event("scenario-seconds",ctx.startedAt and now()-ctx.startedAt or 0)
     ModStudioScenario.finish(outcome,reason);state="CLOSED";finishAt=now()
 end
+local function launchWorld()
+    phase("LOADING",cfg.loadingTimeout or 240)
+    if cfg.multiplayer then
+        -- Native connection creates its reset-ID/time cache before world loading.
+        getCore():setNoSave(false)
+        if not isClient() then
+            local mp=cfg.multiplayer
+            ConnectToServer.instance:connect(MainScreen.instance.bottomPanel,"",mp.username,mp.password,mp.host,"",tostring(mp.port),"",false,true,1)
+            event("network-connect","native connection requested: "..mp.username)
+        end
+        return
+    end
+    ActiveMods.getById("currentGame"):copyFrom(ActiveMods.getById("default"))
+    if cfg.persistence and cfg.persistence.mode=="resume" then
+        local saveName=ModStudioScenario.savedWorld();assert(saveName and #saveName>0,"Owned native saved world unavailable")
+        getCore():setNoSave(false)
+        Events.OnGameStart.Add(function() local readOnly=cfg.persistence.readOnly==true;getCore():setNoSave(readOnly);ModStudioScenario.worldReady();event("world-ready","native saved world; NoSave="..tostring(readOnly)) end)
+        MainScreen.continueLatestSave("Sandbox",saveName)
+        event("world-resume","native Sandbox load: "..saveName);return
+    end
+    local scenario={name="Mod Studio scenario",world=cfg.map or "Muldraugh, KY",startLoc=cfg.spawn,
+        setSandbox=function()
+            SandboxVars.Zombies=6;SandboxVars.StartMonth=7;SandboxVars.StartDay=9;SandboxVars.StartTime=2
+            SandboxVars.WaterShutModifier=365;SandboxVars.ElecShutModifier=365;SandboxVars.StarterKit=false
+            if cfg.sandbox then for k,v in pairs(cfg.sandbox) do SandboxVars[k]=v end end
+        end,
+        onStart=function() getCore():setNoSave(not cfg.persistence);ModStudioScenario.worldReady();event("world-ready","native fresh world; NoSave="..tostring(getCore():isNoSave())) end}
+    if not DebugScenarios.instance then doDebugScenarios() end
+    getWorld():setGameMode("Sandbox")
+    getCore():setNoSave(false) -- Native createWorld requires the empty bootstrap directory.
+    DebugScenarios.instance:launchScenario(scenario)
+    getCore():setNoSave(not cfg.persistence)
+end
+local menuCaptured=false
 local function tick()
     if not claimed then return end
     if state=="MANUAL" then if ctx.fixedTime then getGameTime():setTimeOfDay(ctx.fixedTime) end;return end
@@ -315,6 +349,13 @@ local function tick()
     if state=="FINISH" then finish();return end
     assert(ModStudioScenario.error()=="",ModStudioScenario.error())
     assert(now()<=deadline,"Timeout: "..state.." step "..ctx.stepIndex)
+    if state=="MENU" then
+        if not menuCaptured and now()-since>=0.75 then
+            ModStudioScenario.screenshot("main-menu");menuCaptured=true;event("menu-screenshot","main-menu")
+        end
+        if now()-since<(cfg.menuSeconds or 0) or not ModStudioScenario.screenshotReady() then return end
+        event("menu-exit","native world entry requested");launchWorld();return
+    end
     if state=="LOADING" then
         if cfg.multiplayer then ModStudio.Network.bootstrap(ctx) end
         local p=getPlayer();if not p or not p:getSquare() or not p:getSquare():getFloor() then return end
@@ -372,36 +413,13 @@ local function start()
     end
     local names={};for owner in pairs(owners) do names[#names+1]=owner end;table.sort(names)
     for _,owner in ipairs(names) do providers[#providers+1]=API.providers[owner] end
-    if cfg.multiplayer then
-        -- Native connection creates its reset-ID/time cache before world loading.
-        getCore():setNoSave(false)
-        if not isClient() then
-            local mp=cfg.multiplayer
-            ConnectToServer.instance:connect(MainScreen.instance.bottomPanel,"",mp.username,mp.password,mp.host,"",tostring(mp.port),"",false,true,1)
-            event("network-connect","native connection requested: "..mp.username)
-        end
+    if (cfg.menuSeconds or 0)>0 then
+        getCore():setNoSave(true)
+        phase("MENU",cfg.menuSeconds+10)
         return
     end
-    ActiveMods.getById("currentGame"):copyFrom(ActiveMods.getById("default"))
-    if cfg.persistence and cfg.persistence.mode=="resume" then
-        local saveName=ModStudioScenario.savedWorld();assert(saveName and #saveName>0,"Owned native saved world unavailable")
-        getCore():setNoSave(false)
-        Events.OnGameStart.Add(function() local readOnly=cfg.persistence.readOnly==true;getCore():setNoSave(readOnly);ModStudioScenario.worldReady();event("world-ready","native saved world; NoSave="..tostring(readOnly)) end)
-        MainScreen.continueLatestSave("Sandbox",saveName)
-        event("world-resume","native Sandbox load: "..saveName);return
-    end
-    local scenario={name="Mod Studio scenario",world=cfg.map or "Muldraugh, KY",startLoc=cfg.spawn,
-        setSandbox=function()
-            SandboxVars.Zombies=6;SandboxVars.StartMonth=7;SandboxVars.StartDay=9;SandboxVars.StartTime=2
-            SandboxVars.WaterShutModifier=365;SandboxVars.ElecShutModifier=365;SandboxVars.StarterKit=false
-            if cfg.sandbox then for k,v in pairs(cfg.sandbox) do SandboxVars[k]=v end end
-        end,
-        onStart=function() getCore():setNoSave(not cfg.persistence);ModStudioScenario.worldReady();event("world-ready","native fresh world; NoSave="..tostring(getCore():isNoSave())) end}
-    if not DebugScenarios.instance then doDebugScenarios() end
-    getWorld():setGameMode("Sandbox")
-    getCore():setNoSave(false) -- Native createWorld requires the empty bootstrap directory.
-    DebugScenarios.instance:launchScenario(scenario)
-    getCore():setNoSave(not cfg.persistence)
+    launchWorld()
+
 end
 Events.OnMainMenuEnter.Add(function()
     if claimed then if cfg and cfg.multiplayer and not ctx.player then return end;stop("aborted","Returned to menu");return end
