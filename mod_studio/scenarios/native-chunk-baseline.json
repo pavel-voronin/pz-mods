@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "id": "native-chunk-baseline",
+  "description": "Native-only NoSave baseline. Launch with -IsolatedProfile -NativeOnly -WindowWidth 1920 -WindowHeight 1200. Optional NativeGrid 13 or 11 uses native debug presets before world arrays are created. Ordinary population and scripts remain enabled. Continuous native noclip postupdate targets 80 km/h by monotonic wall clock; its one-tile cap and missing-square fallback remain. First northbound and repeat southbound windows are separate, 150 seconds each. OS cache is not claimed cold. Readiness requires completed object attachment and an actual native ground square/floor across an eight-tile corridor; lead below eight tiles is late. Synthetic motion excludes car physics. Histogram resolution 0.1 ms with exact maximum/threshold counts. Worker events and 5 Hz samples are bounded and buffered.",
+  "spawn": {
+    "x": 12300,
+    "y": 3800,
+    "z": 0
+  },
+  "sandbox": {
+    "Zombies": 3,
+    "StartMonth": 7,
+    "StartDay": 9,
+    "StartTime": 2
+  },
+  "steps": [
+    {
+      "command": "native.frameRate",
+      "fps": 60,
+      "uncapped": false,
+      "vsync": false
+    },
+    {
+      "command": "native.time",
+      "hour": 12,
+      "freeze": true
+    },
+    {
+      "command": "native.weather",
+      "fog": 0,
+      "rain": 0,
+      "cloud": 0,
+      "wind": 0
+    },
+    {
+      "command": "native.baselinePrepare",
+      "timeout": 30
+    },
+    {
+      "command": "native.wait",
+      "seconds": 3
+    },
+    {
+      "command": "native.wait",
+      "seconds": 20
+    },
+    {
+      "command": "native.baseline",
+      "name": "first",
+      "dx": 0,
+      "dy": -1,
+      "seconds": 150,
+      "timeout": 180
+    },
+    {
+      "command": "native.wait",
+      "seconds": 10
+    },
+    {
+      "command": "native.baseline",
+      "name": "repeat",
+      "dx": 0,
+      "dy": 1,
+      "seconds": 150,
+      "timeout": 180
+    },
+    {
+      "command": "native.screenshot",
+      "name": "baseline-completed"
+    }
+  ]
+}

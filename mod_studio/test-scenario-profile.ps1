@@ -1,3 +1,4 @@
+param([string]$PZ3D=(Join-Path (Split-Path $PSScriptRoot) 'pz3d'))
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'scenario-profile.ps1')
 $root=Join-Path $PSScriptRoot ('.build/profile-test-'+[guid]::NewGuid().ToString('N'))
@@ -32,7 +33,7 @@ $isolatedId='20261007-T000002Z-00000000000000000000000000000002'
 $isolatedOutput=Join-Path $root $isolatedId
 New-Item -ItemType Directory -Path $isolatedOutput | Out-Null
 $game='C:/Program Files (x86)/Steam/steamapps/common/ProjectZomboid'
-$modRoot=Join-Path (Split-Path $PSScriptRoot) 'pz3d'
+$modRoot=$PZ3D
 $isolated=Get-ModStudioIsolatedProfile -Output $isolatedOutput -Game $game -Roots @($PSScriptRoot,$modRoot)
 $native=Join-Path $env:USERPROFILE 'Zomboid'
 foreach($file in @('options.ini','mods/default.txt','Lua/PZ3D.properties')){

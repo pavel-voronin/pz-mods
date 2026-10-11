@@ -46,9 +46,18 @@ API.register("native",{
         return true
     end,
     update=function(c) ScenarioRoute.update(c);if c.nativeHuman then ModStudioScenario.updateHuman() end end,
-    boundary=function(c) if c.nativeDriving then ModStudioDriving.stop() end end,
-    finish=function(c) ScenarioRoute.clear(c);ScenarioLights.clear(c);ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;if c.nativeFrameRate then ModStudioScenario.setFrameLimit(c.nativeFrameRate);ModStudioScenario.setFrameUncapped(c.nativeUncapped);ModStudioScenario.setFrameSync(c.nativeVSync);c.nativeFrameRate=nil end;return true end
+    boundary=function(c) if c.nativeBaseline then assert(ModStudioNativeBaseline.stop()==true,"Native baseline stop failed") end;if c.nativeDriving then ModStudioDriving.stop() end end,
+    finish=function(c) if c.nativeBaseline then assert(ModStudioNativeBaseline.close()==true,"Native baseline cleanup failed");c.nativeBaseline=nil end;ScenarioRoute.clear(c);ScenarioLights.clear(c);ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;if c.nativeFrameRate then ModStudioScenario.setFrameLimit(c.nativeFrameRate);ModStudioScenario.setFrameUncapped(c.nativeUncapped);ModStudioScenario.setFrameSync(c.nativeVSync);c.nativeFrameRate=nil end;return true end
 }, {
+    baselinePrepare={start=function(c) c.nativeBaseline=true end,tick=function() local ready=ModStudioNativeBaseline.open();assert(ready~=nil,"Native baseline preparation failed");return ready end},
+    baseline={validate=function(s)
+        assert(ModStudioNativeBaseline,"Native baseline API unavailable");assert(type(s.name)=="string" and string.match(s.name,"^[a-z0-9_-]+$"),"Invalid baseline name")
+        number(s,"dx",-1,1);number(s,"dy",-1,1);assert(math.abs(s.dx*s.dx+s.dy*s.dy-1)<0.001,"Baseline direction must be normalized");number(s,"seconds",1,600)
+        assert(s.detailed==nil or type(s.detailed)=="boolean","Invalid detailed");assert(s.hud==nil or type(s.hud)=="boolean","Invalid hud")
+    end,start=function(c,s)
+        if not c.nativeBaseline then assert(ModStudioNativeBaseline.open()==true,"Native baseline must be prepared");c.nativeBaseline=true end
+        assert(ModStudioNativeBaseline.start(s.name,s.dx,s.dy,s.seconds,s.detailed~=false,s.hud~=false)==true,"Native baseline start failed");c.phase("MEASURE",s.timeout or s.seconds+30)
+    end,tick=function() local ready=ModStudioNativeBaseline.poll();assert(ready~=nil,"Native baseline measurement failed");return ready end},
     routeLane=ScenarioRoute.command,
     expectPosition=ScenarioRoute.position,
     frameRate={validate=function(s)
@@ -320,7 +329,8 @@ local function tick()
         local p=getPlayer();if not p or not p:getSquare() or not p:getSquare():getFloor() then return end
         ctx.player=p;ctx.items={}
         ctx.saved={primary=p:getPrimaryHandItem(),secondary=p:getSecondaryHandItem(),god=p:isGodMod(),invisible=p:isInvisible(),ghost=p:isGhostMode(),running=p:isRunning(),sprinting=p:isSprinting(),sneaking=p:isSneaking(),hour=getGameTime():getTimeOfDay()}
-        if not cfg.multiplayer then p:setGodMod(true) end;p:setInvisible(false);p:setGhostMode(false);p:setRunning(false);p:setSprinting(false);p:setSneaking(false)
+        if not cfg.multiplayer then p:setGodMod(true) end;local baseline=ModStudioNativeBaseline and ModStudioNativeBaseline.requested();p:setInvisible(baseline==true);p:setGhostMode(baseline==true);p:setRunning(false);p:setSprinting(false);p:setSneaking(false)
+        if ctx.baselineProtection then for k,v in pairs(ctx.baselineProtection) do ctx.saved[k]=v end end
         ISTimedActionQueue.clear(p);phase("PREPARE",cfg.prepareTimeout or 120)
     end
     if state=="PREPARE" then
@@ -396,7 +406,7 @@ local function start()
             SandboxVars.WaterShutModifier=365;SandboxVars.ElecShutModifier=365;SandboxVars.StarterKit=false
             if cfg.sandbox then for k,v in pairs(cfg.sandbox) do SandboxVars[k]=v end end
         end,
-        onStart=function() getCore():setNoSave(not cfg.persistence);ModStudioScenario.worldReady();event("world-ready","native fresh world; NoSave="..tostring(getCore():isNoSave())) end}
+        onStart=function() getCore():setNoSave(not cfg.persistence);if ModStudioNativeBaseline and ModStudioNativeBaseline.requested() then local p=getPlayer();assert(p,"Baseline player unavailable");ctx.baselineProtection={god=p:isGodMod(),invisible=p:isInvisible(),ghost=p:isGhostMode()};p:setGodMod(true);p:setInvisible(true);assert(p:isGodMod() and p:isInvisible(),"Baseline protection not applied");event("native-baseline-protection","invisible=true god=true health="..tostring(p:getHealth())) end;ModStudioScenario.worldReady();event("world-ready","native fresh world; NoSave="..tostring(getCore():isNoSave())) end}
     if not DebugScenarios.instance then doDebugScenarios() end
     getWorld():setGameMode("Sandbox")
     getCore():setNoSave(false) -- Native createWorld requires the empty bootstrap directory.

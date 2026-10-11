@@ -7,7 +7,7 @@ $java=Join-Path $Game 'jre64/bin/java.exe'
 $compiler=Join-Path $env:TEMP 'PZModBuild/ecj-3.44.0.jar'
 $src=Join-Path $PSScriptRoot 'Contents/mods/mod_studio/42.20.4/java/src/me/pavel/modstudio'
 $cp=(Join-Path $Game 'projectzomboid.jar')+';'+(Join-Path $Game 'ZombieBuddy.jar')
-& $java -jar $compiler -25 -encoding UTF-8 -proc:none -nowarn -cp $cp -d $classes (Join-Path $src 'ScenarioHost.java') (Join-Path $src 'ScenarioStatus.java') (Join-Path $src 'ScenarioPersistence.java') (Join-Path $src 'ScenarioJson.java') (Join-Path $src 'ScenarioDriving.java') (Join-Path $PSScriptRoot 'tests/me/pavel/modstudio/ScenarioRegression.java') (Join-Path $PSScriptRoot 'tests/me/pavel/modstudio/ScenarioStatusRegression.java')
+& $java -jar $compiler -25 -encoding UTF-8 -proc:none -nowarn -cp $cp -d $classes (Join-Path $src 'ScenarioHost.java') (Join-Path $src 'ScenarioStatus.java') (Join-Path $src 'ScenarioPersistence.java') (Join-Path $src 'ScenarioJson.java') (Join-Path $src 'ScenarioDriving.java') (Join-Path $src 'NativeBaseline.java') (Join-Path $PSScriptRoot 'tests/me/pavel/modstudio/ScenarioRegression.java') (Join-Path $PSScriptRoot 'tests/me/pavel/modstudio/ScenarioStatusRegression.java')
 if($LASTEXITCODE -ne 0){throw 'Scenario regression compilation failed.'}
 Push-Location -LiteralPath $Game
 try {
@@ -16,6 +16,10 @@ try {
     if($LASTEXITCODE -ne 0){throw 'Scenario regression failed.'}
     & $java -cp "$classes;$cp" me.pavel.modstudio.ScenarioStatusRegression
     if($LASTEXITCODE -ne 0){throw 'Scenario status regression failed.'}
+    & $java -jar $compiler -25 -encoding UTF-8 -proc:none -nowarn -cp "$classes;$cp" -d $classes (Join-Path $PSScriptRoot 'tests/me/pavel/modstudio/NativeBaselineRegression.java')
+    if($LASTEXITCODE -ne 0){throw 'Native baseline regression compilation failed.'}
+    & $java -cp "$classes;$cp" me.pavel.modstudio.NativeBaselineRegression $PSScriptRoot
+    if($LASTEXITCODE -ne 0){throw 'Native baseline regression failed.'}
     & $java -jar $compiler -25 -encoding UTF-8 -proc:none -nowarn -cp $cp -d $classes (Join-Path $PSScriptRoot 'tests/me/pavel/modstudio/ScenarioDisplayRegression.java')
     if($LASTEXITCODE -ne 0){throw 'Display regression compilation failed.'}
     & $java -cp "$classes;$cp" me.pavel.modstudio.ScenarioDisplayRegression $PSScriptRoot

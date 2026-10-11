@@ -5,6 +5,8 @@ param(
     [string[]]$ModRoots=@(),
     [switch]$SkipBuild,
     [switch]$IsolatedProfile,
+    [switch]$NativeOnly,
+    [ValidateSet(0,11,13)][int]$NativeGrid=0,
     [string]$ReuseIsolatedArtifact='',
     [switch]$PrepareOnly,
     [string]$ResumeArtifact='',
@@ -40,6 +42,7 @@ if($data.persistence){
     if(($persistenceMode -eq 'resume') -ne [bool]$ResumeArtifact){throw 'ResumeArtifact is required only for persistence mode resume'}
 }elseif($ResumeArtifact){throw 'ResumeArtifact requires persistence mode resume'}
 if($ReuseIsolatedArtifact -and !$IsolatedProfile){throw 'ReuseIsolatedArtifact requires IsolatedProfile'}
+if(($NativeOnly -or $NativeGrid) -and (!$NativeOnly -or !$IsolatedProfile -or $ReuseIsolatedArtifact -or $ModRoots.Count -or $data.persistence -or $data.manual -or $data.multiplayer -or $Launcher -ne 'Java')){throw 'Native baseline requires a fresh isolated native-only NoSave single-player Java profile and no additional mods'}
 if($IsolatedProfile -and ($persistenceMode -or $Launcher -ne 'Java')){throw 'IsolatedProfile requires a nonpersistent Java scenario'}
 if($Mcp -and $data.multiplayer){throw 'Use the single-player scenario launcher for MCP continuation.'}
 if(@($data.steps | Where-Object {$_.command -like 'mcp.*'}).Count){throw 'Enable MCP with -Mcp, not a scenario command.'}
@@ -51,11 +54,17 @@ if(!$SkipBuild){foreach($root in $roots){& (Join-Path $root 'build.ps1') -Game $
 $id=[DateTime]::UtcNow.ToString('yyyyMMdd-THHmmssZ')+'-'+[guid]::NewGuid().ToString('N')
 $output=Join-Path $env:USERPROFILE "Zomboid/ModStudio/scenarios/$id"
 New-Item -ItemType Directory -Path $output | Out-Null
+if($NativeOnly -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot '.build/native-inputs.json'))){
+    $inputs=Join-Path $output 'inputs';New-Item -ItemType Directory -Path $inputs | Out-Null
+    foreach($name in @('native-inputs.json','native-inputs.zip')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot ".build/$name") -Destination $inputs}
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Contents/mods/mod_studio/42.20.4/media/java/client/ModStudio.jar') -Destination $inputs
+}
 $copy=Join-Path $output 'scenario.json'
 [IO.File]::WriteAllText($copy,$text,[Text.UTF8Encoding]::new($false))
 $config=Get-Content -LiteralPath (Join-Path $Game 'ProjectZomboid64.json') -Raw | ConvertFrom-Json
 $gcArguments=if($GarbageCollector -eq 'G1'){@('-XX:-UseZGC','-XX:+UseG1GC')}else{@('-XX:-UseG1GC','-XX:+UseZGC')}
 $arguments=@($config.vmArgs)+$gcArguments+@("-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')",'-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")
+if($NativeOnly){$arguments+=@('-Dmodstudio.nativeBaseline=true',"-Dmodstudio.nativeGrid=$NativeGrid", "-Dmodstudio.nativeMap=$PSScriptRoot/.build/native-map")}
 if($Launcher -eq 'Native'){$arguments=$gcArguments+@('-agentlib:zbNative=policy=allow-all','-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")}
 $mcpSession=$null
 if($Mcp){
@@ -95,7 +104,8 @@ if($persistenceMode){
 }
 if($IsolatedProfile){
     . (Join-Path $PSScriptRoot 'scenario-profile.ps1')
-    $persistentProfile=Get-ModStudioIsolatedProfile -Output $output -Game $Game -Roots $roots -ReuseArtifact $ReuseIsolatedArtifact
+    $persistentProfile=if($NativeOnly){Get-ModStudioPersistentProfile -Output $output -Game $Game -Roots $roots -Mode new -NativeOnly}else{Get-ModStudioIsolatedProfile -Output $output -Game $Game -Roots $roots -ReuseArtifact $ReuseIsolatedArtifact}
+    $launch.nativeOnly=[bool]$NativeOnly;$launch.nativeGrid=$NativeGrid
     $launch.nativeProfile=$persistentProfile.path;$launch.isolatedProfile=$true;$launch.reusedIsolatedArtifact=$ReuseIsolatedArtifact
 }
 if($WindowWidth){
