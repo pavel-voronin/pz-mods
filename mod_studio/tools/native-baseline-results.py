@@ -21,13 +21,18 @@ def summarize(directory):
     preset = (pathlib.Path(launch["nativeProfile"]) / "mods/default.txt").read_text()
     if "pz3d" in preset.lower():
         raise ValueError("pz3d enabled in baseline profile")
-    records = list(csv.reader((directory / "native-events.csv").open()))[1:]
+    with (directory / "native-events.csv").open(newline="") as stream:
+        records = [row for row in csv.reader(stream) if len(row) >= 3][1:]
     windows = []
     for path in sorted(directory.glob("native-*.json")):
         window = json.loads(path.read_text())
         if window.get("dropped") or window["updateCost"]["count"] < 1 or window["presents"]["count"] < 1:
             raise ValueError(f"Lost or missing measurements: {path}")
         samples = [r for r in records if r[0] == "sample" and r[2] == window["name"]]
+        forward = [r for r in samples if len(r) >= 14]
+        if forward:
+            window["requiredAheadRange"] = [min(int(r[12]) for r in forward), max(int(r[12]) for r in forward)]
+            window["missingAheadP95"] = percentile([int(r[13]) for r in forward], .95)
         window["squareMismatchSamples"] = sum(r[10] != "true" for r in samples)
         window["sampleCount"] = len(samples)
         window["stages"] = {}

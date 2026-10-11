@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "id": "native-diagonal-city-short",
+  "description": "Short visible city comparison: 30 seconds first and 30 repeat, each separate from warmup. Protected actor, full map and telemetry throughout.",
+  "spawn": {
+    "x": 12200,
+    "y": 3300,
+    "z": 0
+  },
+  "sandbox": {
+    "Zombies": 3,
+    "StartMonth": 7,
+    "StartDay": 9,
+    "StartTime": 2
+  },
+  "steps": [
+    {
+      "command": "native.frameRate",
+      "fps": 60,
+      "uncapped": false,
+      "vsync": false
+    },
+    {
+      "command": "native.time",
+      "hour": 12,
+      "freeze": true
+    },
+    {
+      "command": "native.weather",
+      "fog": 0,
+      "rain": 0,
+      "cloud": 0,
+      "wind": 0
+    },
+    {
+      "command": "native.baselinePrepare",
+      "timeout": 30
+    },
+    {
+      "command": "native.wait",
+      "seconds": 3
+    },
+    {
+      "command": "native.wait",
+      "seconds": 20
+    },
+    {
+      "command": "native.baseline",
+      "name": "city-first",
+      "dx": 0.7071067811865475,
+      "dy": -0.7071067811865475,
+      "seconds": 30,
+      "timeout": 45
+    },
+    {
+      "command": "native.wait",
+      "seconds": 8
+    },
+    {
+      "command": "native.baseline",
+      "name": "city-repeat",
+      "dx": -0.7071067811865475,
+      "dy": 0.7071067811865475,
+      "seconds": 30,
+      "timeout": 45
+    },
+    {
+      "command": "native.screenshot",
+      "name": "city-completed"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([Parameter(Mandatory=$true)][string]$Scenario,[ValidateSet(0,11,13)][int]$Grid=0,[int]$TimeoutSeconds=1400)
+param([Parameter(Mandatory=$true)][string]$Scenario,[ValidateSet(0,11,13)][int]$Grid=0,[int]$TimeoutSeconds=1400,[switch]$FullScreen)
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot
 $textures=Join-Path $root 'Contents/mods/mod_studio/common/media/textures'
@@ -16,7 +16,7 @@ $job=Start-Job -FilePath (Join-Path $PSScriptRoot 'native-baseline-monitor.ps1')
 $baselineRunState=@{artifact=''}
 try {
     Write-Output "System telemetry: $output"
-    & (Join-Path $root 'scenario.ps1') -Scenario $Scenario -SkipBuild -IsolatedProfile -NativeOnly -NativeGrid $Grid -WindowWidth 1920 -WindowHeight 1200 -FullScreen -TimeoutSeconds $TimeoutSeconds | ForEach-Object {if($_ -match '^Scenario artifact: (.+)$'){$baselineRunState.artifact=$Matches[1]};Write-Output $_}
+    & (Join-Path $root 'scenario.ps1') -Scenario $Scenario -SkipBuild -IsolatedProfile -NativeOnly -NativeGrid $Grid -WindowWidth 1920 -WindowHeight 1200 -FullScreen:$FullScreen -TimeoutSeconds $TimeoutSeconds | ForEach-Object {if($_ -match '^Scenario artifact: (.+)$'){$baselineRunState.artifact=$Matches[1]};Write-Output $_}
 }finally{
     [IO.File]::WriteAllText($stop,'complete')
     $job | Wait-Job -Timeout 10 | Out-Null

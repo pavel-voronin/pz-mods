@@ -43,7 +43,7 @@ public final class NativeBaseline {
     public static final class Window {
         public final String name;final double x,y,dx,dy,seconds;public final boolean detailed,showHud;
         final long start=System.nanoTime();final Histogram updateIntervals=new Histogram(),updateCost=new Histogram(),present=new Histogram(),probeCost=new Histogram();
-        long previousUpdate,previousPresent,updateStart,nextSample,lateSince,lateCount,maxLate;double minLead=Double.POSITIVE_INFINITY,maxDeficit,distance,lastX,lastY,maxJump;long maxHeap;int maxQueue;double maxAge;
+        long previousUpdate,previousPresent,updateStart,nextSample,lateSince,lateCount,maxLate;double minLead=Double.POSITIVE_INFINITY,maxDeficit,distance,lastX,lastY,maxJump;long maxHeap;int maxQueue,minReadyAhead=Integer.MAX_VALUE,maxMissingAhead;double maxAge;
         Window(String name,double x,double y,double dx,double dy,double seconds,boolean detailed,boolean showHud){this.name=name;this.x=x;this.y=y;this.dx=dx;this.dy=dy;this.seconds=seconds;this.detailed=detailed;this.showHud=showHud;lastX=x;lastY=y;}
     }
     public static void guard(){if(!enabled||!ScenarioHost.suppressInput()||!Core.getInstance().isNoSave())throw new IllegalStateException("Baseline requires owned native-only NoSave scenario");}
@@ -53,11 +53,12 @@ public final class NativeBaseline {
         worldMap=zombie.core.textures.Texture.getSharedTexture("media/textures/modstudio-native-baseline-world.png");cityMap=zombie.core.textures.Texture.getSharedTexture("media/textures/modstudio-native-baseline-city.png");ruralMap=zombie.core.textures.Texture.getSharedTexture("media/textures/modstudio-native-baseline-rural.png");
         if(worldMap==null||cityMap==null||ruralMap==null)throw new IllegalStateException("Prepared native maps missing from mod media");
         if(!worldMap.isReady()||!cityMap.isReady()||!ruralMap.isReady())return false;
+        if(org.lwjglx.opengl.Display.getFramebufferWidth()==0||org.lwjglx.opengl.Display.getFramebufferHeight()==0)return false;
         var p=IsoPlayer.getInstance();if(!p.isGodMod()||!p.isInvisible())throw new IllegalStateException("Baseline player must be invisible and invulnerable");oldNoclip=p.isNoClip();p.setNoClip(true,true);if(!p.isNoClip())throw new IllegalStateException("Native noclip unavailable");
         String display=ScenarioHost.expectDisplay(1920,1200);if(!display.isEmpty())throw new IllegalStateException(display);
         ScenarioHost.event("native-baseline-display","framebuffer="+org.lwjglx.opengl.Display.getFramebufferWidth()+"x"+org.lwjglx.opengl.Display.getFramebufferHeight()+" cap="+ScenarioHost.frameLimit()+" uncapped="+ScenarioHost.frameUncapped()+" vsync="+ScenarioHost.frameSync());
         Path output=Path.of(System.getProperty("modstudio.scenario.output"));
-        writer=new Thread(()->{try(var out=Files.newBufferedWriter(output.resolve("native-events.csv"))){out.write("kind,ns,window,x,y,a,b,c,d,e,f\n");while(true){String line=records.poll(1,TimeUnit.SECONDS);if("CLOSE".equals(line))break;if(line!=null){out.write(line);out.newLine();}}}catch(Exception e){writerError=e.toString();}},"native-baseline-writer");writer.setDaemon(true);writer.start();
+        writer=new Thread(()->{try(var out=Files.newBufferedWriter(output.resolve("native-events.csv"))){out.write("kind,ns,window,x,y,a,b,c,d,e,f,readyAhead,requiredAhead,missingAhead\n");while(true){String line=records.poll(1,TimeUnit.SECONDS);if("CLOSE".equals(line))break;if(line!=null){out.write(line);out.newLine();}}}catch(Exception e){writerError=e.toString();}},"native-baseline-writer");writer.setDaemon(true);writer.start();
         ScenarioHost.event("native-baseline","grid="+IsoChunkMap.chunkGridWidth+" screen="+Core.width+"x"+Core.height+" noSave="+Core.getInstance().isNoSave()+" population="+zombie.SandboxOptions.instance.zombies.getValue()+" invisible="+p.isInvisible()+" god="+p.isGodMod()+" health="+p.getHealth());
         playerX=p.getX();playerY=p.getY();viewX=Math.floorDiv(p.getXi(),8)-VIEW/2;viewY=Math.floorDiv(p.getYi(),8)-VIEW/2;hud=new String[]{"Native chunk baseline | preparing static map display"};return true;
     }
@@ -72,6 +73,7 @@ public final class NativeBaseline {
         var w=window;if(w==null)return true;window=null;statusLine="Native baseline | between measurement windows";long end=System.nanoTime();if(w.lateSince!=0)w.maxLate=Math.max(w.maxLate,end-w.lateSince);
         var p=IsoPlayer.getInstance();double elapsed=(end-w.start)/1e9,along=(p.getX()-w.x)*w.dx+(p.getY()-w.y)*w.dy;
         String json="{\"name\":\""+w.name+"\",\"grid\":"+IsoChunkMap.chunkGridWidth+",\"seconds\":"+elapsed+",\"kmh\":"+along/elapsed*3.6+",\"distance\":"+along+",\"minLead\":"+(Double.isFinite(w.minLead)?w.minLead:-1)+",\"lateCount\":"+w.lateCount+",\"maxLateMs\":"+w.maxLate/1e6+",\"maxDeficit\":"+w.maxDeficit+",\"maxJump\":"+w.maxJump+",\"maxQueue\":"+w.maxQueue+",\"maxAgeMs\":"+w.maxAge+",\"maxHeap\":"+w.maxHeap+",\"dropped\":"+dropped+",\"detailed\":"+w.detailed+",\"hud\":"+w.showHud+",\"updateIntervals\":"+w.updateIntervals.json()+",\"updateCost\":"+w.updateCost.json()+",\"presents\":"+w.present.json()+",\"probeCost\":"+w.probeCost.json()+",\"hudCost\":"+hudCost.json()+",\"contentChunks\":"+contentChunks+",\"contentObjects\":"+contentObjects+",\"contentSquares\":"+contentSquares+",\"contentUpperSquares\":"+contentUpper+",\"startX\":"+w.x+",\"startY\":"+w.y+",\"endX\":"+p.getX()+",\"endY\":"+p.getY()+",\"health\":"+p.getHealth()+",\"invisible\":"+p.isInvisible()+",\"god\":"+p.isGodMod()+",\"dx\":"+w.dx+",\"dy\":"+w.dy+"}";
+        json=json.substring(0,json.length()-1)+",\"minReadyAhead\":"+(w.minReadyAhead==Integer.MAX_VALUE?-1:w.minReadyAhead)+",\"maxMissingAhead\":"+w.maxMissingAhead+",\"attachedChunksPerSecond\":"+contentChunks/elapsed+"}";
         try{Files.writeString(Path.of(System.getProperty("modstudio.scenario.output"),"native-"+w.name+".json"),json);}catch(IOException e){throw new UncheckedIOException(e);}
         ScenarioHost.event("native-baseline-stop",json);if(w.updateCost.n==0||w.present.n==0)throw new IllegalStateException("Missing native update or presentation instrumentation");return true;
     }
@@ -92,8 +94,10 @@ public final class NativeBaseline {
             w.minLead=Math.min(w.minLead,lead);if(lead<8){if(w.lateSince==0){w.lateSince=now;w.lateCount++;}}else if(w.lateSince!=0){w.maxLate=Math.max(w.maxLate,now-w.lateSince);w.lateSince=0;}
         }
         if(now>=w.nextSample){w.nextSample=now+200_000_000L;for(var entry:stages.entrySet()){var s=entry.getValue();if(s.objects==0&&!entry.getKey().refs.isEmpty()){queue++;age=Math.max(age,(now-s.request)/1e6);}}w.maxQueue=Math.max(w.maxQueue,queue);w.maxAge=Math.max(w.maxAge,age);long heap=Runtime.getRuntime().totalMemory()-Runtime.getRuntime().freeMemory();w.maxHeap=Math.max(w.maxHeap,heap);
+            int aheadRequired=0,aheadReady=0;var map=IsoWorld.instance.currentCell.chunkMap[0];
+            if(w.detailed){for(int y=0;y<IsoChunkMap.chunkGridWidth;y++)for(int x=0;x<IsoChunkMap.chunkGridWidth;x++){int cx=map.getWorldXMin()+x,cy=map.getWorldYMin()+y;if(((cx*8+4)-p.getX())*w.dx+((cy*8+4)-p.getY())*w.dy<0)continue;aheadRequired++;var c=IsoWorld.instance.currentCell.getChunk(cx,cy);var st=c==null?null:stages.get(c);if(c!=null&&c.loaded&&st!=null&&st.attach!=0&&st.objects!=0)aheadReady++;}w.minReadyAhead=Math.min(w.minReadyAhead,aheadReady);w.maxMissingAhead=Math.max(w.maxMissingAhead,aheadRequired-aheadReady);}
             var sq=p.getCurrentSquare();boolean current=sq!=null&&sq.getX()==p.getXi()&&sq.getY()==p.getYi();
-            emit("sample,"+now+","+w.name+","+p.getX()+","+p.getY()+","+elapsed+","+lead+","+(elapsed*80/3.6-along)+","+queue+","+age+","+current);
+            emit("sample,"+now+","+w.name+","+p.getX()+","+p.getY()+","+elapsed+","+lead+","+(elapsed*80/3.6-along)+","+queue+","+age+","+current+","+aheadReady+","+aheadRequired+","+(aheadRequired-aheadReady));
             if(w.showHud){
                 double speed=sampleTime==0?along/Math.max(.001,elapsed)*3.6:Math.hypot(p.getX()-sampleX,p.getY()-sampleY)/((now-sampleTime)/1e9)*3.6;
                 sampleTime=now;sampleX=p.getX();sampleY=p.getY();playerX=p.getX();playerY=p.getY();viewX=Math.floorDiv(p.getXi(),8)-VIEW/2;viewY=Math.floorDiv(p.getYi(),8)-VIEW/2;
@@ -102,7 +106,8 @@ public final class NativeBaseline {
                     String.format(Locale.ROOT,"%.1f / %.0f s | speed %.1f km/h | average %.1f",elapsed,w.seconds,speed,along/Math.max(.001,elapsed)*3.6),
                     String.format(Locale.ROOT,"position %.1f, %.1f | diagonal %.3f, %.3f",playerX,playerY,w.dx,w.dy),
                     String.format(Locale.ROOT,"ready lead %.0f tiles / %.2f s | minimum %.0f",lead,lead/(80.0/3.6),w.minLead),
-                    String.format(Locale.ROOT,"queue %d | oldest %.1f ms | late events %d",queue,age,w.lateCount),
+                    String.format(Locale.ROOT,"ahead ready %d / %d | missing %d | attached %.1f chunks/s",aheadReady,aheadRequired,aheadRequired-aheadReady,contentChunks/Math.max(.001,elapsed)),
+                    String.format(Locale.ROOT,"queue %d | oldest %.1f ms | low-reserve episodes %d",queue,age,w.lateCount),
                     String.format(Locale.ROOT,"movement deficit %.2f tiles | maximum %.2f | square %s",elapsed*80/3.6-along,w.maxDeficit,current),
                     timing("update cost",w.updateCost),timing("present interval",w.present),timing("probe cost",w.probeCost),
                     String.format(Locale.ROOT,"heap %.0f MiB | chunks attached %d",heap/1048576.0,contentChunks),
