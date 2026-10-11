@@ -102,3 +102,14 @@ Set-ModStudioProfileDisplay -Profile $replay -Width 1920 -Height 1200 -FullScree
 $fullDisplayOptions=[IO.File]::ReadAllText((Join-Path $replay.path 'options.ini'))
 if($fullDisplayOptions -notmatch '(?m)^fullScreen=true\r?$' -or $fullDisplayOptions -notmatch '(?m)^borderless=false\r?$'){throw 'Native fullscreen display override was not applied'}
 Write-Output 'PASS: native fullscreen prevents decorated-window sizing from reducing benchmark dimensions.'
+Set-ModStudioProfileDisplay -Profile $replay -Width 1920 -Height 1200 -Borderless
+$borderlessOptions=[IO.File]::ReadAllText((Join-Path $replay.path 'options.ini'))
+if($borderlessOptions -notmatch '(?m)^fullScreen=false\r?$' -or $borderlessOptions -notmatch '(?m)^borderless=true\r?$'){throw 'Owned borderless override failed'}
+$captureOutput=Join-Path $root 'capture-profile'
+New-Item -ItemType Directory -Path $captureOutput | Out-Null
+$captureProfile=Get-ModStudioPersistentProfile -Output $captureOutput -Game $game -Roots @($PSScriptRoot,$modRoot) -Mode new -CaptureOnly
+$capturePreset=[IO.File]::ReadAllText((Join-Path $captureProfile.path 'mods/default.txt'))
+$captureIds=@([regex]::Matches($capturePreset,'mod = ([A-Za-z0-9_-]+),') | ForEach-Object {$_.Groups[1].Value})
+if($captureIds.Count -ne 3 -or @($captureIds | Where-Object {$_ -notin @('ZombieBuddy','mod_studio','pz3d')}).Count -or @('ZombieBuddy','mod_studio','pz3d' | Where-Object {$_ -notin $captureIds}).Count){throw 'Capture profile includes unrelated mods or misses pz3d'}
+if((Get-FileHash -LiteralPath (Join-Path $native 'options.ini')).Hash -ne $nativeDisplayHash){throw 'Capture fixture changed user options'}
+Write-Output 'PASS: isolated capture cohort whitelist, borderless dimensions and preserved user options.'

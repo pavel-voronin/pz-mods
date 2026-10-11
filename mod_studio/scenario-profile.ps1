@@ -13,7 +13,7 @@ function Connect-ModStudioCommonCache {
 }
 
 function Set-ModStudioProfileDisplay {
-    param([hashtable]$Profile,[ValidateRange(640,7680)][int]$Width,[ValidateRange(480,4320)][int]$Height,[switch]$FullScreen)
+    param([hashtable]$Profile,[ValidateRange(640,7680)][int]$Width,[ValidateRange(480,4320)][int]$Height,[switch]$FullScreen,[switch]$Borderless)
     $root=(Resolve-Path -LiteralPath $Profile.path).Path
     $owner=Get-Content -LiteralPath (Join-Path $root 'profile-owner.json') -Raw | ConvertFrom-Json
     if($owner.schema -ne 1 -or $owner.profile -ne $root -or $owner.token -ne $Profile.token){throw 'Display profile ownership mismatch'}
@@ -27,13 +27,15 @@ function Set-ModStudioProfileDisplay {
         $options=[regex]::Replace($options,'(?m)^fullScreen=[^\r\n]*','fullScreen=true')
         $options=[regex]::Replace($options,'(?m)^borderless=[^\r\n]*','borderless=false')
     }
+    if($Borderless){$options=[regex]::Replace($options,'(?m)^fullScreen=[^\r\n]*','fullScreen=false');$options=[regex]::Replace($options,'(?m)^borderless=[^\r\n]*','borderless=true')}
     [IO.File]::WriteAllText($path,$options,[Text.UTF8Encoding]::new($false))
 }
 
 function Get-ModStudioPersistentProfile {
-    param([string]$Output,[string]$Game,[string[]]$Roots,[string]$Mode,[string]$ResumeArtifact='',[switch]$ReadOnly,[switch]$NativeOnly)
+    param([string]$Output,[string]$Game,[string[]]$Roots,[string]$Mode,[string]$ResumeArtifact='',[switch]$ReadOnly,[switch]$NativeOnly,[switch]$CaptureOnly)
     $artifactRoot=Split-Path $Output
     if($NativeOnly -and ($Mode -ne 'new' -or $ReadOnly -or $ResumeArtifact)){throw 'Native-only profiles must be fresh and disposable'}
+    if($CaptureOnly -and ($NativeOnly -or $Mode -ne 'new' -or $ReadOnly -or $ResumeArtifact)){throw 'Capture-only profiles must be fresh and disposable'}
     if($Mode -eq 'resume'){
         if($ResumeArtifact -notmatch '^[0-9]{8}-T[0-9]{6}Z-[a-f0-9]{32}$'){throw 'ResumeArtifact must be an owned scenario artifact id'}
         $previous=Join-Path $artifactRoot $ResumeArtifact
@@ -73,9 +75,10 @@ function Get-ModStudioPersistentProfile {
     $profile=(Resolve-Path -LiteralPath $profile).Path
     $sources=[ordered]@{}
     foreach($root in $Roots){
-        foreach($package in Get-ChildItem -LiteralPath (Join-Path $root 'Contents/mods') -Directory){if(!$NativeOnly -or $package.Name -eq 'mod_studio'){$sources[$package.Name]=$package.FullName}}
+        foreach($package in Get-ChildItem -LiteralPath (Join-Path $root 'Contents/mods') -Directory){if((!$NativeOnly -and !$CaptureOnly) -or $package.Name -eq 'mod_studio' -or ($CaptureOnly -and $package.Name -eq 'pz3d')){$sources[$package.Name]=$package.FullName}}
     }
     if($NativeOnly -and !$sources.Contains('mod_studio')){throw 'Native-only profile requires Mod Studio'}
+    if($CaptureOnly -and (!$sources.Contains('mod_studio') -or !$sources.Contains('pz3d'))){throw 'Capture-only profile requires Mod Studio and pz3d'}
     $workshop=[IO.Path]::GetFullPath((Join-Path (Split-Path $Game) '../workshop/content/108600'))
     $buddy=Get-ChildItem -LiteralPath $workshop -Directory | ForEach-Object {Join-Path $_.FullName 'mods/ZombieBuddy'} | Where-Object {Test-Path -LiteralPath $_} | Select-Object -First 1
     if(!$buddy){throw 'ZombieBuddy native package is unavailable'}
