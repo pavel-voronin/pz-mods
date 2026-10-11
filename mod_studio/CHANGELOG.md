@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Added
+- Add the main-menu game language selector transferred from pz3d, using native language settings and Lua reload.
+
 ### Maintenance
 - Scenarios: align paired-door regression fixtures with native lock and obstruction queries.
 - Scenarios: integrate native streaming maps, reserve telemetry and protected diagonal fixtures with menu preparation; remove the retired capture-only bridge.
