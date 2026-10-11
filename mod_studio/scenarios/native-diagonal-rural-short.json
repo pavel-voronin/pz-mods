@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "id": "native-diagonal-rural-short",
+  "description": "Short visible countryside comparison: 30 seconds first and 30 repeat, protected actor, forward coverage, full map and telemetry.",
+  "spawn": {
+    "x": 7500,
+    "y": 6500,
+    "z": 0
+  },
+  "sandbox": {
+    "Zombies": 3,
+    "StartMonth": 7,
+    "StartDay": 9,
+    "StartTime": 2
+  },
+  "steps": [
+    {
+      "command": "native.frameRate",
+      "fps": 60,
+      "uncapped": false,
+      "vsync": false
+    },
+    {
+      "command": "native.time",
+      "hour": 12,
+      "freeze": true
+    },
+    {
+      "command": "native.weather",
+      "fog": 0,
+      "rain": 0,
+      "cloud": 0,
+      "wind": 0
+    },
+    {
+      "command": "native.baselinePrepare",
+      "timeout": 30
+    },
+    {
+      "command": "native.wait",
+      "seconds": 3
+    },
+    {
+      "command": "native.wait",
+      "seconds": 20
+    },
+    {
+      "command": "native.baseline",
+      "name": "rural-first",
+      "dx": 0.7071067811865475,
+      "dy": 0.7071067811865475,
+      "seconds": 30,
+      "timeout": 45
+    },
+    {
+      "command": "native.wait",
+      "seconds": 8
+    },
+    {
+      "command": "native.baseline",
+      "name": "rural-repeat",
+      "dx": -0.7071067811865475,
+      "dy": -0.7071067811865475,
+      "seconds": 30,
+      "timeout": 45
+    },
+    {
+      "command": "native.screenshot",
+      "name": "rural-completed"
+    }
+  ]
+}

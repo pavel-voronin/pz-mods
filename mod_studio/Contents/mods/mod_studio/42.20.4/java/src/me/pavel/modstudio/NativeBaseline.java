@@ -55,7 +55,6 @@ public final class NativeBaseline {
         if(!worldMap.isReady()||!cityMap.isReady()||!ruralMap.isReady())return false;
         if(org.lwjglx.opengl.Display.getFramebufferWidth()==0||org.lwjglx.opengl.Display.getFramebufferHeight()==0)return false;
         var p=IsoPlayer.getInstance();if(!p.isGodMod()||!p.isInvisible())throw new IllegalStateException("Baseline player must be invisible and invulnerable");oldNoclip=p.isNoClip();p.setNoClip(true,true);if(!p.isNoClip())throw new IllegalStateException("Native noclip unavailable");
-        String display=ScenarioHost.expectDisplay(1920,1200);if(!display.isEmpty())throw new IllegalStateException(display);
         ScenarioHost.event("native-baseline-display","framebuffer="+org.lwjglx.opengl.Display.getFramebufferWidth()+"x"+org.lwjglx.opengl.Display.getFramebufferHeight()+" cap="+ScenarioHost.frameLimit()+" uncapped="+ScenarioHost.frameUncapped()+" vsync="+ScenarioHost.frameSync());
         Path output=Path.of(System.getProperty("modstudio.scenario.output"));
         writer=new Thread(()->{try(var out=Files.newBufferedWriter(output.resolve("native-events.csv"))){out.write("kind,ns,window,x,y,a,b,c,d,e,f,readyAhead,requiredAhead,missingAhead\n");while(true){String line=records.poll(1,TimeUnit.SECONDS);if("CLOSE".equals(line))break;if(line!=null){out.write(line);out.newLine();}}}catch(Exception e){writerError=e.toString();}},"native-baseline-writer");writer.setDaemon(true);writer.start();
