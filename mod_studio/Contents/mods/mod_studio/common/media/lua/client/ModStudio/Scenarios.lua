@@ -53,10 +53,10 @@ API.register("native",{
     baseline={validate=function(s)
         assert(ModStudioNativeBaseline,"Native baseline API unavailable");assert(type(s.name)=="string" and string.match(s.name,"^[a-z0-9_-]+$"),"Invalid baseline name")
         number(s,"dx",-1,1);number(s,"dy",-1,1);assert(math.abs(s.dx*s.dx+s.dy*s.dy-1)<0.001,"Baseline direction must be normalized");number(s,"seconds",1,600)
-        assert(s.detailed==nil or type(s.detailed)=="boolean","Invalid detailed");assert(s.hud==nil or type(s.hud)=="boolean","Invalid hud")
+        assert(s.stationary==nil or type(s.stationary)=="boolean","Invalid stationary");assert(s.detailed==nil or type(s.detailed)=="boolean","Invalid detailed");assert(s.hud==nil or type(s.hud)=="boolean","Invalid hud")
     end,start=function(c,s)
         if not c.nativeBaseline then assert(ModStudioNativeBaseline.open()==true,"Native baseline must be prepared");c.nativeBaseline=true end
-        assert(ModStudioNativeBaseline.start(s.name,s.dx,s.dy,s.seconds,s.detailed~=false,s.hud~=false)==true,"Native baseline start failed");c.phase("MEASURE",s.timeout or s.seconds+30)
+        local begin=s.stationary and ModStudioNativeBaseline.startStationary or ModStudioNativeBaseline.start;assert(begin(s.name,s.dx,s.dy,s.seconds,s.detailed~=false,s.hud~=false)==true,"Native baseline start failed");c.phase("MEASURE",s.timeout or s.seconds+30)
     end,tick=function() local ready=ModStudioNativeBaseline.poll();assert(ready~=nil,"Native baseline measurement failed");return ready end},
     routeLane=ScenarioRoute.command,
     expectPosition=ScenarioRoute.position,

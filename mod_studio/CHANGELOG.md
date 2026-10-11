@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Maintenance
+
+- Scenarios: audit complete capture planning, work limits, repeat causes and unfinished requests; compare explicit motion inputs and capture step limits with synchronized native readiness.
 - Add an explicit isolated capture cohort profile and owned borderless display override; show vanilla readiness as cell fill and the participating mod's complete capture state as a frame, with separate forward lead measurements.
 - Lead the native artifact summary with forward readiness, missing chunk counts and observed data flow; retain frame diagnostics only in raw records.
 - Record actual window/framebuffer size without requiring a graphics benchmark resolution for data-loading experiments; await nonzero framebuffer dimensions during preparation.
