@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Maintenance
+- Scenarios: retain actual scheduling inputs, whole-grid readiness and bounded diagnostic overhead; add stationary native mutation and longer recovery fixtures.
 - Scenarios: verify stationary command routing and reject malformed stationary flags in the native baseline regression.
 
 - Scenarios: audit complete capture planning, work limits, repeat causes and unfinished requests; compare explicit motion inputs and capture step limits with synchronized native readiness.
