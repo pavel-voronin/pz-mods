@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Maintenance
+- Scenarios: align paired-door regression fixtures with native lock and obstruction queries.
 - Scenarios: integrate native streaming maps, reserve telemetry and protected diagonal fixtures with menu preparation; remove the retired capture-only bridge.
 - Scenarios: unlock freshly created paired-door fixtures before native toggles and retain obstruction diagnostics.
 
