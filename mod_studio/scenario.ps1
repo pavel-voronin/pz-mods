@@ -6,7 +6,6 @@ param(
     [switch]$SkipBuild,
     [switch]$IsolatedProfile,
     [switch]$NativeOnly,
-    [switch]$NativeCaptureOnly,
     [ValidateSet(0,11,13)][int]$NativeGrid=0,
     [string]$ReuseIsolatedArtifact='',
     [switch]$PrepareOnly,
@@ -46,7 +45,6 @@ if($data.persistence){
 }elseif($ResumeArtifact){throw 'ResumeArtifact requires persistence mode resume'}
 if($ReuseIsolatedArtifact -and !$IsolatedProfile){throw 'ReuseIsolatedArtifact requires IsolatedProfile'}
 if(($NativeOnly -or $NativeGrid) -and (!$NativeOnly -or !$IsolatedProfile -or $ReuseIsolatedArtifact -or $ModRoots.Count -or $data.persistence -or $data.manual -or $data.multiplayer -or $Launcher -ne 'Java')){throw 'Native baseline requires a fresh isolated native-only NoSave single-player Java profile and no additional mods'}
-if($NativeCaptureOnly -and ($NativeOnly -or !$IsolatedProfile -or $ReuseIsolatedArtifact -or $ModRoots.Count -ne 1 -or $data.persistence -or $data.manual -or $data.multiplayer -or $Launcher -ne 'Java' -or $NativeGrid)){throw 'Capture baseline requires one pz3d root, fresh isolated NoSave Java profile and automatic native grid'}
 if($IsolatedProfile -and ($persistenceMode -or $Launcher -ne 'Java')){throw 'IsolatedProfile requires a nonpersistent Java scenario'}
 if($Mcp -and $data.multiplayer){throw 'Use the single-player scenario launcher for MCP continuation.'}
 if(@($data.steps | Where-Object {$_.command -like 'mcp.*'}).Count){throw 'Enable MCP with -Mcp, not a scenario command.'}
@@ -54,27 +52,22 @@ $running=Get-Process -ErrorAction SilentlyContinue | Where-Object {$_.ProcessNam
 $javaGame=Get-CimInstance Win32_Process -Filter "Name = 'java.exe' OR Name = 'javaw.exe'" | Where-Object {$_.CommandLine -match 'zombie\.(gameStates\.MainScreenState|network\.GameServer)'}
 if(!$PrepareOnly -and ($running -or $javaGame)){throw 'A Project Zomboid client or server is already running. Close it normally before a scenario launch.'}
 $roots=@($PSScriptRoot)+@($ModRoots | ForEach-Object {(Resolve-Path -LiteralPath $_).Path}) | Select-Object -Unique
-if($NativeCaptureOnly -and !(Test-Path -LiteralPath (Join-Path $roots[1] 'Contents/mods/pz3d/42.20.4/mod.info'))){throw 'Capture baseline requires pz3d'}
 if(!$SkipBuild){foreach($root in $roots){& (Join-Path $root 'build.ps1') -Game $Game}}
 $id=[DateTime]::UtcNow.ToString('yyyyMMdd-THHmmssZ')+'-'+[guid]::NewGuid().ToString('N')
 $output=Join-Path $env:USERPROFILE "Zomboid/ModStudio/scenarios/$id"
 New-Item -ItemType Directory -Path $output | Out-Null
-if(($NativeOnly -or $NativeCaptureOnly) -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot '.build/native-inputs.json'))){
+if($NativeOnly -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot '.build/native-inputs.json'))){
     $inputs=Join-Path $output 'inputs';New-Item -ItemType Directory -Path $inputs | Out-Null
     foreach($name in @('native-inputs.json','native-inputs.zip')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot ".build/$name") -Destination $inputs}
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Contents/mods/mod_studio/42.20.4/media/java/client/ModStudio.jar') -Destination $inputs
-}
-if($NativeCaptureOnly){
-    $inputs=Join-Path $output 'inputs';New-Item -ItemType Directory -Path $inputs -Force | Out-Null
-    foreach($name in @('capture-inputs.json','capture-inputs.zip','PZ3D-0.7.0.jar')){Copy-Item -LiteralPath (Join-Path $roots[1] ".build/$name") -Destination $inputs}
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Contents/mods/mod_studio/42.20.4/media/java/client/ModStudio.jar.zbs') -Destination $inputs
 }
 $copy=Join-Path $output 'scenario.json'
 [IO.File]::WriteAllText($copy,$text,[Text.UTF8Encoding]::new($false))
 $config=Get-Content -LiteralPath (Join-Path $Game 'ProjectZomboid64.json') -Raw | ConvertFrom-Json
 $gcArguments=if($GarbageCollector -eq 'G1'){@('-XX:-UseZGC','-XX:+UseG1GC')}else{@('-XX:-UseG1GC','-XX:+UseZGC')}
 $arguments=@($config.vmArgs)+$gcArguments+@("-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')",'-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")
-if($NativeOnly -or $NativeCaptureOnly){$arguments+=@('-Dmodstudio.nativeBaseline=true',"-Dmodstudio.nativeGrid=$NativeGrid", "-Dmodstudio.nativeMap=$PSScriptRoot/.build/native-map")}
-if($NativeCaptureOnly){$arguments+='-Dpz3d.captureOnlyExperiment=true'}
+if($NativeOnly){$arguments+=@('-Dmodstudio.nativeBaseline=true',"-Dmodstudio.nativeGrid=$NativeGrid", "-Dmodstudio.nativeMap=$PSScriptRoot/.build/native-map")}
 if($Launcher -eq 'Native'){$arguments=$gcArguments+@('-agentlib:zbNative=policy=allow-all','-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")}
 $mcpSession=$null
 if($Mcp){
@@ -114,13 +107,8 @@ if($persistenceMode){
 }
 if($IsolatedProfile){
     . (Join-Path $PSScriptRoot 'scenario-profile.ps1')
-    $persistentProfile=if($NativeOnly -or $NativeCaptureOnly){Get-ModStudioPersistentProfile -Output $output -Game $Game -Roots $roots -Mode new -NativeOnly:$NativeOnly -CaptureOnly:$NativeCaptureOnly}else{Get-ModStudioIsolatedProfile -Output $output -Game $Game -Roots $roots -ReuseArtifact $ReuseIsolatedArtifact}
+    $persistentProfile=if($NativeOnly){Get-ModStudioPersistentProfile -Output $output -Game $Game -Roots $roots -Mode new -NativeOnly:$NativeOnly}else{Get-ModStudioIsolatedProfile -Output $output -Game $Game -Roots $roots -ReuseArtifact $ReuseIsolatedArtifact}
     $launch.nativeOnly=[bool]$NativeOnly;$launch.nativeGrid=$NativeGrid
-    $launch.nativeCaptureOnly=[bool]$NativeCaptureOnly
-    if($NativeCaptureOnly){
-        $cpuCache=Join-Path $roots[1] '.build/model-cache-drive-20261001'
-        if(Test-Path -LiteralPath $cpuCache){$cacheTarget=Join-Path $persistentProfile.path 'PZ3D/model-cache';New-Item -ItemType Directory -Path $cacheTarget -Force | Out-Null;robocopy $cpuCache $cacheTarget /E /COPY:DAT /DCOPY:T /NFL /NDL /NJH /NJS /NP | Out-Null;if($LASTEXITCODE -gt 7){throw 'CPU resource cache copy failed'}}
-    }
     $launch.nativeProfile=$persistentProfile.path;$launch.isolatedProfile=$true;$launch.reusedIsolatedArtifact=$ReuseIsolatedArtifact
 }
 if($WindowWidth){

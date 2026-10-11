@@ -33,12 +33,6 @@ public final class NativeBaseline {
     static long contentChunks,contentObjects,contentSquares,contentUpper;
     public static String[] hud=new String[0];
     public static volatile byte[] gridHud=new byte[0];
-    public static volatile byte[] captureHud=new byte[0];
-    static java.lang.reflect.Method captureState,captureStart,captureEnd,captureText,captureEnabled,captureDetail;
-    static final Map<Long,Integer> captureProbe=new HashMap<>();
-    static Object captureCall(java.lang.reflect.Method method,Object...args){try{return method.invoke(null,args);}catch(Exception e){throw new IllegalStateException("Capture bridge",e);}}
-    static int captureState(int x,int y){long key=((long)x<<32)^(y&0xffffffffL);return captureProbe.computeIfAbsent(key,k->(int)captureCall(captureState,x,y));}
-    public static long nativeReadyAt(int x,int y){var cell=IsoWorld.instance.currentCell;if(cell==null)return 0;var chunk=cell.getChunk(x,y);var stage=chunk==null?null:stages.get(chunk);return chunk!=null&&chunk.loaded&&stage!=null&&stage.attach!=0&&stage.objects!=0?Math.max(stage.attach,stage.objects):0;}
     public static final class Stage {final int x,y;public final long request=System.nanoTime();volatile long worker,done,attach,objects;Stage(IsoChunk c){this(c.wx,c.wy);}public Stage(int x,int y){this.x=x;this.y=y;}}
     static final class Histogram {
         final long[] bins=new long[20001];long n,total,max,over16,over33,over100;
@@ -47,22 +41,21 @@ public final class NativeBaseline {
         synchronized String json(){return "{\"count\":"+n+",\"mean\":"+(n==0?0:total/1e6/n)+",\"p50\":"+q(.5)+",\"p95\":"+q(.95)+",\"p99\":"+q(.99)+",\"max\":"+max/1e6+",\"above16\":"+over16+",\"above33\":"+over33+",\"above100\":"+over100+"}";}
     }
     public static final class Window {
-        public final String name;final double x,y,dx,dy,seconds;double targetKmh=80;public final boolean detailed,showHud;
+        public final String name;final double x,y,dx,dy,seconds;public final boolean detailed,showHud;
         final long start=System.nanoTime();final Histogram updateIntervals=new Histogram(),updateCost=new Histogram(),present=new Histogram(),probeCost=new Histogram();
-        boolean captureDone,updateDone,probeDone;long previousUpdate,previousPresent,updateStart,nextSample,lateSince,lateCount,maxLate;double minLead=Double.POSITIVE_INFINITY,maxDeficit,distance,lastX,lastY,maxJump;long maxHeap;int maxQueue,minReadyAhead=Integer.MAX_VALUE,maxMissingAhead;double maxAge;
-        double minCaptureLead=Double.POSITIVE_INFINITY;int minCaptureAhead=Integer.MAX_VALUE,maxCaptureMissing,maxCapturePending;long captureLowCount,captureLowSince,captureLowMax;
+        long previousUpdate,previousPresent,updateStart,nextSample,lateSince,lateCount,maxLate;double minLead=Double.POSITIVE_INFINITY,maxDeficit,distance,lastX,lastY,maxJump;long maxHeap;int maxQueue,minReadyAhead=Integer.MAX_VALUE,maxMissingAhead;double maxAge;
         Window(String name,double x,double y,double dx,double dy,double seconds,boolean detailed,boolean showHud){this.name=name;this.x=x;this.y=y;this.dx=dx;this.dy=dy;this.seconds=seconds;this.detailed=detailed;this.showHud=showHud;lastX=x;lastY=y;}
     }
     public static void guard(){if(!enabled||!ScenarioHost.suppressInput()||!Core.getInstance().isNoSave())throw new IllegalStateException("Baseline requires owned native-only NoSave scenario");}
     public static boolean requested(){return enabled;}
     public static boolean open(){
         guard();if(writer!=null)return true;
-        if(Boolean.getBoolean("pz3d.captureOnlyExperiment"))try{var type=Class.forName("com.pavelvoronin.pz3d.CaptureExperiment");captureState=type.getMethod("state",int.class,int.class);captureStart=type.getMethod("windowBegin",String.class,double.class,double.class);captureEnd=type.getMethod("windowEnd");captureText=type.getMethod("hud");captureEnabled=type.getMethod("enabled");captureDetail=type.getMethod("detail",int.class,int.class);}catch(Exception e){throw new IllegalStateException("Capture fixture unavailable",e);}
         worldMap=zombie.core.textures.Texture.getSharedTexture("media/textures/modstudio-native-baseline-world.png");cityMap=zombie.core.textures.Texture.getSharedTexture("media/textures/modstudio-native-baseline-city.png");ruralMap=zombie.core.textures.Texture.getSharedTexture("media/textures/modstudio-native-baseline-rural.png");
         if(worldMap==null||cityMap==null||ruralMap==null)throw new IllegalStateException("Prepared native maps missing from mod media");
         if(!worldMap.isReady()||!cityMap.isReady()||!ruralMap.isReady())return false;
         if(org.lwjglx.opengl.Display.getFramebufferWidth()==0||org.lwjglx.opengl.Display.getFramebufferHeight()==0)return false;
         var p=IsoPlayer.getInstance();if(!p.isGodMod()||!p.isInvisible())throw new IllegalStateException("Baseline player must be invisible and invulnerable");oldNoclip=p.isNoClip();p.setNoClip(true,true);if(!p.isNoClip())throw new IllegalStateException("Native noclip unavailable");
+        String display=ScenarioHost.expectDisplay(1920,1200);if(!display.isEmpty())throw new IllegalStateException(display);
         ScenarioHost.event("native-baseline-display","framebuffer="+org.lwjglx.opengl.Display.getFramebufferWidth()+"x"+org.lwjglx.opengl.Display.getFramebufferHeight()+" cap="+ScenarioHost.frameLimit()+" uncapped="+ScenarioHost.frameUncapped()+" vsync="+ScenarioHost.frameSync());
         Path output=Path.of(System.getProperty("modstudio.scenario.output"));
         writer=new Thread(()->{try(var out=Files.newBufferedWriter(output.resolve("native-events.csv"))){out.write("kind,ns,window,x,y,a,b,c,d,e,f,readyAhead,requiredAhead,missingAhead\n");while(true){String line=records.poll(1,TimeUnit.SECONDS);if("CLOSE".equals(line))break;if(line!=null){out.write(line);out.newLine();}}}catch(Exception e){writerError=e.toString();}},"native-baseline-writer");writer.setDaemon(true);writer.start();
@@ -70,11 +63,9 @@ public final class NativeBaseline {
         playerX=p.getX();playerY=p.getY();viewX=Math.floorDiv(p.getXi(),8)-VIEW/2;viewY=Math.floorDiv(p.getYi(),8)-VIEW/2;hud=new String[]{"Native chunk baseline | preparing static map display"};return true;
     }
     public static void emit(String line){if(!records.offer(line))dropped++;}
-    public static boolean startStationary(String name,double dx,double dy,double seconds,boolean detailed,boolean showHud){boolean result=start(name,dx,dy,seconds,detailed,showHud);window.targetKmh=0;return result;}
     public static boolean start(String name,double dx,double dy,double seconds,boolean detailed,boolean showHud){
         guard();if(writer==null||!IsoPlayer.getInstance().isNoClip())throw new IllegalStateException("Baseline not prepared");if(window!=null)throw new IllegalStateException("Window already active");if(!name.matches("[a-z0-9_-]{1,60}")||Math.abs(Math.hypot(dx,dy)-1)>.001||seconds<1||seconds>600)throw new IllegalArgumentException("Invalid native route window");hud=new String[0];gridHud=new byte[0];
         sampleTime=0;contentChunks=contentObjects=contentSquares=contentUpper=0;hudCost.n=hudCost.total=hudCost.max=hudCost.over16=hudCost.over33=hudCost.over100=0;Arrays.fill(hudCost.bins,0);trail.clear();routeLabel=name.startsWith("rural")?"Forest / countryside":"Louisville / urban";var p=IsoPlayer.getInstance();window=new Window(name,p.getX(),p.getY(),dx,dy,seconds,detailed,showHud);
-        if(captureStart!=null)captureCall(captureStart,name,dx,dy);
         ScenarioHost.event("native-baseline-start",name+" x="+p.getX()+" y="+p.getY()+" dx="+dx+" dy="+dy+" seconds="+seconds+" detailed="+detailed+" hud="+showHud);return true;
     }
     public static boolean poll(){guard();var w=window;if(w==null)return true;double elapsed=(System.nanoTime()-w.start)/1e9;statusLine=String.format(Locale.ROOT,"Native baseline | %s | %.0f s left | %s",w.name,Math.max(0,w.seconds-elapsed),w.showHud?"map and telemetry":"control: map and detailed HUD disabled");if(elapsed<w.seconds)return false;stop();return true;}
@@ -83,37 +74,30 @@ public final class NativeBaseline {
         var p=IsoPlayer.getInstance();double elapsed=(end-w.start)/1e9,along=(p.getX()-w.x)*w.dx+(p.getY()-w.y)*w.dy;
         String json="{\"name\":\""+w.name+"\",\"grid\":"+IsoChunkMap.chunkGridWidth+",\"seconds\":"+elapsed+",\"kmh\":"+along/elapsed*3.6+",\"distance\":"+along+",\"minLead\":"+(Double.isFinite(w.minLead)?w.minLead:-1)+",\"lateCount\":"+w.lateCount+",\"maxLateMs\":"+w.maxLate/1e6+",\"maxDeficit\":"+w.maxDeficit+",\"maxJump\":"+w.maxJump+",\"maxQueue\":"+w.maxQueue+",\"maxAgeMs\":"+w.maxAge+",\"maxHeap\":"+w.maxHeap+",\"dropped\":"+dropped+",\"detailed\":"+w.detailed+",\"hud\":"+w.showHud+",\"updateIntervals\":"+w.updateIntervals.json()+",\"updateCost\":"+w.updateCost.json()+",\"presents\":"+w.present.json()+",\"probeCost\":"+w.probeCost.json()+",\"hudCost\":"+hudCost.json()+",\"contentChunks\":"+contentChunks+",\"contentObjects\":"+contentObjects+",\"contentSquares\":"+contentSquares+",\"contentUpperSquares\":"+contentUpper+",\"startX\":"+w.x+",\"startY\":"+w.y+",\"endX\":"+p.getX()+",\"endY\":"+p.getY()+",\"health\":"+p.getHealth()+",\"invisible\":"+p.isInvisible()+",\"god\":"+p.isGodMod()+",\"dx\":"+w.dx+",\"dy\":"+w.dy+"}";
         json=json.substring(0,json.length()-1)+",\"minReadyAhead\":"+(w.minReadyAhead==Integer.MAX_VALUE?-1:w.minReadyAhead)+",\"maxMissingAhead\":"+w.maxMissingAhead+",\"attachedChunksPerSecond\":"+contentChunks/elapsed+"}";
-        if(captureState!=null){if(w.captureLowSince!=0)w.captureLowMax=Math.max(w.captureLowMax,end-w.captureLowSince);json=json.substring(0,json.length()-1)+",\"captureEnabled\":"+captureCall(captureEnabled)+",\"minCaptureLead\":"+(Double.isFinite(w.minCaptureLead)?w.minCaptureLead:-1)+",\"minCaptureAhead\":"+(w.minCaptureAhead==Integer.MAX_VALUE?-1:w.minCaptureAhead)+",\"maxCaptureMissing\":"+w.maxCaptureMissing+",\"maxCapturePending\":"+w.maxCapturePending+",\"captureLowCount\":"+w.captureLowCount+",\"captureLowMaxMs\":"+w.captureLowMax/1e6+"}";captureCall(captureEnd);}
         try{Files.writeString(Path.of(System.getProperty("modstudio.scenario.output"),"native-"+w.name+".json"),json);}catch(IOException e){throw new UncheckedIOException(e);}
         ScenarioHost.event("native-baseline-stop",json);if(w.updateCost.n==0||w.present.n==0)throw new IllegalStateException("Missing native update or presentation instrumentation");return true;
     }
     public static boolean close()throws InterruptedException {stop();var p=IsoPlayer.getInstance();if(p!=null)p.setNoClip(oldNoclip,true);if(writer!=null){records.put("CLOSE");writer.join(5000);if(writer.isAlive()||!writerError.isEmpty()||dropped!=0)throw new IllegalStateException("Baseline writer: "+writerError+" dropped="+dropped);writer=null;}return true;}
     public static void movement(IsoMovingObject object){
-        var w=window;if(w==null||object!=IsoPlayer.getInstance())return;var p=IsoPlayer.getInstance();double distance=Math.min(w.seconds,(System.nanoTime()-w.start)/1e9)*(w.targetKmh/3.6),tx=w.x+w.dx*distance,ty=w.y+w.dy*distance;
+        var w=window;if(w==null||object!=IsoPlayer.getInstance())return;var p=IsoPlayer.getInstance();double distance=Math.min(w.seconds,(System.nanoTime()-w.start)/1e9)*(80.0/3.6),tx=w.x+w.dx*distance,ty=w.y+w.dy*distance;
         // Let native postupdate apply its one-tile cap, noclip, square ownership and fallback.
         p.setNextX((float)tx);p.setNextY((float)ty);
     }
-    public static void beginUpdate(){var w=window;if(w==null)return;long now=System.nanoTime();w.updateStart=now;w.captureDone=w.updateDone=w.probeDone=false;if(w.previousUpdate!=0)w.updateIntervals.add(now-w.previousUpdate);w.previousUpdate=now;}
+    public static void beginUpdate(){var w=window;if(w==null)return;long now=System.nanoTime();w.updateStart=now;if(w.previousUpdate!=0)w.updateIntervals.add(now-w.previousUpdate);w.previousUpdate=now;}
     static boolean ready(int x,int y){var cell=IsoWorld.instance.currentCell;var square=cell.getGridSquare(x,y,0);if(square==null)return false;var chunk=square.getChunk();var stage=chunk==null?null:stages.get(chunk);return chunk!=null&&chunk.loaded&&cell.getChunk(Math.floorDiv(x,8),Math.floorDiv(y,8))==chunk&&stage!=null&&stage.attach!=0&&stage.objects!=0&&square.getObjects()!=null&&square.getFloor()!=null;}
     public static void endUpdate(){
-        var w=window;if(w==null||w.updateStart==0)return;long now=System.nanoTime();long cost=now-w.updateStart;w.updateCost.add(cost);if(w.detailed&&cost>33_333_333)emit("slow-update,"+now+","+w.name+","+IsoPlayer.getInstance().getX()+","+IsoPlayer.getInstance().getY()+","+cost/1e6);w.updateDone=true;if(captureState!=null&&!w.captureDone)return;probeUpdate(w);
-    }
-    public static void captureFinished(){var w=window;if(w==null)return;w.captureDone=true;if(w.updateDone)probeUpdate(w);}
-    static void probeUpdate(Window w){
-        if(w.probeDone)return;w.probeDone=true;long now=System.nanoTime(),probe=now;var p=IsoPlayer.getInstance();double elapsed=(now-w.start)/1e9,along=(p.getX()-w.x)*w.dx+(p.getY()-w.y)*w.dy;
-        w.maxDeficit=Math.max(w.maxDeficit,elapsed*w.targetKmh/3.6-along);w.maxJump=Math.max(w.maxJump,Math.hypot(p.getX()-w.lastX,p.getY()-w.lastY));w.lastX=p.getX();w.lastY=p.getY();
-        double lead=-1,captureLead=-1;int queue=0;double age=0;captureProbe.clear();boolean stageEnabled=captureState!=null&&(boolean)captureCall(captureEnabled);
+        var w=window;if(w==null||w.updateStart==0)return;long now=System.nanoTime();long cost=now-w.updateStart;w.updateCost.add(cost);if(w.detailed&&cost>33_333_333)emit("slow-update,"+now+","+w.name+","+IsoPlayer.getInstance().getX()+","+IsoPlayer.getInstance().getY()+","+cost/1e6);long probe=now;var p=IsoPlayer.getInstance();double elapsed=(now-w.start)/1e9,along=(p.getX()-w.x)*w.dx+(p.getY()-w.y)*w.dy;
+        w.maxDeficit=Math.max(w.maxDeficit,elapsed*80/3.6-along);w.maxJump=Math.max(w.maxJump,Math.hypot(p.getX()-w.lastX,p.getY()-w.lastY));w.lastX=p.getX();w.lastY=p.getY();
+        double lead=-1;int queue=0;double age=0;
         if(w.detailed){
             lead=IsoChunkMap.chunkGridWidth*8;for(int side=-1;side<=1;side++)for(int d=0;d<=IsoChunkMap.chunkGridWidth*8;d++){int x=(int)Math.floor(p.getX()+w.dx*d-w.dy*side*4),y=(int)Math.floor(p.getY()+w.dy*d+w.dx*side*4);if(!ready(x,y)){lead=Math.min(lead,d);break;}}
             w.minLead=Math.min(w.minLead,lead);if(lead<8){if(w.lateSince==0){w.lateSince=now;w.lateCount++;}}else if(w.lateSince!=0){w.maxLate=Math.max(w.maxLate,now-w.lateSince);w.lateSince=0;}
-            if(stageEnabled){int blockX=0,blockY=0,blockSide=0,blockState=-1;captureLead=IsoChunkMap.chunkGridWidth*8;for(int side=-1;side<=1;side++)for(int d=0;d<=IsoChunkMap.chunkGridWidth*8;d++){int x=(int)Math.floor(p.getX()+w.dx*d-w.dy*side*4),y=(int)Math.floor(p.getY()+w.dy*d+w.dx*side*4);if(!ready(x,y)||captureState(Math.floorDiv(x,8),Math.floorDiv(y,8))!=4){if(d<captureLead){captureLead=d;blockX=Math.floorDiv(x,8);blockY=Math.floorDiv(y,8);blockSide=side;blockState=captureState(blockX,blockY);}break;}}if(captureLead<w.minCaptureLead)emit("capture-min,"+now+","+w.name+","+p.getX()+","+p.getY()+","+elapsed+","+captureLead+","+lead+","+blockX+","+blockY+","+blockSide+","+blockState+","+nativeReadyAt(blockX,blockY)+","+captureCall(captureDetail,blockX,blockY));w.minCaptureLead=Math.min(w.minCaptureLead,captureLead);if(captureLead<8){if(w.captureLowSince==0){w.captureLowSince=now;w.captureLowCount++;}}else if(w.captureLowSince!=0){w.captureLowMax=Math.max(w.captureLowMax,now-w.captureLowSince);w.captureLowSince=0;}}
         }
         if(now>=w.nextSample){w.nextSample=now+200_000_000L;for(var entry:stages.entrySet()){var s=entry.getValue();if(s.objects==0&&!entry.getKey().refs.isEmpty()){queue++;age=Math.max(age,(now-s.request)/1e6);}}w.maxQueue=Math.max(w.maxQueue,queue);w.maxAge=Math.max(w.maxAge,age);long heap=Runtime.getRuntime().totalMemory()-Runtime.getRuntime().freeMemory();w.maxHeap=Math.max(w.maxHeap,heap);
             int aheadRequired=0,aheadReady=0;var map=IsoWorld.instance.currentCell.chunkMap[0];
             if(w.detailed){for(int y=0;y<IsoChunkMap.chunkGridWidth;y++)for(int x=0;x<IsoChunkMap.chunkGridWidth;x++){int cx=map.getWorldXMin()+x,cy=map.getWorldYMin()+y;if(((cx*8+4)-p.getX())*w.dx+((cy*8+4)-p.getY())*w.dy<0)continue;aheadRequired++;var c=IsoWorld.instance.currentCell.getChunk(cx,cy);var st=c==null?null:stages.get(c);if(c!=null&&c.loaded&&st!=null&&st.attach!=0&&st.objects!=0)aheadReady++;}w.minReadyAhead=Math.min(w.minReadyAhead,aheadReady);w.maxMissingAhead=Math.max(w.maxMissingAhead,aheadRequired-aheadReady);}
             var sq=p.getCurrentSquare();boolean current=sq!=null&&sq.getX()==p.getXi()&&sq.getY()==p.getYi();
-            int capturedAhead=0,pendingCapture=0,nativeFull=0,captureFull=0;if(stageEnabled){for(int y=0;y<IsoChunkMap.chunkGridWidth;y++)for(int x=0;x<IsoChunkMap.chunkGridWidth;x++){int cx=map.getWorldXMin()+x,cy=map.getWorldYMin()+y,state=captureState(cx,cy);if(nativeReadyAt(cx,cy)!=0)nativeFull++;if(state==4)captureFull++;if(state==2||state==3||state==5||state==6)pendingCapture++;if(((cx*8+4)-p.getX())*w.dx+((cy*8+4)-p.getY())*w.dy>=0&&nativeReadyAt(cx,cy)!=0&&state==4)capturedAhead++;}w.minCaptureAhead=Math.min(w.minCaptureAhead,capturedAhead);w.maxCaptureMissing=Math.max(w.maxCaptureMissing,aheadRequired-capturedAhead);w.maxCapturePending=Math.max(w.maxCapturePending,pendingCapture);emit("capture-sample,"+now+","+w.name+","+p.getX()+","+p.getY()+","+elapsed+","+captureLead+","+capturedAhead+","+aheadRequired+","+pendingCapture+","+lead+","+(lead-captureLead)+","+((lead-captureLead)/(80.0/3.6))+","+aheadReady+","+nativeFull+","+captureFull);}
-            emit("sample,"+now+","+w.name+","+p.getX()+","+p.getY()+","+elapsed+","+lead+","+(elapsed*w.targetKmh/3.6-along)+","+queue+","+age+","+current+","+aheadReady+","+aheadRequired+","+(aheadRequired-aheadReady));
+            emit("sample,"+now+","+w.name+","+p.getX()+","+p.getY()+","+elapsed+","+lead+","+(elapsed*80/3.6-along)+","+queue+","+age+","+current+","+aheadReady+","+aheadRequired+","+(aheadRequired-aheadReady));
             if(w.showHud){
                 double speed=sampleTime==0?along/Math.max(.001,elapsed)*3.6:Math.hypot(p.getX()-sampleX,p.getY()-sampleY)/((now-sampleTime)/1e9)*3.6;
                 sampleTime=now;sampleX=p.getX();sampleY=p.getY();playerX=p.getX();playerY=p.getY();viewX=Math.floorDiv(p.getXi(),8)-VIEW/2;viewY=Math.floorDiv(p.getYi(),8)-VIEW/2;
@@ -124,7 +108,7 @@ public final class NativeBaseline {
                     String.format(Locale.ROOT,"ready lead %.0f tiles / %.2f s | minimum %.0f",lead,lead/(80.0/3.6),w.minLead),
                     String.format(Locale.ROOT,"ahead ready %d / %d | missing %d | attached %.1f chunks/s",aheadReady,aheadRequired,aheadRequired-aheadReady,contentChunks/Math.max(.001,elapsed)),
                     String.format(Locale.ROOT,"queue %d | oldest %.1f ms | low-reserve episodes %d",queue,age,w.lateCount),
-                    String.format(Locale.ROOT,"movement deficit %.2f tiles | maximum %.2f | square %s",elapsed*w.targetKmh/3.6-along,w.maxDeficit,current),
+                    String.format(Locale.ROOT,"movement deficit %.2f tiles | maximum %.2f | square %s",elapsed*80/3.6-along,w.maxDeficit,current),
                     timing("update cost",w.updateCost),timing("present interval",w.present),timing("probe cost",w.probeCost),
                     String.format(Locale.ROOT,"heap %.0f MiB | chunks attached %d",heap/1048576.0,contentChunks),
                     String.format(Locale.ROOT,"objects / chunk %.0f | upper squares / chunk %.0f",contentObjects/(double)Math.max(1,contentChunks),contentUpper/(double)Math.max(1,contentChunks)),
@@ -133,10 +117,9 @@ public final class NativeBaseline {
                     "ORANGE requested / worker   BLUE previously loaded / unloaded",
                     "WHITE player   CYAN recent path   RED overview route"};
                 byte[] grid=new byte[VIEW*VIEW];var cell=IsoWorld.instance.currentCell;
-                for(int y=0;y<VIEW;y++)for(int x=0;x<VIEW;x++){int cx=viewX+x,cy=viewY+y;long key=((long)cx<<32)^(cy&0xffffffffL);var c=cell.getChunk(cx,cy);var st=c==null?null:stages.get(c);int state=c==null?visited.contains(key)?4:0:!c.loaded?1:st==null||st.attach==0||st.objects==0?2:3;if(state==3)visited.add(key);grid[y*VIEW+x]=(byte)state;}
+                for(int y=0;y<VIEW;y++)for(int x=0;x<VIEW;x++){int cx=viewX+x,cy=viewY+y;long key=((long)cx<<32)^(cy&0xffffffffL);var c=cell.getChunk(cx,cy);var st=c==null?null:stages.get(c);int state=c==null?visited.contains(key)?4:0:!c.loaded?1:st==null||st.objects==0?2:3;if(state==3)visited.add(key);grid[y*VIEW+x]=(byte)state;}
                 for(var entry:stages.entrySet()){var st=entry.getValue();int x=st.x-viewX,y=st.y-viewY;if(st.objects==0&&!entry.getKey().refs.isEmpty()&&x>=0&&y>=0&&x<VIEW&&y<VIEW)grid[y*VIEW+x]=(byte)(st.done==0?1:2);}
                 gridHud=grid;
-                if(captureState!=null){byte[] captured=new byte[VIEW*VIEW];for(int y=0;y<VIEW;y++)for(int x=0;x<VIEW;x++){int cx=viewX+x,cy=viewY+y;captured[y*VIEW+x]=(byte)(nativeReadyAt(cx,cy)==0?0:captureState(cx,cy));}captureHud=captured;var lines=new ArrayList<String>(Arrays.asList(hud));lines.remove(lines.size()-1);lines.remove(lines.size()-1);lines.add(String.format(Locale.ROOT,"capture lead %.0f tiles / %.2f s | min %.0f",captureLead,captureLead/(80.0/3.6),Double.isFinite(w.minCaptureLead)?w.minCaptureLead:-1));lines.add("capture ahead "+capturedAhead+" / "+aheadRequired+" | pending "+pendingCapture);lines.addAll(Arrays.asList((String[])captureCall(captureText)));lines.add("FRAME: CYAN current | ORANGE queued | PURPLE active");lines.add("RED stale | PINK resource wait | GRAY outside / OFF");hud=lines.toArray(String[]::new);}
             }
         }w.probeCost.add(System.nanoTime()-probe);
     }
@@ -182,14 +165,12 @@ public final class NativeBaseline {
         r.render(texture,16,160,992,992,1,1,1,1,u,v,u+extent,v,u+extent,v+extent,u,v+extent);
         byte[] cells=gridHud;
         for(int i=0;i<cells.length;i++){int state=cells[i];if(state==0)continue;float red=state==3?.1f:state==4?.1f:.95f,green=state==3?.85f:state==2?.8f:state==4?.4f:.3f,blue=state==4?.95f:.1f;r.renderi(null,17+i%VIEW*STEP,161+i/VIEW*STEP,STEP-2,STEP-2,red,green,blue,.28f,null);}
-        for(int i=0;i<captureHud.length;i++){int s=captureHud[i];if(s==0)continue;float red=s==4?0:s==1?.5f:1,green=s==4?1:s==1?.5f:s==2?.6f:0,blue=s==4?1:s==1?.5f:s==3?.8f:s==6?.5f:0;int x=19+i%VIEW*STEP,y=163+i/VIEW*STEP;for(int side=0;side<4;side++)r.renderi(null,x+(side==1?24:0),y+(side==3?24:0),side<2?2:26,side<2?26:2,red,green,blue,1,null);}
         for(int i=0;i<=VIEW;i++){r.renderi(null,16+i*STEP,160,1,992,.2f,.2f,.2f,.5f,null);r.renderi(null,16,160+i*STEP,992,1,.2f,.2f,.2f,.5f,null);}
         for(var point:trail){int x=16+(int)((point[0]-viewX*8)*4),y=160+(int)((point[1]-viewY*8)*4);if(x>=16&&x<1008&&y>=160&&y<1152)r.renderi(null,x-2,y-2,4,4,0,.8f,1,1,null);}
         int px=16+(int)((playerX-viewX*8)*4),py=160+(int)((playerY-viewY*8)*4);r.renderi(null,px-5,py-5,11,11,0,0,0,1,null);r.renderi(null,px-3,py-3,7,7,1,1,1,1,null);
-        int overviewY=captureState==null?520:760,overviewSize=captureState==null?640:400;double overviewScale=25600.0/overviewSize;
-        r.renderi(worldMap,1040,overviewY,overviewSize,overviewSize,1,1,1,1,null);
-        var w=window;if(w!=null)r.renderline(null,1040+(int)(w.x/overviewScale),overviewY+(int)(w.y/overviewScale),1040+(int)((w.x+w.dx*w.seconds*80/3.6)/overviewScale),overviewY+(int)((w.y+w.dy*w.seconds*80/3.6)/overviewScale),1,0,0,1,2);
-        r.renderi(null,1040+(int)(playerX/overviewScale)-3,overviewY+(int)(playerY/overviewScale)-3,7,7,1,0,0,1,null);
+        r.renderi(worldMap,1040,520,640,640,1,1,1,1,null);
+        var w=window;if(w!=null)r.renderline(null,1040+(int)(w.x/40),520+(int)(w.y/40),1040+(int)((w.x+w.dx*w.seconds*80/3.6)/40),520+(int)((w.y+w.dy*w.seconds*80/3.6)/40),1,0,0,1,2);
+        r.renderi(null,1040+(int)(playerX/40)-3,520+(int)(playerY/40)-3,7,7,1,0,0,1,null);
         int y=16;for(int i=0;i<hud.length;i++){int x=i<3?16:1040;if(i==3)y=172;zombie.ui.TextManager.instance.DrawString(zombie.ui.UIFont.Medium,x,y,hud[i],1,1,1,1);y+=26;}
         hudCost.add(System.nanoTime()-begin);
     }

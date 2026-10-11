@@ -3,13 +3,9 @@
 ## Unreleased
 
 ### Maintenance
+- Scenarios: integrate native streaming maps, reserve telemetry and protected diagonal fixtures with menu preparation; remove the retired capture-only bridge.
 - Scenarios: unlock freshly created paired-door fixtures before native toggles and retain obstruction diagnostics.
-- Scenarios: probe full-current reserve after both native update and capture completion; retain exact blocking chunks at new minima and report actual capture configuration.
-- Scenarios: retain actual scheduling inputs, whole-grid readiness and bounded diagnostic overhead; add stationary native mutation and longer recovery fixtures.
-- Scenarios: verify stationary command routing and reject malformed stationary flags in the native baseline regression.
 
-- Scenarios: audit complete capture planning, work limits, repeat causes and unfinished requests; compare explicit motion inputs and capture step limits with synchronized native readiness.
-- Add an explicit isolated capture cohort profile and owned borderless display override; show vanilla readiness as cell fill and the participating mod's complete capture state as a frame, with separate forward lead measurements.
 - Lead the native artifact summary with forward readiness, missing chunk counts and observed data flow; retain frame diagnostics only in raw records.
 - Record actual window/framebuffer size without requiring a graphics benchmark resolution for data-loading experiments; await nonzero framebuffer dimensions during preparation.
 - Sample ready/missing chunk counts in the forward half of native demand and report attachment throughput alongside continuous route lead. Add short visible city comparisons and default the experiment runner to a window so other tasks can use the desktop.

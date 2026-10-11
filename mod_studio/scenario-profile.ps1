@@ -32,10 +32,9 @@ function Set-ModStudioProfileDisplay {
 }
 
 function Get-ModStudioPersistentProfile {
-    param([string]$Output,[string]$Game,[string[]]$Roots,[string]$Mode,[string]$ResumeArtifact='',[switch]$ReadOnly,[switch]$NativeOnly,[switch]$CaptureOnly)
+    param([string]$Output,[string]$Game,[string[]]$Roots,[string]$Mode,[string]$ResumeArtifact='',[switch]$ReadOnly,[switch]$NativeOnly)
     $artifactRoot=Split-Path $Output
     if($NativeOnly -and ($Mode -ne 'new' -or $ReadOnly -or $ResumeArtifact)){throw 'Native-only profiles must be fresh and disposable'}
-    if($CaptureOnly -and ($NativeOnly -or $Mode -ne 'new' -or $ReadOnly -or $ResumeArtifact)){throw 'Capture-only profiles must be fresh and disposable'}
     if($Mode -eq 'resume'){
         if($ResumeArtifact -notmatch '^[0-9]{8}-T[0-9]{6}Z-[a-f0-9]{32}$'){throw 'ResumeArtifact must be an owned scenario artifact id'}
         $previous=Join-Path $artifactRoot $ResumeArtifact
@@ -75,10 +74,9 @@ function Get-ModStudioPersistentProfile {
     $profile=(Resolve-Path -LiteralPath $profile).Path
     $sources=[ordered]@{}
     foreach($root in $Roots){
-        foreach($package in Get-ChildItem -LiteralPath (Join-Path $root 'Contents/mods') -Directory){if((!$NativeOnly -and !$CaptureOnly) -or $package.Name -eq 'mod_studio' -or ($CaptureOnly -and $package.Name -eq 'pz3d')){$sources[$package.Name]=$package.FullName}}
+        foreach($package in Get-ChildItem -LiteralPath (Join-Path $root 'Contents/mods') -Directory){if(!$NativeOnly -or $package.Name -eq 'mod_studio'){$sources[$package.Name]=$package.FullName}}
     }
     if($NativeOnly -and !$sources.Contains('mod_studio')){throw 'Native-only profile requires Mod Studio'}
-    if($CaptureOnly -and (!$sources.Contains('mod_studio') -or !$sources.Contains('pz3d'))){throw 'Capture-only profile requires Mod Studio and pz3d'}
     $workshop=[IO.Path]::GetFullPath((Join-Path (Split-Path $Game) '../workshop/content/108600'))
     $buddy=Get-ChildItem -LiteralPath $workshop -Directory | ForEach-Object {Join-Path $_.FullName 'mods/ZombieBuddy'} | Where-Object {Test-Path -LiteralPath $_} | Select-Object -First 1
     if(!$buddy){throw 'ZombieBuddy native package is unavailable'}
