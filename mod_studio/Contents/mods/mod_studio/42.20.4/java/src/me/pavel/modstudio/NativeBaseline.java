@@ -29,6 +29,7 @@ public final class NativeBaseline {
     static final Histogram hudCost=new Histogram();
     static long sampleTime;static double sampleX,sampleY;
     static String routeLabel="";
+    static String statusLine="Native baseline | preparing protected player and maps";
     static long contentChunks,contentObjects,contentSquares,contentUpper;
     public static String[] hud=new String[0];
     public static volatile byte[] gridHud=new byte[0];
@@ -66,9 +67,9 @@ public final class NativeBaseline {
         sampleTime=0;contentChunks=contentObjects=contentSquares=contentUpper=0;hudCost.n=hudCost.total=hudCost.max=hudCost.over16=hudCost.over33=hudCost.over100=0;Arrays.fill(hudCost.bins,0);trail.clear();routeLabel=name.startsWith("rural")?"Forest / countryside":"Louisville / urban";var p=IsoPlayer.getInstance();window=new Window(name,p.getX(),p.getY(),dx,dy,seconds,detailed,showHud);
         ScenarioHost.event("native-baseline-start",name+" x="+p.getX()+" y="+p.getY()+" dx="+dx+" dy="+dy+" seconds="+seconds+" detailed="+detailed+" hud="+showHud);return true;
     }
-    public static boolean poll(){guard();var w=window;if(w==null)return true;if((System.nanoTime()-w.start)/1e9<w.seconds)return false;stop();return true;}
+    public static boolean poll(){guard();var w=window;if(w==null)return true;double elapsed=(System.nanoTime()-w.start)/1e9;statusLine=String.format(Locale.ROOT,"Native baseline | %s | %.0f s left | %s",w.name,Math.max(0,w.seconds-elapsed),w.showHud?"map and telemetry":"control: map and detailed HUD disabled");if(elapsed<w.seconds)return false;stop();return true;}
     public static boolean stop(){
-        var w=window;if(w==null)return true;window=null;long end=System.nanoTime();if(w.lateSince!=0)w.maxLate=Math.max(w.maxLate,end-w.lateSince);
+        var w=window;if(w==null)return true;window=null;statusLine="Native baseline | between measurement windows";long end=System.nanoTime();if(w.lateSince!=0)w.maxLate=Math.max(w.maxLate,end-w.lateSince);
         var p=IsoPlayer.getInstance();double elapsed=(end-w.start)/1e9,along=(p.getX()-w.x)*w.dx+(p.getY()-w.y)*w.dy;
         String json="{\"name\":\""+w.name+"\",\"grid\":"+IsoChunkMap.chunkGridWidth+",\"seconds\":"+elapsed+",\"kmh\":"+along/elapsed*3.6+",\"distance\":"+along+",\"minLead\":"+(Double.isFinite(w.minLead)?w.minLead:-1)+",\"lateCount\":"+w.lateCount+",\"maxLateMs\":"+w.maxLate/1e6+",\"maxDeficit\":"+w.maxDeficit+",\"maxJump\":"+w.maxJump+",\"maxQueue\":"+w.maxQueue+",\"maxAgeMs\":"+w.maxAge+",\"maxHeap\":"+w.maxHeap+",\"dropped\":"+dropped+",\"detailed\":"+w.detailed+",\"hud\":"+w.showHud+",\"updateIntervals\":"+w.updateIntervals.json()+",\"updateCost\":"+w.updateCost.json()+",\"presents\":"+w.present.json()+",\"probeCost\":"+w.probeCost.json()+",\"hudCost\":"+hudCost.json()+",\"contentChunks\":"+contentChunks+",\"contentObjects\":"+contentObjects+",\"contentSquares\":"+contentSquares+",\"contentUpperSquares\":"+contentUpper+",\"startX\":"+w.x+",\"startY\":"+w.y+",\"endX\":"+p.getX()+",\"endY\":"+p.getY()+",\"health\":"+p.getHealth()+",\"invisible\":"+p.isInvisible()+",\"god\":"+p.isGodMod()+",\"dx\":"+w.dx+",\"dy\":"+w.dy+"}";
         try{Files.writeString(Path.of(System.getProperty("modstudio.scenario.output"),"native-"+w.name+".json"),json);}catch(IOException e){throw new UncheckedIOException(e);}
@@ -151,7 +152,9 @@ public final class NativeBaseline {
     public static class Hud {@Patch.OnEnter public static void enter(){drawHud();}}
     static String timing(String label,Histogram h){return String.format(Locale.ROOT,"%s ms: p95 %.1f | p99 %.1f | max %.1f | >33 %d >100 %d",label,h.q(.95),h.q(.99),h.max/1e6,h.over33,h.over100);}
     public static void drawHud(){
-        if(!enabled||hud.length==0)return;long begin=System.nanoTime();var r=SpriteRenderer.instance;
+        if(!enabled||IsoPlayer.getInstance()==null)return;long begin=System.nanoTime();var r=SpriteRenderer.instance;
+        zombie.ui.TextManager.instance.DrawString(zombie.ui.UIFont.Medium,16,120,statusLine,1,1,1,1);
+        if(hud.length==0){hudCost.add(System.nanoTime()-begin);return;}
         var texture=playerY<4096?cityMap:ruralMap;float ox=playerY<4096?9216:6144,oy=playerY<4096?0:4096;
         float u=(viewX*8-ox)/6144f,v=(viewY*8-oy)/6144f,extent=VIEW*8/6144f;
         r.render(texture,16,160,992,992,1,1,1,1,u,v,u+extent,v,u+extent,v+extent,u,v+extent);
