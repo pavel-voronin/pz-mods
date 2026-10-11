@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Maintenance
+- Scenarios: unlock freshly created paired-door fixtures before native toggles and retain obstruction diagnostics.
 - Scenarios: probe full-current reserve after both native update and capture completion; retain exact blocking chunks at new minima and report actual capture configuration.
 - Scenarios: retain actual scheduling inputs, whole-grid readiness and bounded diagnostic overhead; add stationary native mutation and longer recovery fixtures.
 - Scenarios: verify stationary command routing and reject malformed stationary flags in the native baseline regression.

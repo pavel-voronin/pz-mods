@@ -142,7 +142,7 @@ Objects.pairedDoor={
             c.pairedDoor=fixture
             for part=1,4 do
                 local square=cell:getGridSquare(s.x+(s.north and part-1 or 0),s.y-(s.north and 0 or part-1),z)
-                local door=IsoDoor.new(cell,square,getSprite(names[part]),s.north);square:AddSpecialObject(door)
+                local door=IsoDoor.new(cell,square,getSprite(names[part]),s.north);door:setLocked(false);door:setLockedByKey(false);square:AddSpecialObject(door)
                 if part==1 then fixture.master=door end
             end
             c.event("native-paired-door","spawn north="..tostring(s.north).." x="..s.x.." y="..s.y.." sprites="..table.concat(names,","))
@@ -155,7 +155,7 @@ Objects.pairedDoor={
             if s.action=="open" or s.action=="close" then
                 local wanted=s.action=="open"
                 if fixture.master:IsOpen()~=wanted then fixture.master:ToggleDoorActual(c.player) end
-                assert(fixture.master:IsOpen()==wanted,"Native paired door rejected toggle")
+                assert(fixture.master:IsOpen()==wanted,"Native paired door rejected toggle locked="..tostring(fixture.master:isLocked()).." key="..tostring(fixture.master:isLockedByKey()).." obstructed="..tostring(IsoDoor.isDoubleDoorObstructed(fixture.master)))
             end
             local open=fixture.master:IsOpen();local positions={}
             for part=1,4 do
