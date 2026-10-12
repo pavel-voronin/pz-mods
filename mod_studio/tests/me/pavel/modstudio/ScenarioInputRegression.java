@@ -20,6 +20,11 @@ public final class ScenarioInputRegression {
         check(GLFW.glfwGetKey(1,87)==1,"normal game key passes");
         var claimed=ScenarioHost.class.getDeclaredField("claimed");claimed.setAccessible(true);claimed.setBoolean(null,true);
         for(int key:new int[]{87,256,290,258,342})check(GLFW.glfwGetKey(1,key)==0,"blocked gameplay/debug/Escape key "+key);
+        check(GLFW.glfwGetKey(1,301)==1,"F12 polling passes during scenario");
+        Keyboard.addKeyEvent(301,1);Keyboard.addKeyEvent(301,2);Keyboard.addKeyEvent(301,0);
+        check(Keyboard.events==3,"F12 press, repeat and release pass during scenario");
+        check(ScenarioInput.blocked()&&!ScenarioHost.closed(),"F12 keeps the scenario active and gameplay blocked");
+        Keyboard.events=0;
         for(int button=0;button<8;button++)check(GLFW.glfwGetMouseButton(1,button)==0,"blocked mouse button");
         Keyboard.addKeyEvent(87,1);Keyboard.addCharEvent('w');Mouse.addMoveEvent(90,80);Mouse.addButtonEvent(0,true);
         check(Keyboard.events==0&&Mouse.events==0,"callbacks discarded");

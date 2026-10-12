@@ -9,6 +9,8 @@ import me.zed_0xff.zombie_buddy.Patch;
 public final class ScenarioInput {
     private static final Map<Long,double[]> cursors=new HashMap<>();
     public static boolean blocked(){return ScenarioHost.suppressInput();}
+    // GLFW F12: keep the native screenshot shortcut available during scenarios.
+    public static boolean blockedKey(int key){return key!=301&&blocked();}
     public static synchronized void cursor(long window,double[] x,double[] y){
         if(!blocked()){cursors.remove(window);return;}
         double[] fixed=cursors.computeIfAbsent(window,k->new double[]{Double.NaN,Double.NaN});
@@ -23,7 +25,7 @@ public final class ScenarioInput {
     }
     @Patch(className="org.lwjgl.glfw.GLFW",methodName="glfwGetKey",warmUp=true)
     public static class Keys {
-        @Patch.OnExit public static void exit(@Patch.Return(readOnly=false) int value){if(ScenarioInput.blocked())value=0;}
+        @Patch.OnExit public static void exit(@Patch.Argument(1) int key,@Patch.Return(readOnly=false) int value){if(ScenarioInput.blockedKey(key))value=0;}
     }
     @Patch(className="org.lwjgl.glfw.GLFW",methodName="glfwGetMouseButton",warmUp=true)
     public static class Buttons {
@@ -42,7 +44,7 @@ public final class ScenarioInput {
     }
     @Patch(className="org.lwjglx.input.Keyboard",methodName="addKeyEvent",warmUp=true)
     public static class KeyEvents {
-        @Patch.OnEnter(skipOn=true) public static boolean enter(){return ScenarioInput.blocked();}
+        @Patch.OnEnter(skipOn=true) public static boolean enter(@Patch.Argument(0) int key){return ScenarioInput.blockedKey(key);}
     }
     @Patch(className="org.lwjglx.input.Keyboard",methodName="addCharEvent",warmUp=true)
     public static class TextEvents {

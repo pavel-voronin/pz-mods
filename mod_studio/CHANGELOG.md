@@ -6,6 +6,7 @@
 - Add the main-menu game language selector transferred from pz3d, using native language settings and Lua reload.
 
 ### Maintenance
+- Allow F12 polling and key events during automated scenarios without releasing gameplay input or interrupting execution; verify the exception with transformed input regression tests.
 - Scenarios: align paired-door regression fixtures with native lock and obstruction queries.
 - Scenarios: integrate native streaming maps, reserve telemetry and protected diagonal fixtures with menu preparation; remove the retired capture-only bridge.
 - Scenarios: unlock freshly created paired-door fixtures before native toggles and retain obstruction diagnostics.
