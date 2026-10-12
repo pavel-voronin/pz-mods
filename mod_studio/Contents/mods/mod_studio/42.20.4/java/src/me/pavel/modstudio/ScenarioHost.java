@@ -22,6 +22,66 @@ public final class ScenarioHost {
     private static volatile boolean closed,finishing;
     private static final ArrayBlockingQueue<Map<String,Object>> events=new ArrayBlockingQueue<>(4096);
     private static volatile String status="running",reason="";
+    private static Boolean referenceUiSuspend;
+    public static boolean referenceHud(boolean visible){
+        if(!requested()||!claimed||!zombie.core.Core.getInstance().isNoSave())throw new IllegalStateException("Reference HUD requires owned NoSave scenario");
+        if(referenceUiSuspend==null)referenceUiSuspend=zombie.ui.UIManager.suspend;
+        zombie.ui.UIManager.suspend=!visible;return true;
+    }
+    private static final Map<zombie.radio.devices.DeviceData,Boolean> referenceDevices=new IdentityHashMap<>();
+    private static final Map<zombie.iso.objects.IsoLightSwitch,Boolean> referenceSwitches=new IdentityHashMap<>();
+    public static boolean isolateLight(double x,double y,double z,String tile){
+        if(!requested()||!claimed||!zombie.core.Core.getInstance().isNoSave())throw new IllegalStateException("Light isolation requires owned NoSave scenario");
+        if(!Double.isFinite(x+y+z)||x!=Math.rint(x)||y!=Math.rint(y)||z!=Math.rint(z)||x<0||y<0||x>100000||y>100000||z< -31||z>30||!tile.matches("[a-z0-9_]{1,128}"))throw new IllegalArgumentException("Invalid light isolation");
+        var cell=zombie.iso.IsoWorld.instance.currentCell;int count=0;boolean found=false;
+        for(int level=-1;level<=1;level++)for(int dy=-24;dy<=24;dy++)for(int dx=-24;dx<=24;dx++){
+            var square=cell.getGridSquare((int)x+dx,(int)y+dy,(int)z+level);if(square==null)continue;
+            for(int objectIndex=0;objectIndex<square.getObjects().size();objectIndex++){var object=square.getObjects().get(objectIndex);if(object instanceof zombie.iso.objects.IsoWaveSignal device&&device.getDeviceData()!=null)referenceDevices.putIfAbsent(device.getDeviceData(),device.getDeviceData().getIsTurnedOn());if(object instanceof zombie.iso.objects.IsoLightSwitch light){
+                if(dx==0&&dy==0&&level==0&&object.getSprite()!=null&&tile.equals(object.getSprite().getName())){found=true;continue;}
+                referenceSwitches.putIfAbsent(light,light.isActivated());count++;
+            }}
+        }
+        if(!found)throw new IllegalStateException("Isolated mapped light missing: "+tile);
+        for(var device:referenceDevices.keySet())device.setIsTurnedOn(false);
+        for(var light:referenceSwitches.keySet()){light.setActivated(false);light.switchLight(false);}
+        zombie.iso.LightingJNI.doInvalidateGlobalLights(zombie.characters.IsoPlayer.getInstance().getPlayerNum());event("native-light-isolation","switches="+count+" devices="+referenceDevices.size()+" keep="+tile);return true;
+    }
+    public static void restoreReferenceLights(){
+        if(referenceUiSuspend!=null){zombie.ui.UIManager.suspend=referenceUiSuspend;referenceUiSuspend=null;}
+        for(var entry:referenceDevices.entrySet())entry.getKey().setIsTurnedOn(entry.getValue());referenceDevices.clear();
+        for(var entry:referenceSwitches.entrySet()){entry.getKey().setActivated(entry.getValue());entry.getKey().switchLight(entry.getValue());}referenceSwitches.clear();
+    }
+    public static boolean mappedLight(double x,double y,double z,String tile,boolean active){
+        if(!requested()||!claimed||!zombie.core.Core.getInstance().isNoSave())throw new IllegalStateException("Mapped light requires owned NoSave scenario");
+        if(!Double.isFinite(x+y+z)||x!=Math.rint(x)||y!=Math.rint(y)||z!=Math.rint(z)||x<0||y<0||x>100000||y>100000||z< -32||z>31||!tile.matches("[a-z0-9_]{1,128}"))throw new IllegalArgumentException("Invalid mapped light");
+        var square=zombie.iso.IsoWorld.instance.currentCell.getGridSquare((int)x,(int)y,(int)z);
+        if(square==null)throw new IllegalStateException("Mapped light square unavailable");
+        for(int objectIndex=0;objectIndex<square.getObjects().size();objectIndex++){var object=square.getObjects().get(objectIndex);if(object instanceof zombie.iso.objects.IsoLightSwitch light&&object.getSprite()!=null&&tile.equals(object.getSprite().getName())){
+            light.setActive(active);if(light.isActivated()!=active)throw new IllegalStateException("Native mapped light did not switch");
+            event("native-mapped-light",tile+" active="+active+" sources="+light.lights.size());return true;
+        }}
+        throw new IllegalStateException("Mapped light missing: "+tile);
+    }
+    public static boolean lightProbe(String name,double x,double y,double z)throws java.io.IOException {
+        if(!requested()||!claimed||!zombie.core.Core.getInstance().isNoSave())throw new IllegalStateException("Light probe requires owned NoSave scenario");
+        if(!name.matches("[a-z0-9_-]{1,60}")||!Double.isFinite(x+y+z)||x!=Math.rint(x)||y!=Math.rint(y)||z!=Math.rint(z)||x<0||y<0||x>100000||y>100000||z< -32||z>30)throw new IllegalArgumentException("Invalid light probe");
+        int ox=(int)x,oy=(int)y,oz=(int)z,index=zombie.characters.IsoPlayer.getInstance().getPlayerNum();
+        var cell=zombie.iso.IsoWorld.instance.currentCell;var cells=new ArrayList<Object>();var objects=new ArrayList<Object>();var visibility=new ArrayList<Object>();
+        for(int level=0;level<2;level++)for(int dy=-8;dy<=8;dy++)for(int dx=-8;dx<=8;dx++){
+            var sq=cell.getGridSquare(ox+dx,oy+dy,oz+level);if(sq==null)continue;
+            var info=sq.lighting[index].lightInfo();var row=new ArrayList<Object>();row.add(dx);row.add(dy);row.add(info.r);row.add(info.g);row.add(info.b);
+            for(int corner=0;corner<8;corner++)row.add(Integer.toUnsignedLong(sq.getVertLight(corner,index)));
+            var lights=new ArrayList<Object>();var lighting=sq.lighting[index];
+            for(int i=0;i<lighting.resultLightCount();i++){var light=lighting.getResultLight(i);int rgb=zombie.core.Color.colorToABGR(light.r,light.g,light.b,1);lights.add(List.of(light.id,light.x-ox,light.y-oy,light.z-oz,light.radius,Integer.toUnsignedLong((rgb&0xffffff)|(light.flags<<24))));}
+            row.add(lights);row.add(level);cells.add(row);visibility.add(List.of(dx,dy,level,lighting.bSeen(),lighting.bCanSee(),lighting.darkMulti()));
+            for(int objectIndex=0;objectIndex<sq.getObjects().size();objectIndex++){var object=sq.getObjects().get(objectIndex);if(object.getSprite()!=null&&object.getSprite().getName()!=null)objects.add(List.of(dx,dy,level,object.getSprite().getName(),object instanceof zombie.iso.objects.IsoLightSwitch light?light.isActivated():false));}
+        }
+        var sources=new ArrayList<Object>();for(var light:cell.getLamppostPositions())if(Math.abs(light.x-ox)<=24&&Math.abs(light.y-oy)<=24)sources.add(Map.of("id",light.id,"position",List.of(light.x-ox,light.y-oy,light.z-oz),"rgb",List.of(light.r,light.g,light.b),"radius",light.radius,"active",light.active,"jniActive",light.activeJni));
+        var rooms=new ArrayList<Object>();for(var light:cell.roomLights)if(Math.abs(light.x-ox)<=24&&Math.abs(light.y-oy)<=24)rooms.add(Map.of("id",light.id,"position",List.of(light.x-ox,light.y-oy,light.z-oz),"size",List.of(light.width,light.height),"active",light.active,"jniActive",light.activeJni,"room",light.room.def.name));
+        var player=zombie.characters.IsoPlayer.getInstance();var climate=zombie.iso.weather.ClimateManager.getInstance();
+        var result=new LinkedHashMap<String,Object>();result.put("engine","Game capture");result.put("origin",List.of(ox,oy,oz));result.put("player",List.of(player.getX()-ox,player.getY()-oy,player.getZ()-oz));result.put("hour",zombie.GameTime.getInstance().getTimeOfDay());result.put("ambient",climate.getAmbient());result.put("cells",cells);result.put("objects",objects);result.put("visibility",visibility);result.put("sources",sources);result.put("roomLights",rooms);
+        Files.writeString(output.resolve("light-"+name+".json"),ScenarioJson.write(result));event("native-light-probe",name+" cells="+cells.size()+" sources="+sources.size());return true;
+    }
     public static double clock(){return System.nanoTime()*1e-9;}
     /** A missing upper square is absence only after the owning vanilla chunk loaded. */
     public static boolean loadedEmptyCell(double x,double y,double z){

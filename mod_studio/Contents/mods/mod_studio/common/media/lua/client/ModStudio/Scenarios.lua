@@ -47,7 +47,7 @@ API.register("native",{
     end,
     update=function(c) ScenarioRoute.update(c);if c.nativeHuman then ModStudioScenario.updateHuman() end end,
     boundary=function(c) if c.nativeBaseline then assert(ModStudioNativeBaseline.stop()==true,"Native baseline stop failed") end;if c.nativeDriving then ModStudioDriving.stop() end end,
-    finish=function(c) if c.nativeBaseline then assert(ModStudioNativeBaseline.close()==true,"Native baseline cleanup failed");c.nativeBaseline=nil end;ScenarioRoute.clear(c);ScenarioLights.clear(c);ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;if c.nativeFrameRate then ModStudioScenario.setFrameLimit(c.nativeFrameRate);ModStudioScenario.setFrameUncapped(c.nativeUncapped);ModStudioScenario.setFrameSync(c.nativeVSync);c.nativeFrameRate=nil end;return true end
+    finish=function(c) ModStudioScenario.restoreReferenceLights();if c.nativeBaseline then assert(ModStudioNativeBaseline.close()==true,"Native baseline cleanup failed");c.nativeBaseline=nil end;ScenarioRoute.clear(c);ScenarioLights.clear(c);ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;if c.nativeFrameRate then ModStudioScenario.setFrameLimit(c.nativeFrameRate);ModStudioScenario.setFrameUncapped(c.nativeUncapped);ModStudioScenario.setFrameSync(c.nativeVSync);c.nativeFrameRate=nil end;return true end
 }, {
     baselinePrepare={start=function(c) c.nativeBaseline=true end,tick=function() local ready=ModStudioNativeBaseline.open();assert(ready~=nil,"Native baseline preparation failed");return ready end},
     baseline={validate=function(s)
@@ -87,6 +87,10 @@ API.register("native",{
     networkBarrier=ModStudio.Network.commands.barrier,
     networkFocus=ModStudio.Network.commands.focus,
     networkObserve=ModStudio.Network.commands.observe,
+    referenceHud={validate=function(s) assert(type(s.visible)=="boolean","Invalid reference HUD visibility") end,start=function(c,s) assert(ModStudioScenario.referenceHud(s.visible)==true,"Native reference HUD failed") end},
+    isolateLight={validate=function(s) coordinates(s);assert(type(s.tile)=="string" and s.tile:match("^[a-z0-9_]+$"),"Invalid isolated light tile") end,start=function(c,s) assert(ModStudioScenario.isolateLight(s.x,s.y,s.z or 0,s.tile)==true,"Native light isolation failed") end},
+    mappedLight={validate=function(s) coordinates(s);assert(type(s.tile)=="string" and s.tile:match("^[a-z0-9_]+$"),"Invalid mapped light tile");assert(type(s.on)=="boolean","Invalid mapped light power") end,start=function(c,s) assert(ModStudioScenario.mappedLight(s.x,s.y,s.z or 0,s.tile,s.on)==true,"Native mapped light failed") end},
+    lightProbe={validate=function(s) coordinates(s);assert(type(s.name)=="string" and #s.name<=60 and s.name:match("^[a-z0-9_-]+$"),"Invalid light probe name") end,start=function(c,s) assert(ModStudioScenario.lightProbe(s.name,s.x,s.y,s.z or 0)==true,"Native light probe failed") end},
     lightFixture=ScenarioLights.fixture,
     lightYard=ScenarioLights.yard,
     lightGallery=ScenarioLights.gallery,

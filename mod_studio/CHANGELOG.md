@@ -6,6 +6,9 @@
 - Add the main-menu game language selector transferred from pz3d, using native language settings and Lua reload.
 
 ### Maintenance
+
+- Scenarios: inspect actual mapped lamp power and export live square lighting, source and visibility data from owned NoSave worlds. Add an explicit native-render reference mode that preserves vanilla graphics separately from loader baselines.
+
 - Capture user F12 screenshots into the current scenario's screenshots/user folder with step metadata, independently of automated captures; preserve native F12 outside controlled scenarios.
 - Allow F12 polling and key events during automated scenarios without releasing gameplay input or interrupting execution; verify the exception with transformed input regression tests.
 - Scenarios: align paired-door regression fixtures with native lock and obstruction queries.

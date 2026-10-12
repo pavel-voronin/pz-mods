@@ -35,6 +35,8 @@ public final class ScenarioRegression {
         guarded=false;try{ScenarioHost.screenshot("test");}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Screenshot outside disposable scenario");
         guarded=false;try{ScenarioDriving.spawnConfigured("Base.CarNormal",0,false,true);}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Parked car spawned outside a disposable scenario");
         ScenarioDriving.stop();ScenarioDriving.close();ScenarioDriving.close();
+        guarded=false;try{ScenarioHost.lightProbe("test",8249,11632,0);}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Light probe outside disposable scenario");
+        guarded=false;try{ScenarioHost.mappedLight(8249,11632,0,"lighting_indoor_01_45",true);}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Mapped light outside disposable scenario");
         var unsafeField=sun.misc.Unsafe.class.getDeclaredField("theUnsafe");unsafeField.setAccessible(true);var unsafe=(sun.misc.Unsafe)unsafeField.get(null);
         var emptyChunk=(zombie.iso.IsoChunk)unsafe.allocateInstance(zombie.iso.IsoChunk.class);emptyChunk.wx=1;emptyChunk.wy=2;emptyChunk.minLevel=0;emptyChunk.maxLevel=1;emptyChunk.squares=new zombie.iso.IsoGridSquare[2][64];
         if(ScenarioHost.loadedEmptyCell(emptyChunk,null,9,17,1))throw new AssertionError("Unloaded chunk certifies absence");emptyChunk.loaded=true;

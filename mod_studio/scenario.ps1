@@ -6,6 +6,7 @@ param(
     [switch]$SkipBuild,
     [switch]$IsolatedProfile,
     [switch]$NativeOnly,
+    [switch]$NativeRender,
     [ValidateSet(0,11,13)][int]$NativeGrid=0,
     [string]$ReuseIsolatedArtifact='',
     [switch]$PrepareOnly,
@@ -44,6 +45,7 @@ if($data.persistence){
     if(($persistenceMode -eq 'resume') -ne [bool]$ResumeArtifact){throw 'ResumeArtifact is required only for persistence mode resume'}
 }elseif($ResumeArtifact){throw 'ResumeArtifact requires persistence mode resume'}
 if($ReuseIsolatedArtifact -and !$IsolatedProfile){throw 'ReuseIsolatedArtifact requires IsolatedProfile'}
+if($NativeRender -and (!$NativeOnly -or $NativeGrid)){throw 'NativeRender requires NativeOnly with the default grid'}
 if(($NativeOnly -or $NativeGrid) -and (!$NativeOnly -or !$IsolatedProfile -or $ReuseIsolatedArtifact -or $ModRoots.Count -or $data.persistence -or $data.manual -or $data.multiplayer -or $Launcher -ne 'Java')){throw 'Native baseline requires a fresh isolated native-only NoSave single-player Java profile and no additional mods'}
 if($IsolatedProfile -and ($persistenceMode -or $Launcher -ne 'Java')){throw 'IsolatedProfile requires a nonpersistent Java scenario'}
 if($Mcp -and $data.multiplayer){throw 'Use the single-player scenario launcher for MCP continuation.'}
@@ -67,7 +69,7 @@ $copy=Join-Path $output 'scenario.json'
 $config=Get-Content -LiteralPath (Join-Path $Game 'ProjectZomboid64.json') -Raw | ConvertFrom-Json
 $gcArguments=if($GarbageCollector -eq 'G1'){@('-XX:-UseZGC','-XX:+UseG1GC')}else{@('-XX:-UseG1GC','-XX:+UseZGC')}
 $arguments=@($config.vmArgs)+$gcArguments+@("-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')",'-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")
-if($NativeOnly){$arguments+=@('-Dmodstudio.nativeBaseline=true',"-Dmodstudio.nativeGrid=$NativeGrid", "-Dmodstudio.nativeMap=$PSScriptRoot/.build/native-map")}
+if($NativeOnly -and !$NativeRender){$arguments+=@('-Dmodstudio.nativeBaseline=true',"-Dmodstudio.nativeGrid=$NativeGrid", "-Dmodstudio.nativeMap=$PSScriptRoot/.build/native-map")}
 if($Launcher -eq 'Native'){$arguments=$gcArguments+@('-agentlib:zbNative=policy=allow-all','-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")}
 $mcpSession=$null
 if($Mcp){
@@ -108,7 +110,7 @@ if($persistenceMode){
 if($IsolatedProfile){
     . (Join-Path $PSScriptRoot 'scenario-profile.ps1')
     $persistentProfile=if($NativeOnly){Get-ModStudioPersistentProfile -Output $output -Game $Game -Roots $roots -Mode new -NativeOnly:$NativeOnly}else{Get-ModStudioIsolatedProfile -Output $output -Game $Game -Roots $roots -ReuseArtifact $ReuseIsolatedArtifact}
-    $launch.nativeOnly=[bool]$NativeOnly;$launch.nativeGrid=$NativeGrid
+    $launch.nativeOnly=[bool]$NativeOnly;$launch.nativeRender=[bool]$NativeRender;$launch.nativeGrid=$NativeGrid
     $launch.nativeProfile=$persistentProfile.path;$launch.isolatedProfile=$true;$launch.reusedIsolatedArtifact=$ReuseIsolatedArtifact
 }
 if($WindowWidth){

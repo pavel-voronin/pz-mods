@@ -47,6 +47,20 @@ public final class ScenarioDisplayRegression {
             for i=1,50 do ready=true;t=i*2;cmd.tick(c,s) end
             assert(c.drivingReview.count==32)
             """);
+        run(vm,env,"""
+            for _,name in ipairs({'mappedLight','isolateLight','lightProbe','referenceHud'}) do
+                local cmd=ModStudio.Scenarios.commands['native.'..name]
+                local s={x=8249,y=11632,z=0,tile='lighting_indoor_01_45',on=true,name='white-lamp',visible=false}
+                cmd.validate(s)
+                ModStudioScenario[name]=function() return nil end
+                assert(not pcall(cmd.start,{},s))
+                ModStudioScenario[name]=function() return false end
+                assert(not pcall(cmd.start,{},s))
+                ModStudioScenario[name]=function() return true end
+                assert(pcall(cmd.start,{},s))
+            end
+            """);
+        System.out.println("PASS: light probes, mapped switches and isolation require explicit Java success; missing/failed results stop Lua.");
         System.out.println("PASS: display mismatch and missing Java results fail Lua; only exact verified display proceeds.");
         System.out.println("PASS: native driving image review is bounded, awaits capture completion and stays outside measurement phases.");
         run(vm,env,"""
