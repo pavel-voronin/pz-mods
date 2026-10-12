@@ -90,6 +90,8 @@ ModStudioScenario={clock=function() return now end,requested=function() return t
  finish=function(s,r) ended=s;reason=r end,closed=function() return true end}
 ModStudioScenario.screenshot=function(name) screenshotName=name;screenshotPolls=0 end
 ModStudioScenario.screenshotReady=function() screenshotPolls=screenshotPolls+1;return screenshotPolls>=3 end
+ModStudioScenario.renderSnapshotPause=function(value) snapshotPaused=value end
+ModStudioScenario.renderSnapshot=function(name,x,y,z) assert(snapshotPaused);snapshotName=name;return true end
 ModStudioScenario.clearVehicles=function(x0,y0,x1,y1)
     assert(core:isNoSave())
     local selected={}

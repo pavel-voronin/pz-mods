@@ -73,6 +73,7 @@ public final class ScenarioRegression {
             if(!mpRejected)throw new AssertionError("Unsafe MP context accepted");
         }
         System.clearProperty("modstudio.scenario");System.clearProperty("modstudio.scenario.multiplayer");
+        boolean snapshotGuard=false;try{ScenarioHost.renderSnapshot("test",1,2,0);}catch(IllegalStateException expected){snapshotGuard=true;}if(!snapshotGuard)throw new AssertionError("Snapshot outside owned NoSave scenario");
         boolean signalGuard=false;try{ScenarioHost.signal("ready");}catch(IllegalStateException e){signalGuard=true;}
         if(!signalGuard||ScenarioHost.resume())throw new AssertionError("MP state outside an owned client");
         Path root=Path.of(args[0]),pz=Path.of(args[1]);
@@ -148,6 +149,8 @@ public final class ScenarioRegression {
             "isClient=function() return true end;ModStudio.Network.bootstrap({event=function() error('bootstrap ran after world ready') end});assert(true)",
             "assert(not pcall(ModStudio.Network.commands.barrier.validate,{name='../escape'}));assert(pcall(ModStudio.Network.commands.barrier.validate,{name='world-ready'}))",
             "scenario={steps={{command='native.screenshot',name='native-view'}}};Events.OnMainMenuEnter.fire();pump(15);assert(ended=='complete' and screenshotName=='native-view' and screenshotPolls>=3)",
+            "scenario={steps={{command='native.renderSnapshot',name='snapshot',x=80,y=80,z=0}}};Events.OnMainMenuEnter.fire();pump(40);assert(ended=='complete' and snapshotName=='snapshot' and screenshotName=='snapshot' and not snapshotPaused)",
+            "scenario={steps={{command='native.renderSnapshot',name='../bad',x=80,y=80,z=0}}};Events.OnMainMenuEnter.fire();pump(15);assert(ended=='failed' and snapshotName==nil)",
             "scenario={steps={{command='native.screenshot',name='../bad'}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and screenshotName==nil)",
             "scenario={steps={{command='native.weather',fog=1,rain=0,cloud=.6},{command='native.wait',seconds=1}}};Events.OnMainMenuEnter.fire();pump(4);assert(weatherValues[5].enabled and weatherValues[5].value==1);pump(25);assert(ended=='complete');for _,v in pairs(weatherValues) do assert(not v.enabled and v.value==.2) end",
             "scenario={steps={{command='native.weather',fog=2,rain=0,cloud=0}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and not weatherValues[5].enabled)",

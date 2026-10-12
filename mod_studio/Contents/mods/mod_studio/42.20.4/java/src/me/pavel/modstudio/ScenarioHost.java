@@ -47,6 +47,7 @@ public final class ScenarioHost {
         zombie.iso.LightingJNI.doInvalidateGlobalLights(zombie.characters.IsoPlayer.getInstance().getPlayerNum());event("native-light-isolation","switches="+count+" devices="+referenceDevices.size()+" keep="+tile);return true;
     }
     public static void restoreReferenceLights(){
+        renderSnapshotPause(false);
         if(referenceUiSuspend!=null){zombie.ui.UIManager.suspend=referenceUiSuspend;referenceUiSuspend=null;}
         for(var entry:referenceDevices.entrySet())entry.getKey().setIsTurnedOn(entry.getValue());referenceDevices.clear();
         for(var entry:referenceSwitches.entrySet()){entry.getKey().setActivated(entry.getValue());entry.getKey().switchLight(entry.getValue());}referenceSwitches.clear();
@@ -83,6 +84,17 @@ public final class ScenarioHost {
         Files.writeString(output.resolve("light-"+name+".json"),ScenarioJson.write(result));event("native-light-probe",name+" cells="+cells.size()+" sources="+sources.size());return true;
     }
     public static double clock(){return System.nanoTime()*1e-9;}
+    public static boolean renderSnapshot(String name,double x,double y,double z)throws Exception {
+        if(!requested()||!claimed||!zombie.core.Core.getInstance().isNoSave())throw new IllegalStateException("Render snapshot requires owned NoSave scenario");
+        if(!name.matches("[a-z0-9_-]{1,60}")||!Double.isFinite(x+y+z)||x!=Math.rint(x)||y!=Math.rint(y)||z!=Math.rint(z)||x<0||y<0||x>100000||y>100000||z< -32||z>30)throw new IllegalArgumentException("Invalid render snapshot");
+        ScenarioRenderSnapshot.write(output.resolve("render-snapshots").resolve(name),(int)x,(int)y,(int)z);
+        event("native-render-snapshot",name);return true;
+    }
+    private static Integer renderSnapshotSpeed;
+    public static void renderSnapshotPause(boolean pause){
+        if(pause){if(!requested()||!claimed||!disposable())throw new IllegalStateException("Render snapshot requires an owned disposable scenario");if(renderSnapshotSpeed==null){renderSnapshotSpeed=zombie.ui.SpeedControls.instance.getCurrentGameSpeed();zombie.ui.SpeedControls.instance.SetCurrentGameSpeed(0);}}
+        else if(renderSnapshotSpeed!=null){zombie.ui.SpeedControls.instance.SetCurrentGameSpeed(renderSnapshotSpeed);renderSnapshotSpeed=null;}
+    }
     /** A missing upper square is absence only after the owning vanilla chunk loaded. */
     public static boolean loadedEmptyCell(double x,double y,double z){
         if(!Double.isFinite(x+y+z)||x!=Math.rint(x)||y!=Math.rint(y)||z!=Math.rint(z)||x<0||y<0||x>100000||y>100000||z< -32||z>31)return false;
