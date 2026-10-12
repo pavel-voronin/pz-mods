@@ -20,10 +20,24 @@ public final class ScenarioInputRegression {
         check(GLFW.glfwGetKey(1,87)==1,"normal game key passes");
         var claimed=ScenarioHost.class.getDeclaredField("claimed");claimed.setAccessible(true);claimed.setBoolean(null,true);
         for(int key:new int[]{87,256,290,258,342})check(GLFW.glfwGetKey(1,key)==0,"blocked gameplay/debug/Escape key "+key);
-        check(GLFW.glfwGetKey(1,301)==1,"F12 polling passes during scenario");
+        check(GLFW.glfwGetKey(1,301)==0,"F12 polling consumed during scenario");
         Keyboard.addKeyEvent(301,1);Keyboard.addKeyEvent(301,2);Keyboard.addKeyEvent(301,0);
-        check(Keyboard.events==3,"F12 press, repeat and release pass during scenario");
+        check(Keyboard.events==0,"F12 press, repeat and release consumed during scenario");
+        int[] captures={0};
+        for(int action:new int[]{1,2,2,0})check(ScenarioInput.keyEvent(301,action,()->captures[0]++),"scenario F12 consumed");
+        check(captures[0]==1,"one capture per press, no repeats or release captures");
         check(ScenarioInput.blocked()&&!ScenarioHost.closed(),"F12 keeps the scenario active and gameplay blocked");
+        var output=ScenarioHost.class.getDeclaredField("output");output.setAccessible(true);output.set(null,java.nio.file.Files.createTempDirectory("modstudio-f12-test-"));
+        var done=ScenarioHost.class.getDeclaredField("screenshotDone");done.setAccessible(true);done.setBoolean(null,true);
+        var captureError=ScenarioHost.class.getDeclaredField("screenshotError");captureError.setAccessible(true);captureError.set(null,"automated-command-sentinel");
+        System.setProperty("modstudio.scenario","input-regression");
+        Keyboard.addKeyEvent(301,1);Keyboard.addKeyEvent(301,2);Keyboard.addKeyEvent(301,1);
+        check(zombie.core.opengl.RenderThread.queued.size()==1,"user capture is asynchronous and pending requests are bounded");
+        zombie.core.opengl.RenderThread.queued.remove().run(); // No GL context: exercise capture failure isolation.
+        check(done.getBoolean(null)&&captureError.get(null).equals("automated-command-sentinel"),"user capture never changes automated capture completion or error");
+        check(!ScenarioHost.closed()&&ScenarioHost.error().isEmpty()&&ScenarioInput.blocked(),"capture failure does not abort or release the scenario");
+        Keyboard.addKeyEvent(301,1);check(zombie.core.opengl.RenderThread.queued.size()==1,"failed capture releases pending slot");
+        zombie.core.opengl.RenderThread.queued.clear();System.clearProperty("modstudio.scenario");
         Keyboard.events=0;
         for(int button=0;button<8;button++)check(GLFW.glfwGetMouseButton(1,button)==0,"blocked mouse button");
         Keyboard.addKeyEvent(87,1);Keyboard.addCharEvent('w');Mouse.addMoveEvent(90,80);Mouse.addButtonEvent(0,true);
@@ -38,9 +52,12 @@ public final class ScenarioInputRegression {
         // Host finish keeps filtering during artifact flush and process shutdown.
         ScenarioHost.finish("failed","test");check(GLFW.glfwGetKey(1,87)==0,"cleanup still protected");
         var manual=ScenarioHost.class.getDeclaredField("manual");manual.setAccessible(true);manual.setBoolean(null,true);
+        check(!ScenarioInput.keyEvent(301,1,()->captures[0]++),"manual handoff preserves native F12");
         check(GLFW.glfwGetKey(1,87)==1&&GLFW.glfwGetMouseButton(1,0)==1,"manual handoff restores keyboard and mouse while claimed");
         manual.setBoolean(null,false);check(GLFW.glfwGetKey(1,87)==0,"normal claimed shutdown remains protected");
         claimed.setBoolean(null,false);
+        check(GLFW.glfwGetKey(1,301)==1&&!ScenarioInput.keyEvent(301,1,()->captures[0]++),"ordinary game preserves native F12");
+        check(captures[0]==1,"no scenario captures in ordinary game or manual handoff");
         check(GLFW.glfwGetKey(1,87)==1&&GLFW.glfwGetMouseButton(1,0)==1,"unclaimed process passes input");
         GLFW.glfwGetCursorPos(1,x,y);check(x[0]==500,"normal cursor restored");
         Keyboard.addKeyEvent(87,1);Keyboard.addCharEvent('w');Mouse.addMoveEvent(90,80);Mouse.addButtonEvent(0,true);

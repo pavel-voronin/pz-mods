@@ -75,6 +75,22 @@ public final class ScenarioHost {
     public static boolean suppressInput(){return claimed&&!manual;}
     private static volatile boolean screenshotDone;
     private static volatile String screenshotError="";
+    private static final java.util.concurrent.atomic.AtomicBoolean userScreenshotPending=new java.util.concurrent.atomic.AtomicBoolean();
+    private static final java.util.concurrent.atomic.AtomicInteger userScreenshotNumber=new java.util.concurrent.atomic.AtomicInteger();
+    /** Independent user capture: never modifies command completion or scenario state. */
+    public static void userScreenshot(){
+        if(!requested()||!suppressInput()||closed||finishing||output==null||!userScreenshotPending.compareAndSet(false,true))return;
+        String name="f12-"+System.currentTimeMillis()+"-"+userScreenshotNumber.incrementAndGet();
+        Path destination=output.resolve("screenshots/user").resolve(name+".png");
+        String context=ScenarioJson.write(ScenarioStatus.progress());
+        try{
+            zombie.core.opengl.RenderThread.queueInvokeOnRenderContext(()->{
+                try{captureNative(destination);event("user-screenshot",name+".png "+context);}
+                catch(Exception e){System.err.println("[ModStudio] User screenshot failed: "+e);event("user-screenshot-failed",name+": "+e);}
+                finally{userScreenshotPending.set(false);}
+            });
+        }catch(Exception e){userScreenshotPending.set(false);System.err.println("[ModStudio] User screenshot queue failed: "+e);}
+    }
     private static int loadingScreenshots;
     private static long loadingScreenshotAt;
     /** Native front-buffer capture, usable with or without a renderer provider. */
@@ -86,16 +102,20 @@ public final class ScenarioHost {
         if(name==null||!name.matches("[a-z0-9_-]{1,60}"))throw new IllegalArgumentException("Invalid screenshot name");
         screenshotDone=false;screenshotError="";
         zombie.core.opengl.RenderThread.invokeOnRenderContext(()->{
+            try{captureNative(output.resolve("screenshots").resolve(name+".png"));}
+            catch(Exception e){screenshotError=e.toString();}
+            finally{screenshotDone=true;}
+        });
+    }
+    private static void captureNative(Path destination)throws Exception {
             int read=org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL30.GL_READ_FRAMEBUFFER_BINDING),buffer=org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL11.GL_READ_BUFFER),pack=org.lwjgl.opengl.GL11.glGetInteger(org.lwjgl.opengl.GL11.GL_PACK_ALIGNMENT);
             try{
                 org.lwjgl.opengl.GL30.glBindFramebuffer(org.lwjgl.opengl.GL30.GL_READ_FRAMEBUFFER,0);
                 String temporary="mod-studio-"+UUID.randomUUID()+".png";
                 zombie.core.Core.getInstance().TakeFullScreenshot(temporary);
-                Path destination=output.resolve("screenshots").resolve(name+".png");Files.createDirectories(destination.getParent());
+                Files.createDirectories(destination.getParent());
                 Files.move(Path.of(zombie.ZomboidFileSystem.instance.getScreenshotDir()).resolve(temporary),destination,StandardCopyOption.REPLACE_EXISTING);
-            }catch(Exception e){screenshotError=e.toString();}
-            finally{org.lwjgl.opengl.GL30.glBindFramebuffer(org.lwjgl.opengl.GL30.GL_READ_FRAMEBUFFER,read);org.lwjgl.opengl.GL11.glReadBuffer(buffer);org.lwjgl.opengl.GL11.glPixelStorei(org.lwjgl.opengl.GL11.GL_PACK_ALIGNMENT,pack);screenshotDone=true;}
-        });
+            }finally{org.lwjgl.opengl.GL30.glBindFramebuffer(org.lwjgl.opengl.GL30.GL_READ_FRAMEBUFFER,read);org.lwjgl.opengl.GL11.glReadBuffer(buffer);org.lwjgl.opengl.GL11.glPixelStorei(org.lwjgl.opengl.GL11.GL_PACK_ALIGNMENT,pack);}
     }
     public static boolean screenshotReady(){if(!screenshotError.isEmpty())throw new IllegalStateException(screenshotError);return screenshotDone;}
     public static String expectDisplay(int width,int height){
