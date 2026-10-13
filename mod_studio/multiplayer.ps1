@@ -291,7 +291,9 @@ try {
         $expectedOwner=if($client.loader -eq 'pz3d'){'Pz3dLoader'}else{'ZombieBuddy'}
         $consolePath=Join-Path $client.cache 'console.txt'
         $consoleText=if(Test-Path -LiteralPath $consolePath){[IO.File]::ReadAllText($consolePath)}else{''}
-        if($launch.status -eq 'complete' -and $consoleText -notmatch ('owner='+$expectedOwner+'(?:[\r\n]|$)')){
+        $stdoutPath=Join-Path $client.cache 'stdout.txt'
+        $stdoutText=if(Test-Path -LiteralPath $stdoutPath){[IO.File]::ReadAllText($stdoutPath)}else{''}
+        if($launch.status -eq 'complete' -and !(Test-ModStudioLoaderOwner $consoleText $stdoutText $expectedOwner)){
             $launch.status='failed';$launch.reason="$($client.name): expected pz3d owner $expectedOwner was not confirmed"
         }
     }

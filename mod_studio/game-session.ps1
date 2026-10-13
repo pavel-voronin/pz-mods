@@ -84,3 +84,15 @@ function Stop-ModStudioSession {
         Write-ModStudioSession $Session
     }finally{$Session.handle.Dispose()}
 }
+
+function Test-ModStudioLoaderOwner {
+    param([string]$ConsoleText,[string]$StdoutText,[string]$ExpectedOwner)
+    $evidence=$ConsoleText+"`n"+$StdoutText
+    $owners=[regex]::Matches($evidence,'owner=(Pz3dLoader|ZombieBuddy)(?:[\r\n]|$)')
+    if($owners.Count){return @($owners | Where-Object {$_.Groups[1].Value -ne $ExpectedOwner}).Count -eq 0}
+    if($ExpectedOwner -ne 'ZombieBuddy'){return $false}
+    $entry=$evidence -match '\[ZB\] class com\.pavelvoronin\.pz3d\.entry\.Main: method main\(\) invoked successfully'
+    $signed=$evidence -match '\[ZB\] ZBS verification valid for [^\r\n]*[\\/]mods[\\/]pz3d[\\/][^\r\n]*[\\/]PZ3D[^\r\n]*\.jar:'
+    $started=$evidence -match '\[pz3d\] Java prototype [^\r\n]+ loaded; patch targets resolved;'
+    return $entry -and $signed -and $started
+}
