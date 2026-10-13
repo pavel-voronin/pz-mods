@@ -7,6 +7,8 @@
 
 ### Maintenance
 
+- Multiplayer scenarios: tolerate the atomic replacement gap while polling observer startup files.
+
 - Multiplayer scenarios: optionally finish observer loading before starting the second native client to reduce overlapping startup memory without changing heap limits or the two-client protocol.
 
 - Multiplayer scenarios: accept explicit mod checkouts and link their native packages into disposable profiles so worktree builds are tested without replacing the main checkout.

@@ -241,9 +241,9 @@ try {
                 if($record.process.HasExited){throw "$name exited during staggered startup"}
                 if($server.process.HasExited){throw 'Dedicated server exited during staggered startup'}
                 $startupResult=Join-Path $cache 'scenario-result.json'
-                if(Test-Path -LiteralPath $startupResult){$startupState=Get-Content -LiteralPath $startupResult -Raw | ConvertFrom-Json -ErrorAction SilentlyContinue;if($startupState -and $startupState.status -notin @('running','complete')){throw "$name`: $($startupState.reason)"}}
+                if(Test-Path -LiteralPath $startupResult){$startupState=Get-Content -LiteralPath $startupResult -Raw -ErrorAction SilentlyContinue | ConvertFrom-Json -ErrorAction SilentlyContinue;if($startupState -and $startupState.status -notin @('running','complete')){throw "$name`: $($startupState.reason)"}}
                 $startupProgress=Join-Path $cache 'progress.json'
-                if(Test-Path -LiteralPath $startupProgress){$startupState=Get-Content -LiteralPath $startupProgress -Raw | ConvertFrom-Json -ErrorAction SilentlyContinue;if($startupState -and $startupState.phase -ne 'loading'){$startupReady=$true;break}}
+                if(Test-Path -LiteralPath $startupProgress){$startupState=Get-Content -LiteralPath $startupProgress -Raw -ErrorAction SilentlyContinue | ConvertFrom-Json -ErrorAction SilentlyContinue;if($startupState -and $startupState.phase -ne 'loading'){$startupReady=$true;break}}
                 Start-Sleep -Milliseconds 500
             }
             if(!$startupReady){throw "$name staggered startup timeout"}
