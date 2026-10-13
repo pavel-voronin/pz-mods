@@ -9,6 +9,7 @@ param(
     [ValidateSet('zombieBuddy','pz3d')][string]$ClientLoader='zombieBuddy',
     [ValidateSet('Z','G1')][string]$GarbageCollector='Z',
     [string]$Pz3dLoaderJar=(Join-Path $PSScriptRoot '../pz3d/Contents.release/mods/pz3d/common/media/pz3d/loader/pz3dLoader.jar'),
+    [switch]$StaggerClientLoading,
     [switch]$SkipBuild,
     [switch]$ValidateOnly
 )
@@ -232,7 +233,24 @@ try {
         if($loader -eq 'pz3d'){$clientVm+="-javaagent:$Pz3dLoaderJar"}
         $record=Start-Native $name $cache ($clientVm+@('-cp','.;projectzomboid.jar','zombie.gameStates.MainScreenState','-debug','-nosteam','-windowed',"-cachedir=$cache"))
         $owned.Add($record);$launch.clients+=@{loader=$loader;name=$name;mods=$mods;pid=$record.process.Id;cache=$cache}
+        if($StaggerClientLoading -and $index -eq 1){
+            $startupWatch=[Diagnostics.Stopwatch]::StartNew()
+            $startupReady=$false
+            $startupLimit=if($null -ne $suite.loadingTimeout){[double]$suite.loadingTimeout}else{240}
+            while($startupWatch.Elapsed.TotalSeconds -lt $startupLimit){
+                if($record.process.HasExited){throw "$name exited during staggered startup"}
+                if($server.process.HasExited){throw 'Dedicated server exited during staggered startup'}
+                $startupResult=Join-Path $cache 'scenario-result.json'
+                if(Test-Path -LiteralPath $startupResult){$startupState=Get-Content -LiteralPath $startupResult -Raw | ConvertFrom-Json -ErrorAction SilentlyContinue;if($startupState -and $startupState.status -notin @('running','complete')){throw "$name`: $($startupState.reason)"}}
+                $startupProgress=Join-Path $cache 'progress.json'
+                if(Test-Path -LiteralPath $startupProgress){$startupState=Get-Content -LiteralPath $startupProgress -Raw | ConvertFrom-Json -ErrorAction SilentlyContinue;if($startupState -and $startupState.phase -ne 'loading'){$startupReady=$true;break}}
+                Start-Sleep -Milliseconds 500
+            }
+            if(!$startupReady){throw "$name staggered startup timeout"}
+            Write-Output "$name native loading finished; launching the second client."
+        }
     }
+    $launch.staggerClientLoading=[bool]$StaggerClientLoading
     $launch.status='launched';$launch.processes=@($owned | ForEach-Object {@{role=$_.role;pid=$_.process.Id}})
     $launch | ConvertTo-Json -Depth 9 | Set-Content -LiteralPath (Join-Path $output 'launch.json') -Encoding utf8
     $watch.Restart()

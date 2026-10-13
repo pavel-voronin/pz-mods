@@ -7,6 +7,8 @@
 
 ### Maintenance
 
+- Multiplayer scenarios: optionally finish observer loading before starting the second native client to reduce overlapping startup memory without changing heap limits or the two-client protocol.
+
 - Multiplayer scenarios: accept explicit mod checkouts and link their native packages into disposable profiles so worktree builds are tested without replacing the main checkout.
 
 - Scenarios: inspect actual mapped lamp power and export live square lighting, source and visibility data from owned NoSave worlds. Add an explicit native-render reference mode that preserves vanilla graphics separately from loader baselines.
