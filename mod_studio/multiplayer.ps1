@@ -2,6 +2,7 @@
 param(
     [Parameter(Mandatory)][string]$Scenario,
     [string]$Game='C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid',
+    [string[]]$ModRoots=@(),
     [string]$OutputRoot=(Join-Path $env:USERPROFILE 'Zomboid/ModStudio/multiplayer'),
     [ValidateRange(1024,65534)][int]$Port=16371,
     [ValidateRange(60,7200)][int]$TimeoutSeconds=600,
@@ -70,6 +71,16 @@ if(Test-Path -LiteralPath $nativeOptions){
     $acceptedLine=Get-Content -LiteralPath $nativeOptions | Where-Object {$_ -match '^termsOfServiceVersion=[0-9]+$'} | Select-Object -First 1
     if($acceptedLine){$acceptedTermsVersion=[int]($acceptedLine.Split('=')[1])}
 }
+$selectedModSources=@{}
+foreach($root in $ModRoots){
+    $resolvedRoot=(Resolve-Path -LiteralPath $root).Path
+    $packageRoot=Join-Path $resolvedRoot 'Contents/mods'
+    if(!(Test-Path -LiteralPath $packageRoot -PathType Container)){throw 'Selected mod root has no native packages'}
+    foreach($package in Get-ChildItem -LiteralPath $packageRoot -Directory){
+        if($selectedModSources.ContainsKey($package.Name)){throw "Duplicate selected native mod: $($package.Name)"}
+        $selectedModSources[$package.Name]=$package.FullName
+    }
+}
 $sources=@{mod_studio=(Join-Path $PSScriptRoot 'Contents/mods/mod_studio')}
 $workshop=Join-Path (Split-Path $Game) '../workshop/content/108600'
 $buddy=Get-ChildItem -LiteralPath ([IO.Path]::GetFullPath($workshop)) -Directory | ForEach-Object {Join-Path $_.FullName 'mods/ZombieBuddy'} | Where-Object {Test-Path -LiteralPath $_} | Select-Object -First 1
@@ -79,6 +90,7 @@ $sources.ZombieBuddy=$buddy
 foreach($id in (@($suite.server.mods)+@($suite.clients | ForEach-Object {$_.mods}) | Select-Object -Unique)){
     if($id -notmatch '^[A-Za-z0-9_-]+$'){throw "Invalid native mod id: $id"}
     if($sources.ContainsKey($id)){continue}
+    if($selectedModSources.ContainsKey($id)){$sources[$id]=$selectedModSources[$id];continue}
     $source=Get-ChildItem -LiteralPath (Split-Path $PSScriptRoot) -Directory | ForEach-Object {Join-Path $_.FullName "Contents/mods/$id"} | Where-Object {Test-Path -LiteralPath $_} | Select-Object -First 1
     if(!$source){$source=Get-ChildItem -LiteralPath ([IO.Path]::GetFullPath($workshop)) -Directory | ForEach-Object {Join-Path $_.FullName "mods/$id"} | Where-Object {Test-Path -LiteralPath $_} | Select-Object -First 1}
     if(!$source){throw "Native mod source not found: $id"}

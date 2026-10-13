@@ -7,6 +7,8 @@
 
 ### Maintenance
 
+- Multiplayer scenarios: accept explicit mod checkouts and link their native packages into disposable profiles so worktree builds are tested without replacing the main checkout.
+
 - Scenarios: inspect actual mapped lamp power and export live square lighting, source and visibility data from owned NoSave worlds. Add an explicit native-render reference mode that preserves vanilla graphics separately from loader baselines.
 
 - Capture user F12 screenshots into the current scenario's screenshots/user folder with step metadata, independently of automated captures; preserve native F12 outside controlled scenarios.
