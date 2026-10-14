@@ -10,7 +10,10 @@ public final class ScenarioRegression {
 
     static void run(KahluaThread thread,KahluaTable env,String code)throws Exception {
         var result=thread.pcall(LuaCompiler.loadstring(code,"scenario-test",env),new Object[0]);
-        if(!Boolean.TRUE.equals(result[0]))throw new AssertionError(code+"\n"+Arrays.toString(result));
+        if(!Boolean.TRUE.equals(result[0])){
+            var state=new StringBuilder();for(String key:List.of("ended","reason","teleports","adopted","quit","now"))state.append(key).append('=').append(env.rawget(key)).append(' ');
+            throw new AssertionError(code+"\n"+Arrays.toString(result)+"\n"+state);
+        }
     }
     public static void main(String[] args)throws Exception {
         if(args.length>2&&args[2].equals("equipment-only")){
@@ -223,6 +226,8 @@ public final class ScenarioRegression {
             "scenario={steps={{command='native.give',id='torch',type='Base.HandTorch',equip='secondary',charge=1},{command='native.torch',id='torch',on=true},{command='native.teleport',x=3,y=4,z=1},{command='native.wait',seconds=.2}}}; local old=player.secondary;Events.OnMainMenuEnter.fire();pump(20);assert(quit and ended=='complete' and player.secondary==old and player.ghost and player.sneaking and #inventory.items==0 and teleports==1)",
             "getPlayerLoot=function() return {setNewContainer=function(self,value) assert(value==inventory and teleports==0);lootDetached=true end,refreshBackpacks=function() assert(teleports==1);lootRefreshed=true end} end;scenario={steps={{command='native.teleport',x=3,y=4}}};Events.OnMainMenuEnter.fire();pump(15);assert(ended=='complete' and lootDetached and lootRefreshed)",
             "scenario={steps={{command='pz3d.look',yaw=0},{command='native.teleport',x=3.5,y=4.5,z=0}}};Events.OnMainMenuEnter.fire();pump(10);assert(quit and ended=='complete' and adopted==1 and player.x==3 and player.y==4)",
+            "scenario={steps={{command='pz3d.look',yaw=0},{command='native.teleport',x=3.5,y=4.5,z=0,tileCenter=true}}};Events.OnMainMenuEnter.fire();pump(15);assert(quit and ended=='complete' and teleports==1 and adopted==1 and player.x==3.5 and player.y==4.5 and player.lastX==3.5 and player.lastY==4.5)",
+            "scenario={steps={{command='native.teleport',x=3,y=4,tileCenter='true'}}};Events.OnMainMenuEnter.fire();pump(15);assert(ended=='failed' and teleports==0)",
             "scenario={steps={{command='native.give',id='lighter',type='Base.Lighter'},{command='native.equip',id='lighter',slot='secondary'},{command='native.equip',slot='none'}}};Events.OnMainMenuEnter.fire();pump(18);assert(quit and ended=='complete' and modelResets==2 and #inventory.items==0 and player.primary.original and player.secondary.original)",
             "scenario={steps={{command='native.equip',id='unknown',slot='primary'}}};Events.OnMainMenuEnter.fire();pump(8);assert(quit and ended=='failed' and player.primary.original)",
             "player.resetEquippedHandsModels=function(self) bothSeen=self.primary==self.secondary;modelResets=(modelResets or 0)+1 end;scenario={steps={{command='native.give',id='gun',type='Base.Shotgun'},{command='native.equip',id='gun',slot='both'}}};Events.OnMainMenuEnter.fire();pump(14);assert(quit and ended=='complete' and bothSeen and modelResets==1 and #inventory.items==0 and player.primary.original and player.secondary.original,tostring(ended)..' '..tostring(reason)..' both='..tostring(bothSeen)..' models='..tostring(modelResets)..' items='..#inventory.items)",
@@ -242,6 +247,7 @@ public final class ScenarioRegression {
             "scenario={steps={{command='pz3d.diagnostics',enabled=true},{command='pz3d.measure',seconds=10}}};Events.OnMainMenuEnter.fire();pump(3);interruption='focus lost';pump(40);assert(quit and ended=='failed' and not diag and not ownedControl)")) {
             if(args.length>2&&args[2].equals("menu-only")&&!check.startsWith("scenario={menuSeconds="))continue;
             if(args.length>2&&args[2].equals("frame-only")&&!check.startsWith("local cmd=ModStudio.Scenarios.commands['native.frameRate']"))continue;
+            if(args.length>2&&args[2].equals("teleport-only")&&!check.startsWith("scenario={steps={{command='native.teleport'")&&!check.startsWith("scenario={steps={{command='pz3d.look',yaw=0},{command='native.teleport'"))continue;
             var platform=J2SEPlatform.getInstance();var env=platform.newEnvironment();var thread=new KahluaThread(platform,env);thread.debugOwnerThread=Thread.currentThread();
             for(String code:List.of(fixture,api,"local animals=(function()\n"+Files.readString(lua.resolve("ScenarioAnimals.lua"))+"\nend)()",Files.readString(lua.resolve("ScenarioLights.lua")),Files.readString(lua.resolve("ScenarioObjects.lua")),Files.readString(lua.resolve("ScenarioMultiplayer.lua")),runtime,adapter,check))run(thread,env,code);
             if(check.startsWith("local cmd=ModStudioScenarioObjects.cell;")){
@@ -256,7 +262,8 @@ public final class ScenarioRegression {
                 }
             }
         }
-        System.out.println("PASS: bounded schema, native-only launch, item cleanup, teleport, timeout, unknown commands, independent diagnostics, PZ3D route failure, interruption and automatic exit.");
+        if(args.length>2&&args[2].equals("teleport-only"))System.out.println("PASS: default and centered native teleport, single provider adoption and validation.");
+        else System.out.println("PASS: bounded schema, native-only launch, item cleanup, teleport, timeout, unknown commands, independent diagnostics, PZ3D route failure, interruption and automatic exit.");
     }
     static void persistence(String valid)throws Exception {
         for(String mode:List.of("new","resume"))ScenarioHost.validate(ScenarioJson.parse(valid.replace("\"steps\"","\"persistence\":{\"mode\":\""+mode+"\"},\"steps\"")));

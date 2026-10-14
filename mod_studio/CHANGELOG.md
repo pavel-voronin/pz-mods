@@ -7,6 +7,10 @@
 
 ### Maintenance
 
+- Scenarios: optionally place the player at the native tile center after teleport, preserving native chunk attachment and matching current/previous positions before continuing.
+- Scenario tests: stub the separate architecture provider boundary when loading the current pz3d adapter in the external executor fixture.
+- Scenario tests: model unconditional native reference-light cleanup and report fixture state on failure; add a focused teleport check mode.
+
 - Scenarios: equip the same fixture item in both native hand slots, preserving two-handed weapon poses and restoring the original loadout on cleanup.
 
 - Multiplayer scenarios: confirm current native pz3d startup through its valid signature, successful entry invocation and patch initialization while rejecting incomplete or conflicting loader evidence.

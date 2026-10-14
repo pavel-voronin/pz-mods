@@ -199,18 +199,27 @@ API.register("native",{
             local removed=ModStudioScenario.clearVehicles(s.x0,s.y0,s.x1,s.y1)
             event("native-clear-vehicles","removed="..removed.." bounds="..s.x0..","..s.y0..","..s.x1..","..s.y1)
         end},
-    teleport={validate=coordinates,start=function(c,s)
+    teleport={validate=function(s) coordinates(s);assert(s.tileCenter==nil or type(s.tileCenter)=="boolean","Invalid teleport tile center") end,start=function(c,s)
+            c.teleportCentered=false
             -- Teleport unloads containers immediately; the vanilla loot page
             -- queries capacity before it discovers the new nearby containers.
             local loot=getPlayerLoot and getPlayerLoot(c.player:getPlayerNum())
             if loot then loot:setNewContainer(c.player:getInventory()) end
             c.player:teleportTo(s.x,s.y,s.z or 0)
-            for _,p in ipairs(opened) do if p.nativeAction then p.nativeAction(c,"teleport",s) end end
+            if not s.tileCenter then for _,p in ipairs(opened) do if p.nativeAction then p.nativeAction(c,"teleport",s) end end end
         end,
         -- PZ's float overload floors x/y to native tile coordinates.
         tick=function(c,s)
             local p=c.player;local square=p:getSquare()
             local ready=math.floor(p:getX())==math.floor(s.x) and math.floor(p:getY())==math.floor(s.y) and math.abs(p:getZ()-(s.z or 0))<.1 and square and square:getX()==math.floor(s.x) and square:getY()==math.floor(s.y) and square:getFloor()
+            if ready and s.tileCenter and not c.teleportCentered then
+                local x,y=math.floor(s.x)+.5,math.floor(s.y)+.5
+                p:setX(x);p:setY(y);p:setLastX(x);p:setLastY(y)
+                c.teleportCentered=true
+                for _,provider in ipairs(opened) do if provider.nativeAction then provider.nativeAction(c,"teleport",s) end end
+                return false
+            end
+            if ready and s.tileCenter then ready=math.abs(p:getX()-math.floor(s.x)-.5)<.01 and math.abs(p:getY()-math.floor(s.y)-.5)<.01 end
             if ready then local loot=getPlayerLoot and getPlayerLoot(p:getPlayerNum());if loot then loot:refreshBackpacks() end end
             return ready
         end},

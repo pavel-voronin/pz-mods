@@ -69,6 +69,10 @@ function player:getY() return self.y end
 function player:getZ() return self.z end
 function player:setMoving(v) self.moving=v end
 function player:teleportTo(x,y,z) self.x=math.floor(x);self.y=math.floor(y);self.z=z;teleports=teleports+1 end
+function player:setX(x) self.x=x end
+function player:setY(y) self.y=y end
+function player:setLastX(x) self.lastX=x end
+function player:setLastY(y) self.lastY=y end
 getPlayer=function() return player end
 vehicles={}
 function testVehicle(x,y)
@@ -91,6 +95,7 @@ ModStudioScenario={clock=function() return now end,requested=function() return t
 ModStudioScenario.screenshot=function(name) screenshotName=name;screenshotPolls=0 end
 ModStudioScenario.screenshotReady=function() screenshotPolls=screenshotPolls+1;return screenshotPolls>=3 end
 ModStudioScenario.renderSnapshotPause=function(value) snapshotPaused=value end
+ModStudioScenario.restoreReferenceLights=function() end
 ModStudioScenario.renderSnapshot=function(name,x,y,z) assert(snapshotPaused);snapshotName=name;return true end
 ModStudioScenario.clearVehicles=function(x0,y0,x1,y1)
     assert(core:isNoSave())
@@ -108,6 +113,8 @@ ModStudioDriving={
  spawnConfiguredAt=function(script,heading,enter,headlights,x,y) carX=x;carY=y;return ModStudioDriving.spawnConfigured(script,heading,enter,headlights) end,
  drive=function() driving=true end,poll=function() return driveReady end,
  stop=function() driving=false end,close=function() driving=false;carClosed=true end}
+PZ3DArchitectureScenario={command={start=function() end},clear=function() end}
+PZ3DArchitecturePreview={command={start=function() end}}
 PZ3D={ready=function() return true end,scenarioControlStart=function() ownedControl=true;return true end,scenarioControlEnd=function() ownedControl=false end,
  scenarioView=function() return {yaw=0,pitch=0} end,cameraMode=function(v) if v then camera=v end;return camera end,
  scenarioTakeControls=ignore,scenarioHeartbeat=ignore,scenarioInterruption=function() return interruption end,scenarioAdoptNativePosition=function() adopted=(adopted or 0)+1 end,
