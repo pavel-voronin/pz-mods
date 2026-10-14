@@ -69,11 +69,12 @@ M.fixture={
     end
 }
 M.equip={
-    validate=function(s) assert(s.slot=="primary" or s.slot=="secondary" or s.slot=="none","Invalid equip slot");assert(s.slot=="none" or type(s.id)=="string","equip requires id") end,
+    validate=function(s) assert(s.slot=="primary" or s.slot=="secondary" or s.slot=="both" or s.slot=="none","Invalid equip slot");assert(s.slot=="none" or type(s.id)=="string","equip requires id") end,
     start=function(c,s)
         local item=s.id and c.items[s.id];assert(s.slot=="none" or item,"Unknown item id")
         c.player:setPrimaryHandItem(nil);c.player:setSecondaryHandItem(nil)
-        if s.slot=="primary" then c.player:setPrimaryHandItem(item) elseif s.slot=="secondary" then c.player:setSecondaryHandItem(item) end
+        if s.slot=="both" then c.player:setPrimaryHandItem(item);c.player:setSecondaryHandItem(item)
+        elseif s.slot=="primary" then c.player:setPrimaryHandItem(item) elseif s.slot=="secondary" then c.player:setSecondaryHandItem(item) end
         c.player:resetEquippedHandsModels()
         c.event("native-equip",s.slot.." "..tostring(s.id))
     end

@@ -13,6 +13,17 @@ public final class ScenarioRegression {
         if(!Boolean.TRUE.equals(result[0]))throw new AssertionError(code+"\n"+Arrays.toString(result));
     }
     public static void main(String[] args)throws Exception {
+        if(args.length>2&&args[2].equals("equipment-only")){
+            Path root=Path.of(args[0]),lua=root.resolve("Contents/mods/mod_studio/common/media/lua/client/ModStudio");
+            for(String check:List.of(
+                "player.resetEquippedHandsModels=function(self) bothSeen=self.primary==self.secondary;modelResets=(modelResets or 0)+1 end;scenario={steps={{command='native.give',id='gun',type='Base.Shotgun'},{command='native.equip',id='gun',slot='both'}}};Events.OnMainMenuEnter.fire();pump(14);assert(quit and ended=='complete' and bothSeen and modelResets==1 and #inventory.items==0 and player.primary.original and player.secondary.original,tostring(ended)..' '..tostring(reason)..' both='..tostring(bothSeen)..' models='..tostring(modelResets)..' items='..#inventory.items)",
+                "scenario={steps={{command='native.equip',id='unknown',slot='both'}}};Events.OnMainMenuEnter.fire();pump(8);assert(quit and ended=='failed' and player.primary.original and player.secondary.original,tostring(ended)..' '..tostring(reason)..' both='..tostring(bothSeen)..' models='..tostring(modelResets)..' items='..#inventory.items)",
+                "scenario={steps={{command='native.equip',slot='invalid'}}};Events.OnMainMenuEnter.fire();pump(8);assert(quit and ended=='failed' and (modelResets or 0)==0)")){
+                var platform=J2SEPlatform.getInstance();var env=platform.newEnvironment();var thread=new KahluaThread(platform,env);thread.debugOwnerThread=Thread.currentThread();
+                for(String code:List.of(Files.readString(root.resolve("tests/fixtures/scenario-runtime.lua"))+"\nModStudioScenario.restoreReferenceLights=function() end\n",Files.readString(lua.resolve("ScenarioAPI.lua")),"local animals=(function()\n"+Files.readString(lua.resolve("ScenarioAnimals.lua"))+"\nend)()",Files.readString(lua.resolve("ScenarioLights.lua")),Files.readString(lua.resolve("ScenarioObjects.lua")),Files.readString(lua.resolve("ScenarioMultiplayer.lua")),"ModStudioScenarioRoute=(function()\n"+Files.readString(lua.resolve("ScenarioRoute.lua"))+"\nend)()\n"+Files.readString(lua.resolve("Scenarios.lua")),check))run(thread,env,code);
+            }
+            System.out.println("PASS: same native item in both hands, unknown/invalid equipment rejection and original loadout cleanup");return;
+        }
         if(args.length>2&&args[2].equals("route-only")){
             Path root=Path.of(args[0]);var platform=J2SEPlatform.getInstance();var env=platform.newEnvironment();var thread=new KahluaThread(platform,env);thread.debugOwnerThread=Thread.currentThread();
             run(thread,env,Files.readString(root.resolve("tests/fixtures/scenario-runtime.lua")));
@@ -214,6 +225,7 @@ public final class ScenarioRegression {
             "scenario={steps={{command='pz3d.look',yaw=0},{command='native.teleport',x=3.5,y=4.5,z=0}}};Events.OnMainMenuEnter.fire();pump(10);assert(quit and ended=='complete' and adopted==1 and player.x==3 and player.y==4)",
             "scenario={steps={{command='native.give',id='lighter',type='Base.Lighter'},{command='native.equip',id='lighter',slot='secondary'},{command='native.equip',slot='none'}}};Events.OnMainMenuEnter.fire();pump(18);assert(quit and ended=='complete' and modelResets==2 and #inventory.items==0 and player.primary.original and player.secondary.original)",
             "scenario={steps={{command='native.equip',id='unknown',slot='primary'}}};Events.OnMainMenuEnter.fire();pump(8);assert(quit and ended=='failed' and player.primary.original)",
+            "player.resetEquippedHandsModels=function(self) bothSeen=self.primary==self.secondary;modelResets=(modelResets or 0)+1 end;scenario={steps={{command='native.give',id='gun',type='Base.Shotgun'},{command='native.equip',id='gun',slot='both'}}};Events.OnMainMenuEnter.fire();pump(14);assert(quit and ended=='complete' and bothSeen and modelResets==1 and #inventory.items==0 and player.primary.original and player.secondary.original,tostring(ended)..' '..tostring(reason)..' both='..tostring(bothSeen)..' models='..tostring(modelResets)..' items='..#inventory.items)",
             "scenario={steps={{command='native.lightFixture',id='fire',kind='campfire',dx=0,dy=0,on=true}}};Events.OnMainMenuEnter.fire();pump(5);assert(quit and ended=='failed')",
             "core.isNoSave=function() return false end;local c={};local ok=pcall(ModStudioScenarioLights.fixture.start,c,{id='fire',kind='campfire',dx=3,dy=0,on=true});assert(not ok and c.lightFixtures==nil)",
             "local removed=0;local c={lightFixtures={partial={},object={object={getSquare=function() return {transmitRemoveItemFromSquare=function() removed=removed+1 end} end}}}};ModStudioScenarioLights.clear(c);ModStudioScenarioLights.clear(c);assert(removed==1 and c.lightFixtures==nil)",

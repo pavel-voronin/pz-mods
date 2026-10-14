@@ -7,6 +7,8 @@
 
 ### Maintenance
 
+- Scenarios: equip the same fixture item in both native hand slots, preserving two-handed weapon poses and restoring the original loadout on cleanup.
+
 - Multiplayer scenarios: confirm current native pz3d startup through its valid signature, successful entry invocation and patch initialization while rejecting incomplete or conflicting loader evidence.
 
 - Multiplayer scenarios: tolerate the atomic replacement gap while polling observer startup files.
