@@ -5,6 +5,7 @@ param(
     [string[]]$ModRoots=@(),
     [switch]$SkipBuild,
     [switch]$IsolatedProfile,
+    [switch]$MinimalMods,
     [switch]$NativeOnly,
     [switch]$NativeRender,
     [ValidateSet(0,11,13)][int]$NativeGrid=0,
@@ -45,6 +46,7 @@ if($data.persistence){
     if(($persistenceMode -eq 'resume') -ne [bool]$ResumeArtifact){throw 'ResumeArtifact is required only for persistence mode resume'}
 }elseif($ResumeArtifact){throw 'ResumeArtifact requires persistence mode resume'}
 if($ReuseIsolatedArtifact -and !$IsolatedProfile){throw 'ReuseIsolatedArtifact requires IsolatedProfile'}
+if($MinimalMods -and (!$IsolatedProfile -or $NativeOnly -or $ReuseIsolatedArtifact)){throw 'MinimalMods requires a fresh isolated profile without NativeOnly'}
 if($NativeRender -and (!$NativeOnly -or $NativeGrid)){throw 'NativeRender requires NativeOnly with the default grid'}
 if(($NativeOnly -or $NativeGrid) -and (!$NativeOnly -or !$IsolatedProfile -or $ReuseIsolatedArtifact -or $ModRoots.Count -or $data.persistence -or $data.manual -or $data.multiplayer -or $Launcher -ne 'Java')){throw 'Native baseline requires a fresh isolated native-only NoSave single-player Java profile and no additional mods'}
 if($IsolatedProfile -and ($persistenceMode -or $Launcher -ne 'Java')){throw 'IsolatedProfile requires a nonpersistent Java scenario'}
@@ -109,7 +111,8 @@ if($persistenceMode){
 }
 if($IsolatedProfile){
     . (Join-Path $PSScriptRoot 'scenario-profile.ps1')
-    $persistentProfile=if($NativeOnly){Get-ModStudioPersistentProfile -Output $output -Game $Game -Roots $roots -Mode new -NativeOnly:$NativeOnly}else{Get-ModStudioIsolatedProfile -Output $output -Game $Game -Roots $roots -ReuseArtifact $ReuseIsolatedArtifact}
+    $persistentProfile=if($NativeOnly -or $MinimalMods){Get-ModStudioPersistentProfile -Output $output -Game $Game -Roots $roots -Mode new -NativeOnly:$NativeOnly}else{Get-ModStudioIsolatedProfile -Output $output -Game $Game -Roots $roots -ReuseArtifact $ReuseIsolatedArtifact}
+    $launch.minimalMods=[bool]$MinimalMods
     $launch.nativeOnly=[bool]$NativeOnly;$launch.nativeRender=[bool]$NativeRender;$launch.nativeGrid=$NativeGrid
     $launch.nativeProfile=$persistentProfile.path;$launch.isolatedProfile=$true;$launch.reusedIsolatedArtifact=$ReuseIsolatedArtifact
 }
