@@ -10,9 +10,11 @@ public final class ScenarioInput {
     private static final Map<Long,double[]> cursors=new HashMap<>();
     public static boolean blocked(){return ScenarioHost.suppressInput();}
     public static boolean keyEvent(int key,int action,Runnable screenshot){
-        if(!blocked())return false;
-        if(key==301&&action==1)screenshot.run(); // GLFW F12, initial press only.
-        return true;
+        return keyEvent(key,action,blocked(),key==301&&ScenarioHost.userScreenshotAvailable(),screenshot);
+    }
+    static boolean keyEvent(int key,int action,boolean blocked,boolean capture,Runnable screenshot){
+        if(key==301&&capture){if(action==1)screenshot.run();return true;}
+        return blocked;
     }
     public static synchronized void cursor(long window,double[] x,double[] y){
         if(!blocked()){cursors.remove(window);return;}

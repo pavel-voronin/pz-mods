@@ -24,7 +24,7 @@ public final class ScenarioInputRegression {
         Keyboard.addKeyEvent(301,1);Keyboard.addKeyEvent(301,2);Keyboard.addKeyEvent(301,0);
         check(Keyboard.events==0,"F12 press, repeat and release consumed during scenario");
         int[] captures={0};
-        for(int action:new int[]{1,2,2,0})check(ScenarioInput.keyEvent(301,action,()->captures[0]++),"scenario F12 consumed");
+        for(int action:new int[]{1,2,2,0})check(ScenarioInput.keyEvent(301,action,true,true,()->captures[0]++),"scenario F12 consumed");
         check(captures[0]==1,"one capture per press, no repeats or release captures");
         check(ScenarioInput.blocked()&&!ScenarioHost.closed(),"F12 keeps the scenario active and gameplay blocked");
         var output=ScenarioHost.class.getDeclaredField("output");output.setAccessible(true);output.set(null,java.nio.file.Files.createTempDirectory("modstudio-f12-test-"));
@@ -52,12 +52,15 @@ public final class ScenarioInputRegression {
         // Host finish keeps filtering during artifact flush and process shutdown.
         ScenarioHost.finish("failed","test");check(GLFW.glfwGetKey(1,87)==0,"cleanup still protected");
         var manual=ScenarioHost.class.getDeclaredField("manual");manual.setAccessible(true);manual.setBoolean(null,true);
-        check(!ScenarioInput.keyEvent(301,1,()->captures[0]++),"manual handoff preserves native F12");
+        check(ScenarioInput.keyEvent(301,1,false,true,()->captures[0]++),"manual handoff captures F12 without blocking gameplay");
+        check(ScenarioHost.userScreenshotAllowed(true,true,true,true,true,true),"manual capture survives a closed artifact writer");
+        check(!ScenarioHost.userScreenshotAllowed(true,true,true,true,true,false),"manual capture stops after leaving the owned world");
+        check(!ScenarioHost.userScreenshotAllowed(true,true,false,true,true,true),"automatic capture stops on finish");
         check(GLFW.glfwGetKey(1,87)==1&&GLFW.glfwGetMouseButton(1,0)==1,"manual handoff restores keyboard and mouse while claimed");
         manual.setBoolean(null,false);check(GLFW.glfwGetKey(1,87)==0,"normal claimed shutdown remains protected");
         claimed.setBoolean(null,false);
         check(GLFW.glfwGetKey(1,301)==1&&!ScenarioInput.keyEvent(301,1,()->captures[0]++),"ordinary game preserves native F12");
-        check(captures[0]==1,"no scenario captures in ordinary game or manual handoff");
+        check(captures[0]==2,"no additional scenario capture in ordinary game");
         check(GLFW.glfwGetKey(1,87)==1&&GLFW.glfwGetMouseButton(1,0)==1,"unclaimed process passes input");
         GLFW.glfwGetCursorPos(1,x,y);check(x[0]==500,"normal cursor restored");
         Keyboard.addKeyEvent(87,1);Keyboard.addCharEvent('w');Mouse.addMoveEvent(90,80);Mouse.addButtonEvent(0,true);

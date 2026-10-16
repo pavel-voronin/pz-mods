@@ -1,3 +1,15 @@
+function Copy-ModStudioKeyBindings {
+    param([string]$Destination,[string]$Source=(Join-Path $env:USERPROFILE 'Zomboid'))
+    foreach($relative in @('Lua/keys.ini','Lua/keysB42.ini')){
+        $original=Join-Path $Source $relative
+        if(Test-Path -LiteralPath $original -PathType Leaf){
+            $target=Join-Path $Destination $relative
+            New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
+            Copy-Item -LiteralPath $original -Destination $target -Force
+        }
+    }
+}
+
 function Connect-ModStudioCommonCache {
     param([hashtable]$Profile,[string]$Source=(Join-Path $env:USERPROFILE 'Zomboid/PZ3D/fast-track'))
     $root=(Resolve-Path -LiteralPath $Profile.path).Path
@@ -55,7 +67,7 @@ function Get-ModStudioPersistentProfile {
             if(Test-Path -LiteralPath $worldDestination){throw 'Replay destination already exists'}
             New-Item -ItemType Directory -Path (Split-Path $worldDestination) -Force | Out-Null
             Copy-Item -LiteralPath $sourceWorld -Destination $worldDestination -Recurse
-            foreach($file in @('options.ini','mods/default.txt','Lua/PZ3D.properties')){
+            foreach($file in @('options.ini','mods/default.txt','Lua/PZ3D.properties','Lua/keys.ini','Lua/keysB42.ini')){
                 $originalSetting=Join-Path $profile $file
                 if(Test-Path -LiteralPath $originalSetting){New-Item -ItemType Directory -Path (Split-Path (Join-Path $copy.path $file)) -Force | Out-Null;Copy-Item -LiteralPath $originalSetting -Destination (Join-Path $copy.path $file) -Force}
             }
@@ -100,6 +112,7 @@ function Get-ModStudioPersistentProfile {
     @{formatVersion=2;mods=$approvals} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $approvalDirectory 'mod_approvals.json') -Encoding utf8
     $token=[guid]::NewGuid().ToString()
     @{schema=1;profile=$profile;token=$token} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $profile 'profile-owner.json') -Encoding utf8
+    Copy-ModStudioKeyBindings -Destination $profile
     return @{path=$profile;token=$token;previous=''}
 }
 
@@ -129,6 +142,7 @@ function Get-ModStudioIsolatedProfile {
             if($fields.javaJarFile){$jar=Join-Path $info.DirectoryName $fields.javaJarFile;$approvals.mods=@($approvals.mods)+@(@{id=$fields.id;jar_hash=(Get-FileHash -LiteralPath $jar -Algorithm SHA256).Hash.ToLowerInvariant();decision=$true;time=[DateTime]::UtcNow.ToString('o')})}
         }}
         $approvals | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $approvalPath -Encoding utf8
+        Copy-ModStudioKeyBindings -Destination $profile
         return @{path=$profile;token=$owner.token;previous=$ReuseArtifact}
     }
     $result=Get-ModStudioPersistentProfile -Output $Output -Game $Game -Roots $Roots -Mode new

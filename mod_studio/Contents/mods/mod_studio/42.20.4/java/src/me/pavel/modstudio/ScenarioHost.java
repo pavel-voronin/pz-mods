@@ -19,6 +19,7 @@ public final class ScenarioHost {
     private static boolean loading;
     private static volatile boolean claimed;
     private static volatile boolean manual;
+    private static volatile zombie.iso.IsoCell manualWorld;
     private static volatile boolean closed,finishing;
     private static final ArrayBlockingQueue<Map<String,Object>> events=new ArrayBlockingQueue<>(4096);
     private static volatile String status="running",reason="";
@@ -149,9 +150,16 @@ public final class ScenarioHost {
     private static volatile String screenshotError="";
     private static final java.util.concurrent.atomic.AtomicBoolean userScreenshotPending=new java.util.concurrent.atomic.AtomicBoolean();
     private static final java.util.concurrent.atomic.AtomicInteger userScreenshotNumber=new java.util.concurrent.atomic.AtomicInteger();
+    static boolean userScreenshotAllowed(boolean requested,boolean claimed,boolean manual,boolean finishing,boolean closed,boolean sameWorld){
+        return requested&&claimed&&(manual?sameWorld:!finishing&&!closed);
+    }
+    public static boolean userScreenshotAvailable(){
+        return userScreenshotAllowed(requested(),claimed,manual,finishing,closed,
+            manualWorld!=null&&manualWorld==zombie.iso.IsoWorld.instance.currentCell&&zombie.core.Core.getInstance().isNoSave());
+    }
     /** Independent user capture: never modifies command completion or scenario state. */
     public static void userScreenshot(){
-        if(!requested()||!suppressInput()||closed||finishing||output==null||!userScreenshotPending.compareAndSet(false,true))return;
+        if(!userScreenshotAvailable()||output==null||!userScreenshotPending.compareAndSet(false,true))return;
         String name="f12-"+System.currentTimeMillis()+"-"+userScreenshotNumber.incrementAndGet();
         Path destination=output.resolve("screenshots/user").resolve(name+".png");
         String context=ScenarioJson.write(ScenarioStatus.progress());
@@ -406,7 +414,7 @@ public final class ScenarioHost {
     public static void handoff(){
         if(!claimed||definition==null||!Boolean.TRUE.equals(definition.get("manual"))||!zombie.core.Core.getInstance().isNoSave())
             throw new IllegalStateException("Manual handoff requires an explicit disposable manual scenario");
-        manual=true;finish("interactive","World prepared; control handed to player");
+        manualWorld=zombie.iso.IsoWorld.instance.currentCell;manual=true;finish("interactive","World prepared; control handed to player");
     }
     public static void worldReady(){loading=false;}
     public static void progress(String phase,int step,int total,String command,String next,double elapsed,double left,boolean exact,double future,double limits){

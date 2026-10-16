@@ -36,7 +36,7 @@ $game='C:/Program Files (x86)/Steam/steamapps/common/ProjectZomboid'
 $modRoot=$PZ3D
 $isolated=Get-ModStudioIsolatedProfile -Output $isolatedOutput -Game $game -Roots @($PSScriptRoot,$modRoot)
 $native=Join-Path $env:USERPROFILE 'Zomboid'
-foreach($file in @('options.ini','mods/default.txt','Lua/PZ3D.properties')){
+foreach($file in @('options.ini','mods/default.txt','Lua/PZ3D.properties','Lua/keys.ini','Lua/keysB42.ini')){
     $original=Join-Path $native $file
     if(Test-Path -LiteralPath $original){if((Get-FileHash -LiteralPath $original).Hash -ne (Get-FileHash -LiteralPath (Join-Path $isolated.path $file)).Hash){throw "Isolated profile changed native settings: $file"}}
 }
@@ -110,3 +110,15 @@ $borderlessOptions=[IO.File]::ReadAllText((Join-Path $replay.path 'options.ini')
 if($borderlessOptions -notmatch '(?m)^borderless=true\r?$' -or $borderlessOptions -notmatch '(?m)^fullScreen=false\r?$'){throw 'Borderless display override failed'}
 if((Get-FileHash -LiteralPath (Join-Path $native 'options.ini')).Hash -ne $nativeDisplayHash){throw 'Owned borderless fixture changed user options'}
 Write-Output 'PASS: owned borderless dimensions and preserved user options.'
+
+$bindingSource=Join-Path $root 'binding-source'
+$bindingTarget=Join-Path $root 'binding-target'
+New-Item -ItemType Directory -Path (Join-Path $bindingSource 'Lua') -Force | Out-Null
+[IO.File]::WriteAllBytes((Join-Path $bindingSource 'Lua/keysB42.ini'),[byte[]]@(0x41,0x3D,0x39,0x0A))
+Copy-ModStudioKeyBindings -Destination $bindingTarget -Source $bindingSource
+if((Get-FileHash (Join-Path $bindingSource 'Lua/keysB42.ini')).Hash -ne (Get-FileHash (Join-Path $bindingTarget 'Lua/keysB42.ini')).Hash){throw 'Key bindings were not copied exactly'}
+[IO.File]::WriteAllText((Join-Path $bindingTarget 'Lua/keysB42.ini'),'local edit')
+Copy-ModStudioKeyBindings -Destination $bindingTarget -Source $bindingSource
+if([IO.File]::ReadAllText((Join-Path $bindingTarget 'Lua/keysB42.ini')) -ne "A=9`n"){throw 'Reused profile did not refresh native key bindings'}
+if(Test-Path (Join-Path $bindingTarget 'Lua/keys.ini')){throw 'Missing native legacy bindings were invented'}
+Write-Output 'PASS: independent byte-exact native key bindings, missing legacy file and reused-profile refresh.'

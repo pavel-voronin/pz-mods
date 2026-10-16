@@ -7,6 +7,8 @@
 
 ### Maintenance
 
+- Scenarios: keep F12 screenshots available after manual handoff, hide progress with the native UI toggle, and inherit native key bindings in new and reused isolated profiles.
+
 - Scenarios: allow fresh isolated profiles containing only explicitly selected mod checkouts, without inheriting the user's active mods or settings.
 
 - Scenarios: optionally place the player at the native tile center after teleport, preserving native chunk attachment and matching current/previous positions before continuing.

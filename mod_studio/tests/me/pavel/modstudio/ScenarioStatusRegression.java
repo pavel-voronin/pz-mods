@@ -4,6 +4,11 @@ public final class ScenarioStatusRegression {
     static void check(boolean ok,String message){if(!ok)throw new AssertionError(message);}
     public static void main(String[] args)throws Exception{
         var measured=new ScenarioStatus.Snapshot(10_000_000_000L,"city-route","measure",9,16,"pz3d.measure city", "native.drive",12,48,true,5,150);
+        var stored=ScenarioStatus.class.getDeclaredField("snapshot");stored.setAccessible(true);stored.set(null,measured);
+        System.setProperty("modstudio.scenario","hidden-ui-regression");
+        boolean visible=zombie.ui.UIManager.visibleAllUi;
+        try{zombie.ui.UIManager.visibleAllUi=false;ScenarioStatus.draw();}
+        finally{zombie.ui.UIManager.visibleAllUi=visible;System.clearProperty("modstudio.scenario");stored.set(null,null);}
         var lines=ScenarioStatus.lines(measured,12_000_000_000L,true,s->s.toLowerCase());
         check(lines.length==4&&lines[1].contains("left 46s"),"exact remaining timer advances");
         check(lines[2].contains("native.drive")&&lines[2].contains("timed 53s + limits 150s"),"following step and known durations separate from upper limits");
