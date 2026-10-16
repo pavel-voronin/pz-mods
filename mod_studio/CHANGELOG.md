@@ -7,6 +7,8 @@
 
 ### Maintenance
 
+- Scenarios: ignite owned unlit campfires through the native walking and tinder-lighting timed action, waiting for actual native ignition.
+
 - Scenarios: keep F12 screenshots available after manual handoff, hide progress with the native UI toggle, and inherit native key bindings in new and reused isolated profiles.
 
 - Scenarios: allow fresh isolated profiles containing only explicitly selected mod checkouts, without inheriting the user's active mods or settings.

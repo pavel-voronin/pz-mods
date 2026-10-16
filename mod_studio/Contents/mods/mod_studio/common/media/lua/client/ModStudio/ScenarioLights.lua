@@ -68,6 +68,27 @@ M.fixture={
         return true
     end
 }
+M.ignite={
+    validate=function(s) assert(type(s.id)=="string" and #s.id>0,"campfireIgnite requires fixture id") end,
+    start=function(c,s)
+        disposable()
+        local fixture=c.lightFixtures and c.lightFixtures[s.id]
+        assert(fixture and fixture.campfire and not fixture.campfire.isLit,"Ignition requires an owned unlit campfire")
+        require "Camping/ISCampingMenu"
+        require "Camping/TimedActions/ISLightFromLiterature"
+        local fire=assert(CCampfireSystem.instance:getLuaObjectAt(fixture.square:getX(),fixture.square:getY(),fixture.square:getZ()),"Native client campfire unavailable")
+        local matches=assert(c.player:getInventory():AddItem("Base.Matches"),"Matches unavailable")
+        assert(c.player:getInventory():AddItem("Base.RippedSheets"),"Native tinder unavailable")
+        ISCampingMenu.onLightFromLiterature(c.player,"Base.RippedSheets",matches,fire)
+        c.event("native-campfire-ignition",s.id.." queued native walk and light action")
+    end,
+    tick=function(c,s)
+        local fixture=c.lightFixtures[s.id]
+        if not fixture.campfire.isLit then return false end
+        c.event("native-campfire-ignited",s.id.." sprite="..tostring(fixture.campfire:getIsoObject():getSpriteName()))
+        return true
+    end
+}
 M.equip={
     validate=function(s) assert(s.slot=="primary" or s.slot=="secondary" or s.slot=="both" or s.slot=="none","Invalid equip slot");assert(s.slot=="none" or type(s.id)=="string","equip requires id") end,
     start=function(c,s)

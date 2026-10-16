@@ -93,6 +93,7 @@ API.register("native",{
     lightProbe={validate=function(s) coordinates(s);assert(type(s.name)=="string" and #s.name<=60 and s.name:match("^[a-z0-9_-]+$"),"Invalid light probe name") end,start=function(c,s) assert(ModStudioScenario.lightProbe(s.name,s.x,s.y,s.z or 0)==true,"Native light probe failed") end},
     renderSnapshot={validate=function(s) coordinates(s);assert(type(s.name)=="string" and #s.name<=60 and s.name:match("^[a-z0-9_-]+$"),"Invalid render snapshot name") end,start=function(c,s) c.nativeSnapshotWritten=false;ModStudioScenario.renderSnapshotPause(true) end,tick=function(c,s,t) if t<1 then return false end;if not c.nativeSnapshotWritten then assert(ModStudioScenario.renderSnapshot(s.name,s.x,s.y,s.z or 0)==true,"Native render snapshot failed");ModStudioScenario.screenshot(s.name);c.nativeSnapshotWritten=true;return false end;if not ModStudioScenario.screenshotReady() then return false end;ModStudioScenario.renderSnapshotPause(false);return true end},
     lightFixture=ScenarioLights.fixture,
+    campfireIgnite=ScenarioLights.ignite,
     lightYard=ScenarioLights.yard,
     lightGallery=ScenarioLights.gallery,
     lightWorkbench=ScenarioLights.workbench,
