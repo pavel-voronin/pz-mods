@@ -7,6 +7,8 @@
 
 ### Maintenance
 
+- Scenarios: support an explicit per-launch Java heap limit without changing installed game settings.
+
 - Scenarios: ignite owned unlit campfires through the native walking and tinder-lighting timed action, waiting for actual native ignition.
 
 - Scenarios: keep F12 screenshots available after manual handoff, hide progress with the native UI toggle, and inherit native key bindings in new and reused isolated profiles.

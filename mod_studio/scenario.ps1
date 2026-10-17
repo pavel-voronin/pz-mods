@@ -21,6 +21,7 @@ param(
     [ValidateRange(60,7200)][int]$McpSeconds=1800,
     [ValidateSet('Java','Native')][string]$Launcher='Java',
     [ValidateSet('Z','G1')][string]$GarbageCollector='Z',
+    [ValidateRange(0,65536)][int]$JavaHeapMiB=0,
     [int]$TimeoutSeconds=600
 )
 $ErrorActionPreference='Stop'
@@ -32,6 +33,7 @@ $text=[IO.File]::ReadAllText($scenarioPath)
 $data=$text | ConvertFrom-Json
 if($data.schema -ne 1 -or $data.id -notmatch '^[a-z0-9_-]{1,80}$' -or !$data.spawn -or !$data.steps){throw 'Expected schema=1, id, spawn and steps.'}
 if($data.steps.Count -gt 512){throw 'At most 512 steps.'}
+if($JavaHeapMiB -and ($Launcher -ne 'Java' -or $JavaHeapMiB -lt 256)){throw 'JavaHeapMiB requires the Java launcher and at least 256 MiB'}
 $persistenceMode=''
 if($ReuseCommonCache -and !$data.persistence){throw 'Common cache reuse requires an owned persistent profile'}
 if(($WindowWidth -eq 0) -ne ($WindowHeight -eq 0) -or ($WindowWidth -ne 0 -and ($WindowWidth -lt 640 -or $WindowHeight -lt 480))){throw 'Display override requires both width >= 640 and height >= 480'}
@@ -70,7 +72,9 @@ $copy=Join-Path $output 'scenario.json'
 [IO.File]::WriteAllText($copy,$text,[Text.UTF8Encoding]::new($false))
 $config=Get-Content -LiteralPath (Join-Path $Game 'ProjectZomboid64.json') -Raw | ConvertFrom-Json
 $gcArguments=if($GarbageCollector -eq 'G1'){@('-XX:-UseZGC','-XX:+UseG1GC')}else{@('-XX:-UseG1GC','-XX:+UseZGC')}
-$arguments=@($config.vmArgs)+$gcArguments+@("-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')",'-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")
+$vmArguments=@($config.vmArgs)
+if($JavaHeapMiB){$vmArguments=@($vmArguments | Where-Object {$_ -notmatch '^-Xmx'})+@("-Xmx${JavaHeapMiB}m")}
+$arguments=$vmArguments+$gcArguments+@("-javaagent:$(Join-Path $Game 'ZombieBuddy.jar')",'-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")
 if($NativeOnly -and !$NativeRender){$arguments+=@('-Dmodstudio.nativeBaseline=true',"-Dmodstudio.nativeGrid=$NativeGrid", "-Dmodstudio.nativeMap=$PSScriptRoot/.build/native-map")}
 if($Launcher -eq 'Native'){$arguments=$gcArguments+@('-agentlib:zbNative=policy=allow-all','-Ddebug=true',"-Dmodstudio.scenario=$copy","-Dmodstudio.scenario.output=$output")}
 $mcpSession=$null
