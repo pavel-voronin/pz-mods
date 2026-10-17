@@ -12,7 +12,7 @@ final class ScenarioPersistence {
         if(!definition.containsKey("persistence"))return "";
         var values=ScenarioJson.object(definition.get("persistence"));String mode=ScenarioJson.string(values,"mode");
         if(!Set.of("new","resume").contains(mode)||!Set.of("mode","readOnly").containsAll(values.keySet())||values.containsKey("readOnly")&&(!(values.get("readOnly") instanceof Boolean)||!mode.equals("resume")))throw new IllegalArgumentException("Persistence requires mode new or resume; readOnly is a resume boolean");
-        if(definition.containsKey("multiplayer")||Boolean.TRUE.equals(definition.get("manual"))||definition.get("repeats") instanceof Number n&&n.doubleValue()!=1)throw new IllegalArgumentException("Persistent acceptance requires one owned single-player run");
+        if(definition.containsKey("multiplayer")||definition.get("repeats") instanceof Number n&&n.doubleValue()!=1)throw new IllegalArgumentException("Persistent acceptance requires one owned single-player run");
         return mode;
     }
     static Map<String,Object> read(Path file)throws IOException {

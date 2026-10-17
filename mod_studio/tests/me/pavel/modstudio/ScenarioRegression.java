@@ -267,7 +267,7 @@ public final class ScenarioRegression {
     }
     static void persistence(String valid)throws Exception {
         for(String mode:List.of("new","resume"))ScenarioHost.validate(ScenarioJson.parse(valid.replace("\"steps\"","\"persistence\":{\"mode\":\""+mode+"\"},\"steps\"")));
-        for(String fields:List.of("\"persistence\":{\"mode\":\"other\"}","\"persistence\":{\"mode\":\"new\",\"path\":\"user\"}","\"persistence\":{\"mode\":\"new\"},\"manual\":true","\"persistence\":{\"mode\":\"new\"},\"repeats\":2")){
+        for(String fields:List.of("\"persistence\":{\"mode\":\"other\"}","\"persistence\":{\"mode\":\"new\",\"path\":\"user\"}","\"persistence\":{\"mode\":\"new\"},\"repeats\":2")){
             boolean rejected=false;try{ScenarioHost.validate(ScenarioJson.parse(valid.replace("\"steps\"",fields+",\"steps\"")));}catch(Exception e){rejected=true;}if(!rejected)throw new AssertionError("Invalid persistent context: "+fields);
         }
         boolean guarded=false;try{ScenarioHost.saveNativeWorld();}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Unowned native save");
@@ -288,6 +288,9 @@ public final class ScenarioRegression {
             try{ScenarioPersistence.mode(invalid);}catch(IllegalArgumentException e){refused=true;}if(!refused)throw new AssertionError("Invalid read-only replay accepted");
         }
         if(!ScenarioPersistence.open(resume,next,profile,profile.toString(),token).world().equals("test_world")||ScenarioPersistence.current(owner,artifacts,save))throw new AssertionError("Native profile isolation");
+        var manualResume=new LinkedHashMap<String,Object>(resume);manualResume.put("manual",true);ScenarioHost.validate(manualResume);
+        if(!ScenarioPersistence.open(manualResume,next,profile,profile.toString(),token).world().equals("test_world"))throw new AssertionError("Owned manual resume lost the saved world");
+        boolean manualOwnerRejected=false;try{ScenarioPersistence.open(manualResume,next,profile,profile.toString(),"other-owner");}catch(java.io.IOException expected){manualOwnerRejected=true;}if(!manualOwnerRejected)throw new AssertionError("Manual resume admitted another profile owner");
         for(String badToken:List.of("","other-owner")){boolean rejected=false;try{ScenarioPersistence.open(resume,next,profile,profile.toString(),badToken);}catch(java.io.IOException e){rejected=true;}if(!rejected)throw new AssertionError("Wrong owner admitted");}
         boolean rejected=false;try{ScenarioPersistence.open(fresh,next,profile,profile.toString(),token);}catch(java.io.IOException e){rejected=true;}if(!rejected)throw new AssertionError("New run reused old profile");
         Files.delete(save.resolve("map_ver.bin"));rejected=false;try{ScenarioPersistence.open(resume,next,profile,profile.toString(),token);}catch(java.io.IOException e){rejected=true;}if(!rejected)throw new AssertionError("Missing native save admitted");

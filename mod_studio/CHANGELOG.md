@@ -7,6 +7,8 @@
 
 ### Maintenance
 
+- Scenarios: allow explicit manual handoff of an owned persistent world, preserving native saves and profile ownership checks.
+
 - Scenarios: support an explicit per-launch Java heap limit without changing installed game settings.
 
 - Scenarios: ignite owned unlit campfires through the native walking and tinder-lighting timed action, waiting for actual native ignition.

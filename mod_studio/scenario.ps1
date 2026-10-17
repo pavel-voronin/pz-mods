@@ -44,7 +44,7 @@ if($data.persistence){
     $persistenceMode=[string]$data.persistence.mode
     $persistenceFields=@($data.persistence.PSObject.Properties.Name)
     if($persistenceMode -notin @('new','resume') -or @($persistenceFields | Where-Object {$_ -notin @('mode','readOnly')}).Count -gt 0 -or ($persistenceFields -contains 'readOnly') -and ($persistenceMode -ne 'resume' -or $data.persistence.readOnly -isnot [bool])){throw 'Persistence requires mode new or resume; readOnly is a resume boolean'}
-    if($data.multiplayer -or $data.manual -or ($data.repeats -and $data.repeats -ne 1) -or $Mcp -or $Launcher -ne 'Java'){throw 'Persistent acceptance requires one owned Java single-player run'}
+    if($data.multiplayer -or ($data.repeats -and $data.repeats -ne 1) -or $Mcp -or $Launcher -ne 'Java'){throw 'Persistent acceptance requires one owned Java single-player run'}
     if(($persistenceMode -eq 'resume') -ne [bool]$ResumeArtifact){throw 'ResumeArtifact is required only for persistence mode resume'}
 }elseif($ResumeArtifact){throw 'ResumeArtifact requires persistence mode resume'}
 if($ReuseIsolatedArtifact -and !$IsolatedProfile){throw 'ReuseIsolatedArtifact requires IsolatedProfile'}

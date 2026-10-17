@@ -412,8 +412,8 @@ public final class ScenarioHost {
         return cell.getLamppostPositions().size()+cell.roomLights.size();
     }
     public static void handoff(){
-        if(!claimed||definition==null||!Boolean.TRUE.equals(definition.get("manual"))||!zombie.core.Core.getInstance().isNoSave())
-            throw new IllegalStateException("Manual handoff requires an explicit disposable manual scenario");
+        if(!claimed||definition==null||!Boolean.TRUE.equals(definition.get("manual"))||!disposable())
+            throw new IllegalStateException("Manual handoff requires an explicit owned manual scenario");
         manualWorld=zombie.iso.IsoWorld.instance.currentCell;manual=true;finish("interactive","World prepared; control handed to player");
     }
     public static void worldReady(){loading=false;}
