@@ -45,6 +45,7 @@ public final class ScenarioStatus {
     }
     public static void draw(){
         if(NativeBaseline.enabled||zombie.ui.UIManager.suspend||!zombie.ui.UIManager.visibleAllUi)return;
+        if(zombie.ui.UIManager.useUiFbo&&!zombie.core.Core.getInstance().uiRenderThisFrame)return;
         var s=snapshot;if(s==null||!ScenarioHost.requested())return;
         long now=System.nanoTime();if(now>=textAt){textAt=now+250_000_000L;text=lines(s,now,ScenarioHost.suppressInput(),key->Translator.getText("UI_MS_Scenario_"+key));}
         var font=UIFont.NewSmall;int h=TextManager.instance.getFontHeight(font)+1,w=0;

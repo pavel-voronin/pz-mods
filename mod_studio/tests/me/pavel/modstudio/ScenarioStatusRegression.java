@@ -9,6 +9,19 @@ public final class ScenarioStatusRegression {
         boolean visible=zombie.ui.UIManager.visibleAllUi;
         try{zombie.ui.UIManager.visibleAllUi=false;ScenarioStatus.draw();}
         finally{zombie.ui.UIManager.visibleAllUi=visible;System.clearProperty("modstudio.scenario");stored.set(null,null);}
+        var core=zombie.core.Core.getInstance();
+        boolean fbo=zombie.ui.UIManager.useUiFbo,render=core.uiRenderThisFrame;
+        var cachedText=ScenarioStatus.class.getDeclaredField("textAt");cachedText.setAccessible(true);
+        long textAt=cachedText.getLong(null);
+        try{
+            zombie.ui.UIManager.visibleAllUi=true;zombie.ui.UIManager.useUiFbo=true;core.uiRenderThisFrame=false;
+            stored.set(null,measured);System.setProperty("modstudio.scenario","cached-ui-regression");
+            for(int frame=0;frame<120;frame++)ScenarioStatus.NativeUi.enter();
+            check(cachedText.getLong(null)==textAt&&stored.get(null)==measured,"cached UI frames retain the panel without drawing a second copy or refreshing its text");
+        }finally{
+            zombie.ui.UIManager.visibleAllUi=visible;zombie.ui.UIManager.useUiFbo=fbo;core.uiRenderThisFrame=render;
+            System.clearProperty("modstudio.scenario");stored.set(null,null);
+        }
         var lines=ScenarioStatus.lines(measured,12_000_000_000L,true,s->s.toLowerCase());
         check(lines.length==4&&lines[1].contains("left 46s"),"exact remaining timer advances");
         check(lines[2].contains("native.drive")&&lines[2].contains("timed 53s + limits 150s"),"following step and known durations separate from upper limits");

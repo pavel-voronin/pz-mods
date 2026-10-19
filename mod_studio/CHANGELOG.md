@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Fixed
+- Keep the scenario progress panel steady between native interface updates instead of drawing a second copy over the cached panel.
+
 ### Added
 - Add the main-menu game language selector transferred from pz3d, using native language settings and Lua reload.
 
