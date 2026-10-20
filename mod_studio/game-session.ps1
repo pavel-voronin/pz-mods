@@ -38,6 +38,7 @@ function Restore-ModStudioMenuSession {
 function Start-ModStudioSession {
     param([Parameter(Mandatory)][string]$Mode,[string]$Source='',[string]$Checkout=$PSScriptRoot,
         [string]$Path=(Join-Path ([Environment]::GetFolderPath('UserProfile')) 'Zomboid/ModStudio/game-session.lock'))
+    if($Mode -eq 'offline-check'){return $null}
     New-Item -ItemType Directory -Path (Split-Path $Path) -Force | Out-Null
     try{$handle=[IO.File]::Open($Path,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::Read)}
     catch [IO.IOException]{
@@ -49,6 +50,7 @@ function Start-ModStudioSession {
         # A crashed launcher or manual handoff may leave a live game after the lease is released.
         $old=Read-ModStudioSession -Path $Path
         foreach($entry in @($old.processes)){
+            if($entry.role -eq 'offline-check'){continue}
             if(!$entry -or !$entry.pid -or !$entry.startedUtc){continue}
             $process=Get-Process -Id $entry.pid -ErrorAction SilentlyContinue
             $sameStart=$false

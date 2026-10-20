@@ -32,6 +32,9 @@ try{
     $metadata=Read-ModStudioSession -Path $path
     if($metadata.mode -ne 'owner' -or $metadata.launcherPid -ne $PID -or $metadata.artifact -ne 'fixture-artifact'){throw 'Unreadable owner metadata'}
     $before=$session.data.updatedUtc
+    $offline=Start-ModStudioSession -Mode offline-check -Path $path
+    if($offline){throw 'Offline verification acquired a game session'}
+    if((Read-ModStudioSession -Path $path).token -ne $session.data.token){throw 'Offline verification changed the game owner'}
     Update-ModStudioSession $session -Phase loading -Artifact fixture-artifact
     if($session.data.updatedUtc -ne $before){throw 'Unchanged state rewrote the lease'}
     $message=Compete
@@ -50,6 +53,9 @@ if((Compete) -notmatch 'owned game remains active'){throw 'Live handoff was not 
 $stale=Read-ModStudioSession -Path $path;$stale.processes[0].startedUtc='2000-01-01T00:00:00.0000000Z'
 [IO.File]::WriteAllText($path,($stale | ConvertTo-Json -Depth 8))
 if((Compete) -ne 'acquired'){throw 'PID reuse was not recovered'}
+$offlineMetadata=@{schema=1;mode='offline-check';phase='released';processes=@(@{pid=$PID;role='offline-check';startedUtc=(Get-Process -Id $PID).StartTime.ToUniversalTime().ToString('o')})}
+[IO.File]::WriteAllText($path,($offlineMetadata | ConvertTo-Json -Depth 8))
+if((Compete) -ne 'acquired'){throw 'A live offline checker blocked a game launch'}
 $cache=Join-Path $root 'profile'
 $artifact=Join-Path $cache 'ModStudio/scenarios/20261009-T000000Z-00000000000000000000000000000000'
 New-Item -ItemType Directory -Path $artifact,(Join-Path $cache 'mods'),(Join-Path $cache 'Lua/ModStudio') -Force | Out-Null
