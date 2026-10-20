@@ -1,6 +1,7 @@
 if not getDebug() then return end
 require "ModStudio/ScenarioAPI"
 require "ModStudio/ScenarioMultiplayer"
+require "ModStudio/ScenarioBarricade"
 require "DebugUIs/DebugScenarios"
 require "TimedActions/ISTimedActionQueue"
 require "Vehicles/TimedActions/ISExitVehicle"
@@ -78,6 +79,7 @@ API.register("native",{
     doorSheet=ModStudioScenarioObjects.doorSheet,
     barricade=ModStudioScenarioObjects.barricade,
     networkWindow=ModStudio.Network.commands.window,
+    networkBarricade=ModStudio.Network.commands.barricade,
     networkDoor=ModStudio.Network.commands.door,
     networkCell=ModStudio.Network.commands.cell,
     networkClimb=ModStudio.Network.commands.climb,

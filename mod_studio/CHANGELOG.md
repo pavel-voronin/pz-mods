@@ -10,6 +10,8 @@
 
 ### Maintenance
 
+- Multiplayer scenarios: observe native barricade construction, transaction progress, replicated boards and material consumption without treating a recorded stall as successful construction.
+
 - Scenarios: allow explicit manual handoff of an owned persistent world, preserving native saves and profile ownership checks.
 
 - Scenarios: support an explicit per-launch Java heap limit without changing installed game settings.
