@@ -6,6 +6,7 @@ require "DebugUIs/DebugScenarios"
 require "TimedActions/ISTimedActionQueue"
 require "Vehicles/TimedActions/ISExitVehicle"
 require "ModStudio/ScenarioAnimals"
+require "ModStudio/ScenarioZombies"
 require "ModStudio/ScenarioLights"
 require "ModStudio/ScenarioObjects"
 local ScenarioLights=ModStudioScenarioLights
@@ -48,7 +49,7 @@ API.register("native",{
     end,
     update=function(c) ScenarioRoute.update(c);if c.nativeHuman then ModStudioScenario.updateHuman() end end,
     boundary=function(c) if c.nativeBaseline then assert(ModStudioNativeBaseline.stop()==true,"Native baseline stop failed") end;if c.nativeDriving then ModStudioDriving.stop() end end,
-    finish=function(c) ModStudioScenario.renderSnapshotPause(false);ModStudioScenario.restoreReferenceLights();if c.nativeBaseline then assert(ModStudioNativeBaseline.close()==true,"Native baseline cleanup failed");c.nativeBaseline=nil end;ScenarioRoute.clear(c);ScenarioLights.clear(c);ScenarioAnimals.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;if c.nativeFrameRate then ModStudioScenario.setFrameLimit(c.nativeFrameRate);ModStudioScenario.setFrameUncapped(c.nativeUncapped);ModStudioScenario.setFrameSync(c.nativeVSync);c.nativeFrameRate=nil end;return true end
+    finish=function(c) ModStudioScenario.renderSnapshotPause(false);ModStudioScenario.restoreReferenceLights();if c.nativeBaseline then assert(ModStudioNativeBaseline.close()==true,"Native baseline cleanup failed");c.nativeBaseline=nil end;ScenarioRoute.clear(c);ScenarioLights.clear(c);ScenarioAnimals.clear(c);ModStudioScenarioZombies.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;if c.nativeFrameRate then ModStudioScenario.setFrameLimit(c.nativeFrameRate);ModStudioScenario.setFrameUncapped(c.nativeUncapped);ModStudioScenario.setFrameSync(c.nativeVSync);c.nativeFrameRate=nil end;return true end
 }, {
     baselinePrepare={start=function(c) c.nativeBaseline=true end,tick=function() local ready=ModStudioNativeBaseline.open();assert(ready~=nil,"Native baseline preparation failed");return ready end},
     baseline={validate=function(s)
@@ -102,6 +103,8 @@ API.register("native",{
     lightWorkbenchSelect=ScenarioLights.workbenchSelect,
     equip=ScenarioLights.equip,
     weaponLight=ScenarioLights.weaponLight,
+    zombies=ModStudioScenarioZombies.command,
+    clearZombies={start=function(c) ModStudioScenarioZombies.clear(c) end},
     animals=ScenarioAnimals.command,
     killAnimals=ScenarioAnimals.kill,
     human={validate=function(s)
@@ -230,10 +233,16 @@ API.register("native",{
     weather={validate=function(s)
             number(s,"fog",0,1);number(s,"rain",0,1);number(s,"cloud",0,1)
             number(s,"wind",0,1,true);number(s,"windAngle",-1,1,true)
+            assert(s.snow==nil or type(s.snow)=="boolean","Invalid snow flag")
         end,start=function(c,s)
             assert(getCore():isNoSave(),"Weather control requires the disposable NoSave world")
             local climate=getClimateManager()
             c.weatherSaved=c.weatherSaved or {}
+            if s.snow~=nil then
+                local value=climate:getClimateBool(0)
+                c.weatherSnowSaved=c.weatherSnowSaved or {enabled=value:isEnableAdmin(),value=value:getAdminValue()}
+                value:setAdminValue(s.snow);value:setEnableAdmin(true)
+            end
             for key,id in pairs({fog=5,rain=3,cloud=8,wind=6,windAngle=7}) do
                 if s[key]~=nil then
                 local value=climate:getClimateFloat(id)
@@ -245,6 +254,7 @@ API.register("native",{
             local climate=getClimateManager()
             if math.abs(climate:getFogIntensity()-s.fog)>.001 or math.abs(climate:getPrecipitationIntensity()-s.rain)>.001 or math.abs(climate:getCloudIntensity()-s.cloud)>.001 then return false end
             if s.wind and math.abs(climate:getWindIntensity()-s.wind)>.001 or s.windAngle and math.abs(climate:getWindAngleIntensity()-s.windAngle)>.001 then return false end
+            if s.snow~=nil and climate:getPrecipitationIsSnow()~=s.snow then return false end
             local color=climate:getColorNewFog():getExterior()
             event("native-weather","fog="..s.fog.." rain="..s.rain.." cloud="..s.cloud.." hour="..getGameTime():getTimeOfDay().." ambient="..climate:getAmbient().." daylight="..climate:getDayLightStrength().." tint="..color:getRedFloat()..","..color:getGreenFloat()..","..color:getBlueFloat())
             return true
@@ -298,6 +308,11 @@ local function advance()
     event("command",step.command.." "..(step.name or ""));handler.start(ctx,step)
 end
 local function restoreNative()
+    if ctx.weatherSnowSaved then
+        local value=getClimateManager():getClimateBool(0)
+        value:setAdminValue(ctx.weatherSnowSaved.value);value:setEnableAdmin(ctx.weatherSnowSaved.enabled)
+        ctx.weatherSnowSaved=nil
+    end
     if ctx.weatherSaved then
         for id,saved in pairs(ctx.weatherSaved) do
             local value=getClimateManager():getClimateFloat(id)

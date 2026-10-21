@@ -28,7 +28,10 @@ for _,id in ipairs({3,5,6,7,8}) do
         isEnableAdmin=function(self) return self.enabled end,getAdminValue=function(self) return self.value end,
         setEnableAdmin=function(self,v) self.enabled=v end,setAdminValue=function(self,v) self.value=v end}
 end
+weatherSnow={enabled=false,value=false,isEnableAdmin=function(self) return self.enabled end,getAdminValue=function(self) return self.value end,setEnableAdmin=function(self,v) self.enabled=v end,setAdminValue=function(self,v) self.value=v end}
 getClimateManager=function() return {
+    getClimateBool=function() return weatherSnow end,
+    getPrecipitationIsSnow=function() return weatherSnow.value end,
     getAmbient=function() return .5 end,getDayLightStrength=function() return .5 end,
     getClimateFloat=function(self,id) return weatherValues[id] end,
     getFogIntensity=function() return weatherValues[5].value end,

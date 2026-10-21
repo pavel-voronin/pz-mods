@@ -10,6 +10,9 @@
 
 ### Maintenance
 
+- Scenarios: add an isolated macOS development runner with the common game-session lock, explicit bundles, existing ToS acceptance and bounded process ownership.
+- Scenarios: add owned native zombie/crawler/fire fixtures and native snow overrides with cleanup and validation regressions. Read the applied snow flag through the native climate manager API.
+
 - Repository: track the complete Mod Studio sources, build scripts, validation fixtures and resources in pz-mods; exclude generated binaries and caches.
 
 - Multiplayer scenarios: observe native barricade construction, transaction progress, replicated boards and material consumption without treating a recorded stall as successful construction.

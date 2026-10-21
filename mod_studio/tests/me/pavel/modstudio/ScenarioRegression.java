@@ -23,7 +23,7 @@ public final class ScenarioRegression {
                 "scenario={steps={{command='native.equip',id='unknown',slot='both'}}};Events.OnMainMenuEnter.fire();pump(8);assert(quit and ended=='failed' and player.primary.original and player.secondary.original,tostring(ended)..' '..tostring(reason)..' both='..tostring(bothSeen)..' models='..tostring(modelResets)..' items='..#inventory.items)",
                 "scenario={steps={{command='native.equip',slot='invalid'}}};Events.OnMainMenuEnter.fire();pump(8);assert(quit and ended=='failed' and (modelResets or 0)==0)")){
                 var platform=J2SEPlatform.getInstance();var env=platform.newEnvironment();var thread=new KahluaThread(platform,env);thread.debugOwnerThread=Thread.currentThread();
-                for(String code:List.of(Files.readString(root.resolve("tests/fixtures/scenario-runtime.lua"))+"\nModStudioScenario.restoreReferenceLights=function() end\n",Files.readString(lua.resolve("ScenarioAPI.lua")),"local animals=(function()\n"+Files.readString(lua.resolve("ScenarioAnimals.lua"))+"\nend)()",Files.readString(lua.resolve("ScenarioLights.lua")),Files.readString(lua.resolve("ScenarioObjects.lua")),Files.readString(lua.resolve("ScenarioMultiplayer.lua")),"ModStudioScenarioRoute=(function()\n"+Files.readString(lua.resolve("ScenarioRoute.lua"))+"\nend)()\n"+Files.readString(lua.resolve("Scenarios.lua")),check))run(thread,env,code);
+                for(String code:List.of(Files.readString(root.resolve("tests/fixtures/scenario-runtime.lua"))+"\nModStudioScenario.restoreReferenceLights=function() end\n",Files.readString(lua.resolve("ScenarioAPI.lua")),Files.readString(lua.resolve("ScenarioZombies.lua")),"local animals=(function()\n"+Files.readString(lua.resolve("ScenarioAnimals.lua"))+"\nend)()",Files.readString(lua.resolve("ScenarioLights.lua")),Files.readString(lua.resolve("ScenarioObjects.lua")),Files.readString(lua.resolve("ScenarioMultiplayer.lua")),"ModStudioScenarioRoute=(function()\n"+Files.readString(lua.resolve("ScenarioRoute.lua"))+"\nend)()\n"+Files.readString(lua.resolve("Scenarios.lua")),check))run(thread,env,code);
             }
             System.out.println("PASS: same native item in both hands, unknown/invalid equipment rejection and original loadout cleanup");return;
         }
@@ -167,6 +167,8 @@ public final class ScenarioRegression {
             "scenario={steps={{command='native.renderSnapshot',name='../bad',x=80,y=80,z=0}}};Events.OnMainMenuEnter.fire();pump(15);assert(ended=='failed' and snapshotName==nil)",
             "scenario={steps={{command='native.screenshot',name='../bad'}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and screenshotName==nil)",
             "scenario={steps={{command='native.weather',fog=1,rain=0,cloud=.6},{command='native.wait',seconds=1}}};Events.OnMainMenuEnter.fire();pump(4);assert(weatherValues[5].enabled and weatherValues[5].value==1);pump(25);assert(ended=='complete');for _,v in pairs(weatherValues) do assert(not v.enabled and v.value==.2) end",
+            "scenario={steps={{command='native.weather',fog=.2,rain=.8,cloud=.6,snow=true},{command='native.wait',seconds=1}}};Events.OnMainMenuEnter.fire();pump(4);assert(weatherSnow.enabled and weatherSnow.value);pump(25);assert(ended=='complete' and not weatherSnow.enabled and not weatherSnow.value)",
+            "scenario={steps={{command='native.weather',fog=0,rain=0,cloud=0,snow=1}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and not weatherSnow.enabled)",
             "scenario={steps={{command='native.weather',fog=2,rain=0,cloud=0}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and not weatherValues[5].enabled)",
             "scenario={steps={{command='native.weather',fog=1,rain=0,cloud=.6,wind=.8,windAngle=-.5},{command='native.wait',seconds=1}}};Events.OnMainMenuEnter.fire();pump(4);assert(weatherValues[6].enabled and weatherValues[6].value==.8 and weatherValues[7].value==-.5);pump(25);assert(ended=='complete');for _,v in pairs(weatherValues) do assert(not v.enabled and v.value==.2) end",
             "scenario={steps={{command='native.weather',fog=1,rain=0,cloud=0,windAngle=2}}};Events.OnMainMenuEnter.fire();pump(10);assert(ended=='failed' and not weatherValues[7].enabled)",
@@ -245,11 +247,12 @@ public final class ScenarioRegression {
             "local cmd=ModStudio.Scenarios.commands['pz3d.move'];local t=0;local inputs={};PZ3D.scenarioMotion=function(f,side,run) inputs[#inputs+1]=run end;local c={player=player,clock=function() return t end,event=function() end,phase=function() end};local s={x=10,y=2,run=true};cmd.start(c,s);cmd.tick(c,s,0);assert(inputs[1]);player.x=8.6;t=.5;cmd.tick(c,s,t);assert(not inputs[2] and c.approachWalking);player.x=8;t=1;cmd.tick(c,s,t);assert(not inputs[3]);s.runFor=3;cmd.start(c,s);cmd.tick(c,s,0);assert(inputs[4] and not c.approachWalking);player.x=9.9;t=.2;local ok=pcall(cmd.tick,c,s,t);assert(not ok and teleports==0)",
             "scenario={steps={{command='pz3d.move',x=20,y=2,z=0}}};Events.OnMainMenuEnter.fire();pump(3);assert(motion==1 and not diag);advance(6);pump(4);assert(quit and ended=='failed' and motion==0 and teleports==0 and not ownedControl)",
             "scenario={steps={{command='pz3d.diagnostics',enabled=true},{command='pz3d.measure',seconds=10}}};Events.OnMainMenuEnter.fire();pump(3);interruption='focus lost';pump(40);assert(quit and ended=='failed' and not diag and not ownedControl)")) {
+            if(args.length>2&&args[2].equals("weather-only")&&!check.contains("native.weather"))continue;
             if(args.length>2&&args[2].equals("menu-only")&&!check.startsWith("scenario={menuSeconds="))continue;
             if(args.length>2&&args[2].equals("frame-only")&&!check.startsWith("local cmd=ModStudio.Scenarios.commands['native.frameRate']"))continue;
             if(args.length>2&&args[2].equals("teleport-only")&&!check.startsWith("scenario={steps={{command='native.teleport'")&&!check.startsWith("scenario={steps={{command='pz3d.look',yaw=0},{command='native.teleport'"))continue;
             var platform=J2SEPlatform.getInstance();var env=platform.newEnvironment();var thread=new KahluaThread(platform,env);thread.debugOwnerThread=Thread.currentThread();
-            for(String code:List.of(fixture,api,"local animals=(function()\n"+Files.readString(lua.resolve("ScenarioAnimals.lua"))+"\nend)()",Files.readString(lua.resolve("ScenarioLights.lua")),Files.readString(lua.resolve("ScenarioObjects.lua")),Files.readString(lua.resolve("ScenarioMultiplayer.lua")),runtime,adapter,check))run(thread,env,code);
+            for(String code:List.of(fixture,api,Files.readString(lua.resolve("ScenarioZombies.lua")),"local animals=(function()\n"+Files.readString(lua.resolve("ScenarioAnimals.lua"))+"\nend)()",Files.readString(lua.resolve("ScenarioLights.lua")),Files.readString(lua.resolve("ScenarioObjects.lua")),Files.readString(lua.resolve("ScenarioMultiplayer.lua")),runtime,args.length>2&&args[2].equals("weather-only")?"":adapter,check))run(thread,env,code);
             if(check.startsWith("local cmd=ModStudioScenarioObjects.cell;")){
                 run(thread,env,"PZ3D.scenarioRenderQualityShadows=function() return 3 end;PZ3D.scenarioRenderQualityScenery=function() return true end;PZ3D.scenarioVariantKnown=function(name) return name=='production' or name=='lamp_budget_current' or name=='lamp_budget_increased' or name=='lamp_budget_unbounded' end");
                 var convert=ScenarioHost.class.getDeclaredMethod("lua",Object.class);convert.setAccessible(true);
@@ -262,7 +265,8 @@ public final class ScenarioRegression {
                 }
             }
         }
-        if(args.length>2&&args[2].equals("teleport-only"))System.out.println("PASS: default and centered native teleport, single provider adoption and validation.");
+        if(args.length>2&&args[2].equals("weather-only"))System.out.println("PASS: native rain/fog/wind/snow validation, applied values, NoSave guard and override cleanup.");
+        else if(args.length>2&&args[2].equals("teleport-only"))System.out.println("PASS: default and centered native teleport, single provider adoption and validation.");
         else System.out.println("PASS: bounded schema, native-only launch, item cleanup, teleport, timeout, unknown commands, independent diagnostics, PZ3D route failure, interruption and automatic exit.");
     }
     static void persistence(String valid)throws Exception {
@@ -271,7 +275,7 @@ public final class ScenarioRegression {
             boolean rejected=false;try{ScenarioHost.validate(ScenarioJson.parse(valid.replace("\"steps\"",fields+",\"steps\"")));}catch(Exception e){rejected=true;}if(!rejected)throw new AssertionError("Invalid persistent context: "+fields);
         }
         boolean guarded=false;try{ScenarioHost.saveNativeWorld();}catch(IllegalStateException e){guarded=true;}if(!guarded)throw new AssertionError("Unowned native save");
-        Path artifacts=Files.createTempDirectory("modstudio-save-test-"),output=Files.createDirectory(artifacts.resolve("20261007-T000000Z-00000000000000000000000000000000")),profile=Files.createDirectory(output.resolve("native-profile"));
+        Path artifacts=Files.createTempDirectory("modstudio-save-test-").toRealPath(),output=Files.createDirectory(artifacts.resolve("20261007-T000000Z-00000000000000000000000000000000")),profile=Files.createDirectory(output.resolve("native-profile"));
         String token="test-owner";Files.writeString(profile.resolve("profile-owner.json"),ScenarioJson.write(Map.of("schema",1,"profile",profile.toString(),"token",token)));
         Files.writeString(output.resolve("launch.json"),ScenarioJson.write(Map.of("nativeProfile",profile.toString(),"profileToken",token)));
         var fresh=ScenarioJson.parse(valid.replace("\"steps\"","\"persistence\":{\"mode\":\"new\"},\"steps\""));
