@@ -10,6 +10,8 @@
 
 ### Maintenance
 
+- Repository: track the complete Mod Studio sources, build scripts, validation fixtures and resources in pz-mods; exclude generated binaries and caches.
+
 - Multiplayer scenarios: observe native barricade construction, transaction progress, replicated boards and material consumption without treating a recorded stall as successful construction.
 
 - Scenarios: allow explicit manual handoff of an owned persistent world, preserving native saves and profile ownership checks.

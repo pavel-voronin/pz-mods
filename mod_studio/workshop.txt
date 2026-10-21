@@ -1,0 +1,16 @@
+version=1
+id=3809580399
+title=Mod Studio [Java]
+description=Mod Studio replaces the Workshop editing page with separate sections for localized texts, the primary preview, settings, dependencies and mod files. The source of the displayed data and unsaved edits are labelled. The action at the bottom saves the current section; mod files are shown as a folder tree.
+description=
+description=Existing publications load their current English text, settings, dependencies and preview from Steam when opened. Added languages load automatically on first opening. Language drafts stay in memory while the editor is open. English text can explicitly be loaded from or saved to workshop.txt. No language lists or per-mod preferences are stored.
+description=
+description=Updates to mod files do not replace descriptions, titles, tags, visibility or the preview. Choose primary PNG/JPG/GIF previews from the package file tree; GIF previews animate in the editor. Reload the current Steam preview or save an unchanged copy into the package without overwriting local artwork. Preview uploads are limited to 1,024,000 bytes; the editor validates actual format, dimensions and readability. Images are not resized or converted for upload. Supports content descriptors and Workshop dependencies. Known local dependencies can be imported; unresolved IDs are ignored.
+description=
+description=The same editor supports first publication: English text, a selected preview and valid mod files are required. Publish new mod is available from every section and includes added translations, settings and dependencies. Files are compared by path, size and SHA-1 with the current Steam manifest. Only the manifest is downloaded; no subscription or installed copy is required for public items. Added, changed and removed files are shown by default, with an option to show all files. Java builds are signed with the author key.
+description=
+description=Requires ZombieBuddy (Workshop ID 3619862853), including its one-time Java loader installation. This is a client-side Java patch for mod authors. It is not required by players downloading your mods.
+description=
+description=Windows / game version 42.20.4. Development build 0.3.6. Anonymous manifest reading and comparison have been tested against a public Workshop item. The new file comparison view and first-publication flow require in-game testing; no real publication has been performed in development.
+tags=Build 42;Interface;QoL
+visibility=private
