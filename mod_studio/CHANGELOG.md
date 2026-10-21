@@ -10,6 +10,8 @@
 
 ### Maintenance
 
+- macOS scenarios: allocate a 6 GiB Java heap as requested for rendering verification.
+
 - Scenarios: add an isolated macOS development runner with the common game-session lock, explicit bundles, existing ToS acceptance and bounded process ownership.
 - Scenarios: add owned native zombie/crawler/fire fixtures and native snow overrides with cleanup and validation regressions. Read the applied snow flag through the native climate manager API.
 

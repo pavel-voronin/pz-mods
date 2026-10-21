@@ -88,7 +88,7 @@ def execute(args, artifact):
                 CFBundleDisplayName='Mod Studio Scenario', WorkingDirectory=str(game / 'Java'))
     info['JVMOptions'] = ['-Djava.awt.headless=true', '--enable-native-access=ALL-UNNAMED',
         '--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED', '-XstartOnFirstThread',
-        '-Dzomboid.steam=0', '-Ddebug=true', '-Xmx4096m', '-XX:+UseZGC',
+        '-Dzomboid.steam=0', '-Ddebug=true', '-Xmx6g', '-XX:+UseZGC',
         f'-Dmodstudio.scenario={scenario}', f'-Dmodstudio.scenario.output={artifact}',
         '-Dpz3d.macCoreDiagnostics=true',
         f'-javaagent:{args.buddy}=verbosity=1,policy=allow-all,config_dir={artifact / "buddy-config"}']
