@@ -49,7 +49,7 @@ API.register("native",{
     end,
     update=function(c) ScenarioRoute.update(c);if c.nativeHuman then ModStudioScenario.updateHuman() end end,
     boundary=function(c) if c.nativeBaseline then assert(ModStudioNativeBaseline.stop()==true,"Native baseline stop failed") end;if c.nativeDriving then ModStudioDriving.stop() end end,
-    finish=function(c) ModStudioScenario.renderSnapshotPause(false);ModStudioScenario.restoreReferenceLights();if c.nativeBaseline then assert(ModStudioNativeBaseline.close()==true,"Native baseline cleanup failed");c.nativeBaseline=nil end;ScenarioRoute.clear(c);ScenarioLights.clear(c);ScenarioAnimals.clear(c);ModStudioScenarioZombies.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;if c.nativeFrameRate then ModStudioScenario.setFrameLimit(c.nativeFrameRate);ModStudioScenario.setFrameUncapped(c.nativeUncapped);ModStudioScenario.setFrameSync(c.nativeVSync);c.nativeFrameRate=nil end;return true end
+    finish=function(c) if c.nativeWorldMapOwned and ISWorldMap_instance and ISWorldMap_instance:isVisible() then ISWorldMap_instance:close() end;c.nativeWorldMapOwned=nil;ModStudioScenario.renderSnapshotPause(false);ModStudioScenario.restoreReferenceLights();if c.nativeBaseline then assert(ModStudioNativeBaseline.close()==true,"Native baseline cleanup failed");c.nativeBaseline=nil end;ScenarioRoute.clear(c);ScenarioLights.clear(c);ScenarioAnimals.clear(c);ModStudioScenarioZombies.clear(c);if c.nativeHuman then ModStudioScenario.clearHuman();c.nativeHuman=nil end;if c.nativeDriving then ModStudioDriving.close();c.nativeDriving=nil end;if c.nativeFrameRate then ModStudioScenario.setFrameLimit(c.nativeFrameRate);ModStudioScenario.setFrameUncapped(c.nativeUncapped);ModStudioScenario.setFrameSync(c.nativeVSync);c.nativeFrameRate=nil end;return true end
 }, {
     baselinePrepare={start=function(c) c.nativeBaseline=true end,tick=function() local ready=ModStudioNativeBaseline.open();assert(ready~=nil,"Native baseline preparation failed");return ready end},
     baseline={validate=function(s)
@@ -103,6 +103,30 @@ API.register("native",{
     lightWorkbenchSelect=ScenarioLights.workbenchSelect,
     equip=ScenarioLights.equip,
     weaponLight=ScenarioLights.weaponLight,
+    uiPanel={validate=function(s)
+            assert(s.panel=="inventory" or s.panel=="character","Unsupported native panel")
+            assert(type(s.open)=="boolean","uiPanel requires open")
+        end,start=function(c,s)
+            assert(getCore():isNoSave(),"UI fixture requires a disposable NoSave world")
+            local index=c.player:getPlayerNum()
+            local panel=assert(s.panel=="inventory" and getPlayerInventory(index) or getPlayerInfoPanel(index),"Native panel unavailable")
+            c.nativePanels=c.nativePanels or {}
+            if not c.nativePanels[s.panel] then c.nativePanels[s.panel]={panel=panel,visible=panel:isVisible()} end
+            panel:setVisible(s.open)
+            if s.open then panel:addToUIManager();panel:bringToTop() end
+            assert(panel:isVisible()==s.open,"Native panel visibility mismatch")
+            c.event("native-ui-panel",s.panel.."="..tostring(s.open))
+        end},
+    worldMap={validate=function(s) assert(type(s.open)=="boolean","worldMap requires open") end,
+        start=function(c,s)
+            assert(getCore():isNoSave(),"World map fixture requires a disposable NoSave world")
+            require "ISUI/Maps/ISWorldMap"
+            local visible=ISWorldMap_instance and ISWorldMap_instance:isVisible() or false
+            if s.open and not visible then c.nativeWorldMapOwned=true;ISWorldMap.ShowWorldMap(c.player:getPlayerNum())
+            elseif not s.open and visible then assert(c.nativeWorldMapOwned,"World map is not scenario-owned");ISWorldMap_instance:close();c.nativeWorldMapOwned=nil end
+            assert((ISWorldMap_instance and ISWorldMap_instance:isVisible() or false)==s.open,"Native world map visibility mismatch")
+            c.event("native-world-map",tostring(s.open))
+        end},
     zombies=ModStudioScenarioZombies.command,
     clearZombies={start=function(c) ModStudioScenarioZombies.clear(c) end},
     animals=ScenarioAnimals.command,
@@ -313,6 +337,8 @@ local function restoreNative()
         value:setAdminValue(ctx.weatherSnowSaved.value);value:setEnableAdmin(ctx.weatherSnowSaved.enabled)
         ctx.weatherSnowSaved=nil
     end
+    for _,saved in pairs(ctx.nativePanels or {}) do saved.panel:setVisible(saved.visible) end
+    ctx.nativePanels=nil
     if ctx.weatherSaved then
         for id,saved in pairs(ctx.weatherSaved) do
             local value=getClimateManager():getClimateFloat(id)

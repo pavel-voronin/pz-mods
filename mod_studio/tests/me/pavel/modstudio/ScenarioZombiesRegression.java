@@ -18,15 +18,17 @@ public final class ScenarioZombiesRegression {
             local failAt=0
             addZombiesInOutfit=function(x,y,z,count,outfit,female,crawler,fall,fake,knock,invulnerable,sitting,health,record,height,ragdoll,fire)
                 calls=calls+1;if calls==failAt then error('spawn failure') end
-                assert(count==1 and invulnerable and not sitting and health==1)
-                local zombie={removeFromWorld=function() removed=removed+1 end,removeFromSquare=function() end}
+                assert(count==1 and invulnerable==not fire and not sitting and health==1)
+                local zombie={isCrawling=function() return crawler end,isOnFire=function() return fire and not invulnerable end,removeFromWorld=function() removed=removed+1 end,removeFromSquare=function() end}
                 return {size=function() return 1 end,get=function() return zombie end}
             end
             local c={player={getX=function() return 10 end,getY=function() return 20 end,getZ=function() return 0 end},event=function() end}
             local command=ModStudioScenarioZombies.command
             for _,s in ipairs({{count=13,dx=2,dy=0},{count=1,dx=1,dy=0},{count=1,dx=0/0,dy=2},{count=1,dx=2,dy=0,crawler=1}}) do assert(not pcall(command.validate,s)) end
             local step={count=2,dx=2,dy=0,crawler=true,onFire=true};command.validate(step);command.start(c,step)
-            assert(calls==2 and #c.nativeZombies==2)
+            assert(calls==2 and #c.nativeZombies==2 and command.tick(c))
+            c.nativeZombies[1].isCrawling=function() return false end;assert(not command.tick(c))
+            c.nativeZombies[1].isCrawling=function() return true end;assert(command.tick(c))
             ModStudioScenarioZombies.clear(c);assert(removed==2 and c.nativeZombies==nil)
             failAt=calls+2;assert(not pcall(command.start,c,step));assert(#c.nativeZombies==1)
             ModStudioScenarioZombies.clear(c);assert(removed==3)

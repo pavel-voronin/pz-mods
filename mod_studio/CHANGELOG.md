@@ -10,6 +10,13 @@
 
 ### Maintenance
 
+- Scenarios: control native inventory/character panels with NoSave validation, visibility checks and cleanup.
+
+- Burning zombie fixtures use native health instead of god mode, which extinguishes fire in the vanilla engine.
+
+- Scenarios: await actual native crawler/fire flags on owned zombies.
+- Scenarios: open and close the native world map in an owned disposable scenario and clean up only the map opened by that scenario.
+
 - macOS scenarios: allocate a 6 GiB Java heap as requested for rendering verification.
 
 - Scenarios: add an isolated macOS development runner with the common game-session lock, explicit bundles, existing ToS acceptance and bounded process ownership.
